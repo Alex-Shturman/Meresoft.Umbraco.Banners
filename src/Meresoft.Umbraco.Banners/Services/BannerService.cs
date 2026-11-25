@@ -157,6 +157,7 @@ internal sealed class BannerService : IBannerService
             return Attempt.FailWithStatus(BannerOperationStatus.ChangedByAnotherUser, banner);
         }
 
+        DateTime loadedUpdateDate = banner.UpdateDate;
         DateTime now = UtcTimestamp.Truncate(_timeProvider.GetUtcNow().UtcDateTime);
         FieldValidationResult validation = ApplyDraft(banner, model, banner.Draft, now, userKey);
         if (!validation.IsValid)
@@ -164,13 +165,10 @@ internal sealed class BannerService : IBannerService
             return Fail(BannerOperationStatus.InvalidData, banner, validation);
         }
 
-        try
+        // The write is guarded by the update date read above, so a save by someone else in between is not overwritten.
+        if (!_banners.SaveDraft(banner, loadedUpdateDate))
         {
-            _banners.SaveDraft(banner);
-        }
-        catch (InvalidOperationException)
-        {
-            return Attempt.FailWithStatus(BannerOperationStatus.NotFound, banner);
+            return Attempt.FailWithStatus(BannerOperationStatus.ChangedByAnotherUser, banner);
         }
 
         await _audit.WriteBannerAsync(BannerAuditAction.Save, userKey, banner.Id);
@@ -204,13 +202,10 @@ internal sealed class BannerService : IBannerService
             return Attempt.FailWithStatus(BannerOperationStatus.NoZoneAssigned, banner);
         }
 
-        try
+        // Guarded by the update date read above: a save by someone else in between makes this publish fail.
+        if (!_banners.CopyDraftOverLive(banner.Id, _timeProvider.GetUtcNow().UtcDateTime, banner.UpdateDate))
         {
-            _banners.CopyDraftOverLive(banner.Id, _timeProvider.GetUtcNow().UtcDateTime);
-        }
-        catch (InvalidOperationException)
-        {
-            return Attempt.FailWithStatus(BannerOperationStatus.NotFound, banner);
+            return Attempt.FailWithStatus(BannerOperationStatus.ChangedByAnotherUser, banner);
         }
 
         await _audit.WriteBannerAsync(BannerAuditAction.Publish, userKey, banner.Id);

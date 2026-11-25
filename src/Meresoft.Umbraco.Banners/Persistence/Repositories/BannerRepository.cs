@@ -50,31 +50,71 @@ internal sealed class BannerRepository : RepositoryBase, IBannerRepository
     public void SaveDraft(Banner banner)
     {
         ArgumentNullException.ThrowIfNull(banner);
+        RequireRow(SaveDraftCore(banner, null) ? 1 : 0, "Banner", banner.Id);
+    }
+
+    public bool SaveDraft(Banner banner, DateTime expectedUpdateDate)
+    {
+        ArgumentNullException.ThrowIfNull(banner);
+        return SaveDraftCore(banner, UtcTimestamp.Truncate(expectedUpdateDate));
+    }
+
+    public void CopyDraftOverLive(int bannerId, DateTime publishDateUtc) =>
+        RequireRow(CopyDraftOverLiveCore(bannerId, publishDateUtc, null) ? 1 : 0, "Banner", bannerId);
+
+    public bool CopyDraftOverLive(int bannerId, DateTime publishDateUtc, DateTime expectedUpdateDate) =>
+        CopyDraftOverLiveCore(bannerId, publishDateUtc, UtcTimestamp.Truncate(expectedUpdateDate));
+
+    private bool SaveDraftCore(Banner banner, DateTime? expectedUpdateDate)
+    {
         if (banner.Draft is null)
         {
             throw new InvalidOperationException("The banner has no draft version to save.");
         }
 
-        // Only the columns this save owns are written, so a concurrent change to another column is not overwritten.
+        // The banner row update is the first write and the guard: it only matches while nobody changed the banner
+        // since it was loaded. Only the columns this save owns are written, so a concurrent change to another column is not overwritten.
         DateTime updateDate = UtcTimestamp.Truncate(banner.UpdateDate);
         Guid updatedBy = banner.UpdatedBy;
         string name = banner.Name;
         int id = banner.Id;
-        RequireRow(
-            Database.Execute(NewSql()
-                .Update<BannerDto>(u => u.Set(b => b.Name, name).Set(b => b.UpdateDate, updateDate).Set(b => b.UpdatedBy, updatedBy))
-                .Where<BannerDto>(b => b.Id == id)),
-            "Banner",
-            id);
+        Sql<ISqlContext> update = NewSql()
+            .Update<BannerDto>(u => u.Set(b => b.Name, name).Set(b => b.UpdateDate, updateDate).Set(b => b.UpdatedBy, updatedBy))
+            .Where<BannerDto>(b => b.Id == id);
+        if (expectedUpdateDate is { } expected)
+        {
+            update = update.Where<BannerDto>(b => b.UpdateDate == expected);
+        }
+
+        if (Database.Execute(update) == 0)
+        {
+            return false;
+        }
 
         banner.Draft.BannerId = banner.Id;
         banner.Draft.Kind = BannerVersionKind.Draft;
         RequireRow(Database.Update(BannerMapper.ToDto(banner.Draft)), "Draft version", banner.Draft.Id);
         ReplaceAssignments(banner.Draft.Id, banner.Draft.ZoneIds);
+        return true;
     }
 
-    public void CopyDraftOverLive(int bannerId, DateTime publishDateUtc)
+    private bool CopyDraftOverLiveCore(int bannerId, DateTime publishDateUtc, DateTime? expectedUpdateDate)
     {
+        // The banner row update is the first write and the guard, as in SaveDraft.
+        DateTime publishDate = UtcTimestamp.Truncate(publishDateUtc);
+        Sql<ISqlContext> mark = NewSql()
+            .Update<BannerDto>(u => u.Set(b => b.IsPublished, true).Set(b => b.PublishDate, (DateTime?)publishDate))
+            .Where<BannerDto>(b => b.Id == bannerId);
+        if (expectedUpdateDate is { } expected)
+        {
+            mark = mark.Where<BannerDto>(b => b.UpdateDate == expected);
+        }
+
+        if (Database.Execute(mark) == 0)
+        {
+            return false;
+        }
+
         BannerVersionDto draft = FindVersion(bannerId, BannerVersionKind.Draft)
             ?? throw new InvalidOperationException($"Banner {bannerId} has no draft version to publish.");
         List<int> zoneIds = LoadZoneIds([draft.Id]).GetValueOrDefault(draft.Id) ?? [];
@@ -92,14 +132,7 @@ internal sealed class BannerRepository : RepositoryBase, IBannerRepository
         }
 
         ReplaceAssignments(copy.Id, zoneIds);
-
-        DateTime publishDate = UtcTimestamp.Truncate(publishDateUtc);
-        RequireRow(
-            Database.Execute(NewSql()
-                .Update<BannerDto>(u => u.Set(b => b.IsPublished, true).Set(b => b.PublishDate, (DateTime?)publishDate))
-                .Where<BannerDto>(b => b.Id == bannerId)),
-            "Banner",
-            bannerId);
+        return true;
     }
 
     public void SetPublished(int bannerId, bool isPublished)

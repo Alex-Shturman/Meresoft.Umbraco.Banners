@@ -11,6 +11,9 @@ internal interface IZoneRepository
     /// <summary>Updates all fields of a zone.</summary>
     void Update(BannerZone zone);
 
+    /// <summary>Updates all fields only while the stored update date equals <paramref name="expectedUpdateDate"/>; false when it does not.</summary>
+    bool Update(BannerZone zone, DateTime expectedUpdateDate);
+
     /// <summary>Deletes a zone. Fails while an assignment refers to it.</summary>
     void Delete(int id);
 

@@ -259,6 +259,89 @@ public class BannerRepositoryTests : BannersIntegrationTestBase
     }
 
     [Test]
+    public void SaveDraft_WithAStaleExpectedUpdateDate_ChangesNothing_AndReturnsFalse()
+    {
+        Banner banner = NewBanner("Summer promo");
+        using (IScope scope = ScopeProvider.CreateScope())
+        {
+            AddZone("zone-a");
+            Banners.Add(banner);
+            scope.Complete();
+        }
+
+        Banner edit;
+        using (ScopeProvider.CreateScope(autoComplete: true))
+        {
+            edit = Banners.GetById(banner.Id)!;
+        }
+
+        edit.Name = "Edited";
+        edit.Draft!.AltText = "Edited alt";
+        edit.Draft.ZoneIds = [];
+        using (IScope scope = ScopeProvider.CreateScope())
+        {
+            bool saved = Banners.SaveDraft(edit, Saved.AddDays(-1));
+            scope.Complete();
+            Assert.That(saved, Is.False);
+        }
+
+        using (ScopeProvider.CreateScope(autoComplete: true))
+        {
+            Banner loaded = Banners.GetById(banner.Id)!;
+            Assert.That(loaded.Name, Is.EqualTo("Summer promo"));
+            Assert.That(loaded.Draft!.AltText, Is.EqualTo("Invented summer promo"));
+        }
+    }
+
+    [Test]
+    public void SaveDraft_WithTheMatchingExpectedUpdateDate_SavesAndReturnsTrue()
+    {
+        Banner banner = NewBanner("Summer promo");
+        using (IScope scope = ScopeProvider.CreateScope())
+        {
+            Banners.Add(banner);
+            scope.Complete();
+        }
+
+        banner.Name = "Edited";
+        banner.UpdateDate = Saved.AddHours(1);
+        using (IScope scope = ScopeProvider.CreateScope())
+        {
+            Assert.That(Banners.SaveDraft(banner, Saved), Is.True);
+            scope.Complete();
+        }
+
+        using (ScopeProvider.CreateScope(autoComplete: true))
+        {
+            Assert.That(Banners.GetById(banner.Id)!.Name, Is.EqualTo("Edited"));
+        }
+    }
+
+    [Test]
+    public void CopyDraftOverLive_WithAStaleExpectedUpdateDate_PublishesNothing_AndReturnsFalse()
+    {
+        Banner banner = NewBanner("Summer promo");
+        using (IScope scope = ScopeProvider.CreateScope())
+        {
+            Banners.Add(banner);
+            scope.Complete();
+        }
+
+        using (IScope scope = ScopeProvider.CreateScope())
+        {
+            Assert.That(Banners.CopyDraftOverLive(banner.Id, Saved.AddDays(1), Saved.AddDays(-1)), Is.False);
+            scope.Complete();
+        }
+
+        using (ScopeProvider.CreateScope(autoComplete: true))
+        {
+            Banner loaded = Banners.GetById(banner.Id)!;
+            Assert.That(loaded.IsPublished, Is.False);
+            Assert.That(loaded.Live, Is.Null);
+        }
+    }
+
+    [Test]
     public void SaveDraft_WritesOnlyNameAndUpdateColumnsOfTheBannerRow()
     {
         Banner banner = NewBanner("Summer promo");

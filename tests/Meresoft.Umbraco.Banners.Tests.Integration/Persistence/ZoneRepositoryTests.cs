@@ -240,4 +240,40 @@ public class ZoneRepositoryTests : BannersIntegrationTestBase
             Assert.That(Zones.GetAssignedBannerKeys(zone.Id), Is.Empty);
         }
     }
+
+    [Test]
+    public void Update_WithAStaleExpectedUpdateDate_ChangesNothing_AndReturnsFalse()
+    {
+        var saved = new DateTime(2027, 1, 2, 3, 4, 5, DateTimeKind.Utc);
+        var zone = new BannerZone { Key = Guid.NewGuid(), Alias = "guarded", Name = "Guarded", CreateDate = saved, UpdateDate = saved };
+        using (IScope scope = ScopeProvider.CreateScope())
+        {
+            Zones.Add(zone);
+            scope.Complete();
+        }
+
+        zone.Name = "Changed";
+        using (IScope scope = ScopeProvider.CreateScope())
+        {
+            Assert.That(Zones.Update(zone, saved.AddDays(-1)), Is.False);
+            scope.Complete();
+        }
+
+        using (ScopeProvider.CreateScope(autoComplete: true))
+        {
+            Assert.That(Zones.GetById(zone.Id)!.Name, Is.EqualTo("Guarded"));
+        }
+
+        zone.UpdateDate = saved.AddHours(1);
+        using (IScope scope = ScopeProvider.CreateScope())
+        {
+            Assert.That(Zones.Update(zone, saved), Is.True);
+            scope.Complete();
+        }
+
+        using (ScopeProvider.CreateScope(autoComplete: true))
+        {
+            Assert.That(Zones.GetById(zone.Id)!.Name, Is.EqualTo("Changed"));
+        }
+    }
 }

@@ -119,6 +119,7 @@ internal sealed class BannerZoneService : IBannerZoneService
             return Attempt.FailWithStatus(BannerOperationStatus.ChangedByAnotherUser, zone);
         }
 
+        DateTime loadedUpdateDate = zone.UpdateDate;
         Apply(model, zone);
         zone.UpdateDate = UtcTimestamp.Truncate(_timeProvider.GetUtcNow().UtcDateTime);
 
@@ -134,14 +135,10 @@ internal sealed class BannerZoneService : IBannerZoneService
             return Attempt.FailWithStatus(BannerOperationStatus.DuplicateAlias, zone);
         }
 
-        try
+        // Guarded by the update date read above, so a save by someone else in between is not overwritten.
+        if (!_zones.Update(zone, loadedUpdateDate))
         {
-            _zones.Update(zone);
-        }
-        catch (InvalidOperationException)
-        {
-            // The zone was deleted between the read and the write.
-            return Attempt.FailWithStatus(BannerOperationStatus.NotFound, zone);
+            return Attempt.FailWithStatus(BannerOperationStatus.ChangedByAnotherUser, zone);
         }
 
         _requestedZones.Delete(zone.Alias);

@@ -31,6 +31,25 @@ internal sealed class ZoneRepository : RepositoryBase, IZoneRepository
         RequireRow(Database.Update(BannerMapper.ToDto(zone)), "Zone", zone.Id);
     }
 
+    public bool Update(BannerZone zone, DateTime expectedUpdateDate)
+    {
+        ArgumentNullException.ThrowIfNull(zone);
+        ZoneDto dto = BannerMapper.ToDto(zone);
+        DateTime expected = UtcTimestamp.Truncate(expectedUpdateDate);
+        int id = dto.Id;
+        return Database.Execute(NewSql()
+            .Update<ZoneDto>(u => u
+                .Set(z => z.Alias, dto.Alias)
+                .Set(z => z.Name, dto.Name)
+                .Set(z => z.Description, dto.Description)
+                .Set(z => z.ShowCount, dto.ShowCount)
+                .Set(z => z.ImageWidth, dto.ImageWidth)
+                .Set(z => z.ImageHeight, dto.ImageHeight)
+                .Set(z => z.RenderMode, dto.RenderMode)
+                .Set(z => z.UpdateDate, dto.UpdateDate))
+            .Where<ZoneDto>(z => z.Id == id && z.UpdateDate == expected)) > 0;
+    }
+
     public void Delete(int id) => Database.Delete<ZoneDto>(id);
 
     public BannerZone? GetByKey(Guid key) =>
