@@ -1,9 +1,24 @@
 // Package script (server mode): reports banners that were really seen. No dependencies, no cookies, nothing stored.
 // A banner counts after 1,000 ms of continuous visibility at 50% or more while the tab is visible (FR-011).
 // Without IntersectionObserver nothing is counted. The server decides what counts; see contracts/public-endpoints.md.
+// Client mode (cached pages): a placeholder asks {base}/zone/{alias}, gets public fields, builds the banners through
+// the DOM and then treats them like server mode banners.
 (() => {
   if (!("IntersectionObserver" in window)) {
     return;
+  }
+
+  interface Delivered {
+    id: number;
+    type: string;
+    clickUrl?: string;
+    newWindow?: boolean;
+    imageUrl?: string;
+    width?: number | null;
+    height?: number | null;
+    alt?: string;
+    title?: string | null;
+    html?: string;
   }
 
   const HOLD_MS = 1000;
@@ -87,6 +102,64 @@
   addEventListener("pagehide", send);
 
   document.querySelectorAll("[data-mbz][data-mbz-token] [data-mbb]").forEach((el) => observer.observe(el));
+
+  // Elements are built with setAttribute, so a value is never parsed as markup. Null and undefined mean "no attribute".
+  const make = (tag: string, attrs: Record<string, string | number | null | undefined>, ...children: Element[]): HTMLElement => {
+    const el = document.createElement(tag);
+    for (const name of Object.keys(attrs)) {
+      const value = attrs[name];
+      if (value != null) {
+        el.setAttribute(name, String(value));
+      }
+    }
+    el.append(...children);
+    return el;
+  };
+
+  const build = (b: Delivered): HTMLElement => {
+    if (b.type === "html") {
+      const box = make("div", { class: "mb-banner mb-html", "data-mbb": b.id });
+      // Scripts that come in through innerHTML never run, so each one is replaced by a fresh copy.
+      box.innerHTML = b.html ?? "";
+      box.querySelectorAll("script").forEach((old) => {
+        const script = document.createElement("script");
+        old.getAttributeNames().forEach((name) => script.setAttribute(name, old.getAttribute(name) ?? ""));
+        script.textContent = old.textContent;
+        old.replaceWith(script);
+      });
+      return box;
+    }
+    return make(
+      "div",
+      { class: "mb-banner", "data-mbb": b.id },
+      make(
+        "a",
+        { href: b.clickUrl, rel: "sponsored noopener", target: b.newWindow ? "_blank" : null, title: b.title },
+        make("img", { src: b.imageUrl, alt: b.alt, width: b.width, height: b.height, loading: "lazy", decoding: "async" }),
+      ),
+    );
+  };
+
+  // The placeholder keeps its fallback until at least one banner has come back; any failure leaves it as it is.
+  const load = (zone: HTMLElement): void => {
+    const { mbBase, mbz } = zone.dataset;
+    if (!mbBase || !mbz) {
+      return;
+    }
+    fetch(mbBase + "/zone/" + encodeURIComponent(mbz), { credentials: "omit" })
+      .then((r) => (r.ok ? r.json() : null))
+      .then((d: { token?: string; banners?: Delivered[] } | null) => {
+        if (d?.token && d.banners?.length) {
+          const els = d.banners.map(build);
+          zone.dataset.mbzToken = d.token;
+          zone.replaceChildren(...els);
+          els.forEach((el) => observer.observe(el));
+        }
+      })
+      .catch(() => {});
+  };
+
+  document.querySelectorAll<HTMLElement>("[data-mbz-mode=client]").forEach(load);
 })();
 
 // Makes the file a module so the tests can import it; the build drops this line.

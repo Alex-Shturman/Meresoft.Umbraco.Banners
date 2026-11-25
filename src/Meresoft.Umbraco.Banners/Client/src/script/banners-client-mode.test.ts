@@ -21,6 +21,10 @@ class FakeElement {
 
   setAttribute(name: string, value: string) {
     this.attributes.set(name, value);
+    // The browser mirrors data-* attributes into dataset.
+    if (name.startsWith("data-")) {
+      this.dataset[name.slice(5).replace(/-(\w)/g, (_, c: string) => c.toUpperCase())] = value;
+    }
   }
   getAttribute(name: string) {
     return this.attributes.get(name) ?? null;
@@ -51,8 +55,8 @@ class FakeElement {
     for (const match of value.matchAll(/<script([^>]*)>([\s\S]*?)<\/script>/g)) {
       const script = new FakeElement("script");
       script.parsed = true;
-      for (const attr of match[1].matchAll(/(\w+)="([^"]*)"/g)) {
-        script.setAttribute(attr[1], attr[2]);
+      for (const attr of match[1].matchAll(/(\w+)(?:="([^"]*)")?/g)) {
+        script.setAttribute(attr[1], attr[2] ?? "");
       }
       script.textContent = match[2];
       this.append(script);
