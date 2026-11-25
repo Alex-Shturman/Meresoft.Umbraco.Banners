@@ -19,3 +19,20 @@ export function getAdminCredentials(): AdminCredentials {
     password: required("MB_SAMPLE_ADMIN_PASSWORD"),
   };
 }
+
+/** Reads an optional pair of credentials; undefined when either variable is missing. */
+function optionalPair(emailName: string, passwordName: string): AdminCredentials | undefined {
+  const email = process.env[emailName];
+  const password = process.env[passwordName];
+  return email && password ? { email, password } : undefined;
+}
+
+/** The sample editor, who is in the built-in Editors group and has no Banners section (MB_SAMPLE_EDITOR_*). */
+export function getEditorCredentials(): AdminCredentials | undefined {
+  return optionalPair("MB_SAMPLE_EDITOR_EMAIL", "MB_SAMPLE_EDITOR_PASSWORD");
+}
+
+/** The sample banner editor: a group with the Banners section but not the HTML permission (MB_SAMPLE_BANNER_EDITOR_*). */
+export function getBannerEditorCredentials(): AdminCredentials | undefined {
+  return optionalPair("MB_SAMPLE_BANNER_EDITOR_EMAIL", "MB_SAMPLE_BANNER_EDITOR_PASSWORD");
+}

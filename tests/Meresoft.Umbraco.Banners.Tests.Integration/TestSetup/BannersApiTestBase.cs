@@ -8,7 +8,10 @@ using Meresoft.Umbraco.Banners.Tests.Integration.ManagementApi;
 using Microsoft.Extensions.DependencyInjection;
 using Umbraco.Cms.Core;
 using Umbraco.Cms.Core.DependencyInjection;
+using Umbraco.Cms.Core.Models;
+using Umbraco.Cms.Core.Models.Membership;
 using Umbraco.Cms.Core.Services;
+using Umbraco.Cms.Core.Strings;
 using Umbraco.Cms.Core.Sync;
 using Umbraco.Cms.Infrastructure.Scoping;
 using Umbraco.Cms.Tests.Integration.ManagementApi;
@@ -69,6 +72,62 @@ public abstract class BannersApiTestBase : ManagementApiTest<SectionProbeControl
     {
         JsonElement banner = await ReadAsync(await GetAsync("/banners/" + key));
         return await PostAsync($"/banners/{key}/publish", new { updateDate = banner.GetProperty("updateDate").GetDateTime() });
+    }
+
+    /// <summary>
+    /// Creates one user group per entry (with the Banners section and, when asked, the HTML verb as a fallback
+    /// permission), puts one new user into all of them and signs that user in.
+    /// </summary>
+    protected async Task SignInWithGroupsAsync(string email, params (bool Section, bool Html)[] groups)
+    {
+        IUserGroupService groupService = GetRequiredService<IUserGroupService>();
+        var created = new List<IUserGroup>();
+        foreach ((bool section, bool html) in groups)
+        {
+            string suffix = Guid.NewGuid().ToString("N")[..12];
+            var group = new UserGroup(GetRequiredService<IShortStringHelper>())
+            {
+                Alias = "test-" + suffix,
+                Name = "Test group " + suffix,
+                HasAccessToAllLanguages = true,
+            };
+            group.AddAllowedSection(Constants.Applications.Content);
+            if (section)
+            {
+                group.AddAllowedSection(BannersConstants.SectionAlias);
+            }
+
+            if (html)
+            {
+                group.Permissions.Add(BannersConstants.HtmlPermission);
+            }
+
+            var attempt = await groupService.CreateAsync(group, Constants.Security.SuperUserKey, null);
+            Assert.That(attempt.Success, Is.True, $"group: {attempt.Status}");
+            created.Add(attempt.Result);
+        }
+
+        await AuthenticateClientAsync(Client, email, "1234567890", created[0].Key);
+        if (created.Count > 1)
+        {
+            // The helper signs the user in with the first group only; the rest is added the way an administrator would.
+            IUserService users = GetRequiredService<IUserService>();
+            IUser user = users.GetByEmail(email)!;
+            var update = await users.UpdateAsync(Constants.Security.SuperUserKey, new UserUpdateModel
+            {
+                ExistingUserKey = user.Key,
+                Email = user.Email,
+                Name = user.Name!,
+                UserName = user.Username,
+                LanguageIsoCode = user.Language!,
+                UserGroupKeys = created.Select(g => g.Key).ToHashSet(),
+                ContentStartNodeKeys = new HashSet<Guid>(),
+                MediaStartNodeKeys = new HashSet<Guid>(),
+                HasContentRootAccess = true,
+                HasMediaRootAccess = true,
+            });
+            Assert.That(update.Success, Is.True, $"user update: {update.Status}");
+        }
     }
 
     protected IScopeProvider ScopeProvider => GetRequiredService<IScopeProvider>();

@@ -220,4 +220,39 @@ public class BannerZoneHtmlWriterTests
             return false;
         }
     }
+
+    private static SelectedBanner HtmlBanner(int id, string html) => new()
+    {
+        BannerId = id,
+        ZoneId = 3,
+        ImageUrl = string.Empty,
+        AltText = string.Empty,
+        LinkUrl = string.Empty,
+        Html = html,
+    };
+
+    [Test]
+    public void AnHtmlBanner_IsWrittenAsStoredInsideTheContractBox_WithNoClickWrapper()
+    {
+        // Ad network code is written as it is stored: not encoded, not wrapped in a link (FR-006).
+        const string stored = "<div class=\"ad\"><script>var x = 1 < 2;</script><b>Invented offer & more</b></div>";
+
+        string html = Render("side", null, [HtmlBanner(15, stored)]);
+
+        Assert.That(html, Is.EqualTo(
+            "<div class=\"mb-zone\" data-mbz=\"side\" data-mb-base=\"/_banners\">"
+            + "<div class=\"mb-banner mb-html\" data-mbb=\"15\">" + stored + "</div></div>"
+            + ScriptTag));
+        Assert.That(html, Does.Not.Contain("/c/15"), "no click redirect for html banners");
+        Assert.That(html, Does.Not.Contain("<a href"));
+    }
+
+    [Test]
+    public void AnImageAndAnHtmlBanner_CanShareAZone_InOrder()
+    {
+        string html = Render("z", null, [Banner(1), HtmlBanner(2, "<i>x</i>")]);
+
+        Assert.That(html, Does.Contain("<div class=\"mb-banner\" data-mbb=\"1\"><a href"));
+        Assert.That(html, Does.Contain("<div class=\"mb-banner mb-html\" data-mbb=\"2\"><i>x</i></div>"));
+    }
 }

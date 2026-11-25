@@ -229,4 +229,48 @@ public class LiveSnapshotBuilderTests
 
         Assert.That(snapshot.Zones["home-top"].Candidates.Single().ImageUrl, Is.EqualTo("http://localhost:8080/media/a.png"));
     }
+
+    private static Banner PublishedHtml(int id, string html, params int[] zoneIds) => new()
+    {
+        Id = id,
+        Key = Guid.NewGuid(),
+        Name = "Html banner " + id,
+        Type = BannerType.Html,
+        IsPublished = true,
+        Live = new BannerVersion
+        {
+            Kind = BannerVersionKind.Live,
+            Html = html,
+            Weight = 3,
+            ZoneIds = [.. zoneIds],
+        },
+    };
+
+    [Test]
+    public async Task AnHtmlBanner_IsACandidate_WithNoMediaLookup_AndIsNotImageMissing()
+    {
+        LiveSnapshot snapshot = await _builder.BuildAsync([Zone(1, "home-top", 728, 90)], [PublishedHtml(20, "<p>Invented html</p>", 1)]);
+
+        SnapshotBanner candidate = snapshot.Zones["home-top"].Candidates.Single();
+        Assert.Multiple(() =>
+        {
+            Assert.That(candidate.BannerId, Is.EqualTo(20));
+            Assert.That(candidate.Html, Is.EqualTo("<p>Invented html</p>"));
+            Assert.That(candidate.Weight, Is.EqualTo(3));
+            Assert.That(candidate.Selected.Html, Is.EqualTo("<p>Invented html</p>"));
+            Assert.That(snapshot.ImageMissingBannerIds, Is.Empty);
+            Assert.That(snapshot.MediaKeys, Is.Empty);
+        });
+        await _mediaCache.DidNotReceiveWithAnyArgs().GetByIdAsync(default(Guid));
+        _images.DidNotReceiveWithAnyArgs().GetImageUrl(default!);
+    }
+
+    [Test]
+    public async Task AnHtmlBanner_AndAnImageBanner_ShareAZone()
+    {
+        LiveSnapshot snapshot = await _builder.BuildAsync([Zone(1, "home-top")], [Published(10, MediaA, 1), PublishedHtml(20, "<p>x</p>", 1)]);
+
+        Assert.That(snapshot.Zones["home-top"].Candidates.Select(c => c.BannerId), Is.EquivalentTo(new[] { 10, 20 }));
+        Assert.That(snapshot.Zones["home-top"].Candidates.Single(c => c.BannerId == 10).Html, Is.Null);
+    }
 }

@@ -1,0 +1,144 @@
+using System.Net;
+using System.Text.Json;
+using Meresoft.Umbraco.Banners.Tests.Integration.TestSetup;
+using NUnit.Framework;
+
+namespace Meresoft.Umbraco.Banners.Tests.Integration.ManagementApi;
+
+/// <summary>US6 scenario 2 and FR-006: the HTML permission guards creating and changing Html banners, nothing else.</summary>
+[TestFixture]
+public class HtmlPermissionTests : BannersApiTestBase
+{
+    private const string StoredHtml = "<p>Invented html</p>";
+
+    private Guid _zoneKey;
+
+    [SetUp]
+    public async Task Prepare() => (_zoneKey, _) = await CreateZoneAsync("html-zone");
+
+    private object HtmlBody(string html = StoredHtml, string name = "Html offer", object? updateDate = null) => new
+    {
+        name,
+        type = "html",
+        html,
+        altText = "",
+        weight = 1,
+        openInNewWindow = false,
+        zoneKeys = new[] { _zoneKey },
+        updateDate,
+    };
+
+    /// <summary>Creates an Html banner as the signed in administrator, who holds the verb.</summary>
+    private async Task<Guid> HtmlBannerCreatedByAdminAsync()
+    {
+        HttpResponseMessage response = await PostAsync("/banners", HtmlBody());
+        Assert.That(response.StatusCode, Is.EqualTo(HttpStatusCode.Created), await response.Content.ReadAsStringAsync());
+        return KeyFromLocation(response);
+    }
+
+    private async Task<object> BodyWithCurrentDateAsync(Guid key, string html = StoredHtml, string name = "Html offer")
+    {
+        JsonElement banner = await ReadAsync(await GetAsync("/banners/" + key));
+        return HtmlBody(html, name, banner.GetProperty("updateDate").GetDateTime());
+    }
+
+    private static async Task AssertHtmlPermissionRequiredAsync(HttpResponseMessage response)
+    {
+        Assert.That(response.StatusCode, Is.EqualTo(HttpStatusCode.Forbidden));
+        JsonElement problem = await ReadAsync(response);
+        Assert.That(problem.GetProperty("type").GetString(), Does.EndWith("html-permission-required"));
+    }
+
+    [Test]
+    public async Task WithoutTheVerb_CreatingAnHtmlBanner_Gives403HtmlPermissionRequired()
+    {
+        await SignInWithGroupsAsync("no-html-create@test.invalid", (Section: true, Html: false));
+
+        await AssertHtmlPermissionRequiredAsync(await PostAsync("/banners", HtmlBody()));
+
+        Assert.That((await ReadAsync(await GetAsync("/banners?type=html"))).GetProperty("total").GetInt32(), Is.EqualTo(0));
+    }
+
+    [Test]
+    public async Task WithoutTheVerb_ChangingTheHtml_Gives403_AndTheStoredHtmlStays()
+    {
+        Guid key = await HtmlBannerCreatedByAdminAsync();
+        await SignInWithGroupsAsync("no-html-change@test.invalid", (Section: true, Html: false));
+
+        await AssertHtmlPermissionRequiredAsync(await PutAsync("/banners/" + key, await BodyWithCurrentDateAsync(key, "<p>Changed</p>")));
+
+        JsonElement banner = await ReadAsync(await GetAsync("/banners/" + key));
+        Assert.That(banner.GetProperty("draft").GetProperty("html").GetString(), Is.EqualTo(StoredHtml));
+    }
+
+    [Test]
+    public async Task WithoutTheVerb_SavingOtherFields_WithTheHtmlUnchanged_Succeeds()
+    {
+        Guid key = await HtmlBannerCreatedByAdminAsync();
+        await SignInWithGroupsAsync("no-html-save@test.invalid", (Section: true, Html: false));
+
+        HttpResponseMessage response = await PutAsync("/banners/" + key, await BodyWithCurrentDateAsync(key, name: "Renamed html offer"));
+
+        Assert.That(response.StatusCode, Is.EqualTo(HttpStatusCode.OK), await response.Content.ReadAsStringAsync());
+        Assert.That((await ReadAsync(await GetAsync("/banners/" + key))).GetProperty("name").GetString(), Is.EqualTo("Renamed html offer"));
+    }
+
+    [Test]
+    public async Task WithoutTheVerb_PublishUnpublishCopyAndDelete_Succeed()
+    {
+        Guid key = await HtmlBannerCreatedByAdminAsync();
+        await SignInWithGroupsAsync("no-html-lifecycle@test.invalid", (Section: true, Html: false));
+
+        HttpResponseMessage publish = await PublishAsync(key);
+        HttpResponseMessage unpublish = await PostAsync($"/banners/{key}/unpublish");
+        HttpResponseMessage copy = await PostAsync($"/banners/{key}/copy");
+        HttpResponseMessage deleteCopy = await DeleteAsync("/banners/" + KeyFromLocation(copy));
+        HttpResponseMessage delete = await DeleteAsync("/banners/" + key);
+
+        Assert.Multiple(() =>
+        {
+            Assert.That(publish.StatusCode, Is.EqualTo(HttpStatusCode.OK));
+            Assert.That(unpublish.StatusCode, Is.EqualTo(HttpStatusCode.OK));
+            Assert.That(copy.StatusCode, Is.EqualTo(HttpStatusCode.Created));
+            Assert.That(deleteCopy.StatusCode, Is.EqualTo(HttpStatusCode.NoContent));
+            Assert.That(delete.StatusCode, Is.EqualTo(HttpStatusCode.NoContent));
+        });
+    }
+
+    [Test]
+    [Ignore("needs Track 4: the reports endpoint (GET /reports) does not exist before US3 is merged")]
+    public async Task WithoutTheVerb_ReportsOfAnHtmlBanner_AreAvailable()
+    {
+        Guid key = await HtmlBannerCreatedByAdminAsync();
+        await SignInWithGroupsAsync("no-html-reports@test.invalid", (Section: true, Html: false));
+        string today = DateTime.UtcNow.ToString("yyyy-MM-dd");
+
+        HttpResponseMessage response = await GetAsync($"/reports?from={today}&to={today}&banner={key}");
+
+        Assert.That(response.StatusCode, Is.EqualTo(HttpStatusCode.OK));
+    }
+
+    [Test]
+    public async Task WithTheVerbInOneOfSeveralGroups_CreateAndChangeSucceed()
+    {
+        await SignInWithGroupsAsync("html-in-second-group@test.invalid", (Section: true, Html: false), (Section: false, Html: true));
+
+        HttpResponseMessage create = await PostAsync("/banners", HtmlBody());
+        Assert.That(create.StatusCode, Is.EqualTo(HttpStatusCode.Created), await create.Content.ReadAsStringAsync());
+        Guid key = KeyFromLocation(create);
+        HttpResponseMessage change = await PutAsync("/banners/" + key, await BodyWithCurrentDateAsync(key, "<p>Changed</p>"));
+
+        Assert.That(change.StatusCode, Is.EqualTo(HttpStatusCode.OK), await change.Content.ReadAsStringAsync());
+        Assert.That((await ReadAsync(await GetAsync("/banners/" + key))).GetProperty("draft").GetProperty("html").GetString(), Is.EqualTo("<p>Changed</p>"));
+    }
+
+    [Test]
+    public async Task ImageBanners_NeedNoHtmlVerb()
+    {
+        await SignInWithGroupsAsync("no-html-image@test.invalid", (Section: true, Html: false));
+
+        HttpResponseMessage response = await PostAsync("/banners", BannerBody(NewMediaKey(), [_zoneKey]));
+
+        Assert.That(response.StatusCode, Is.EqualTo(HttpStatusCode.Created), await response.Content.ReadAsStringAsync());
+    }
+}

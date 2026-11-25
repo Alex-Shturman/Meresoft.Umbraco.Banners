@@ -1,9 +1,13 @@
 import { expect, type Page } from "@playwright/test";
-import { getAdminCredentials } from "./credentials";
+import { getAdminCredentials, type AdminCredentials } from "./credentials";
 
 /** Signs in to the sample site back office as the administrator. */
 export async function loginAsAdmin(page: Page): Promise<void> {
-  const { email, password } = getAdminCredentials();
+  await loginAs(page, getAdminCredentials());
+}
+
+/** Signs in to the sample site back office with the given credentials. */
+export async function loginAs(page: Page, { email, password }: AdminCredentials): Promise<void> {
   await page.goto("/umbraco");
   await page.getByLabel("Email").fill(email);
   await page.locator("input[type=password]").fill(password);
