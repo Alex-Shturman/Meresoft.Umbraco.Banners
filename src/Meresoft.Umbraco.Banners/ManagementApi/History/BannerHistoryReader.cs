@@ -7,7 +7,8 @@ namespace Meresoft.Umbraco.Banners.ManagementApi.History;
 
 /// <summary>
 /// Reads the audit history of one banner or zone: the database filters by entity id and entity type and pages, so the
-/// total counts only the entries of this entity type, and all user names are looked up in one batch.
+/// total counts only the entries of this entity type. Each distinct user id on the page is turned into a key (Umbraco has
+/// no batch call for that, and the resolver caches), then all the users are loaded with one query.
 /// </summary>
 public sealed class BannerHistoryReader
 {
@@ -59,7 +60,7 @@ public sealed class BannerHistoryReader
         };
     }
 
-    /// <summary>Turns user ids into names with one lookup of all the keys; ids of deleted users are left out.</summary>
+    /// <summary>Turns user ids into names: one key lookup per distinct id, then one query for all the users; ids with no user are left out.</summary>
     private async Task<Dictionary<int, string>> ResolveNamesAsync(int[] userIds)
     {
         var keyById = new Dictionary<int, Guid>();

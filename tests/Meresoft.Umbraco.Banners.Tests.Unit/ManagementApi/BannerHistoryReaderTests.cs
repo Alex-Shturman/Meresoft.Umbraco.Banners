@@ -54,7 +54,7 @@ public class BannerHistoryReaderTests
     }
 
     [Test]
-    public async Task Names_AreLookedUpInOneBatch_AndAnIdWithNoUserGivesANullName()
+    public async Task Users_AreLoadedWithOneQuery_AndAnIdWithNoUserGivesANullName()
     {
         _history.Result = (3L,
         [
