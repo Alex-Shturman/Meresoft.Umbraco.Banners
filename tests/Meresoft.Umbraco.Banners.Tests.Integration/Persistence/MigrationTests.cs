@@ -32,11 +32,44 @@ public class MigrationTests : BannersIntegrationTestBase
         return db.SqlContext.SqlSyntax.GetDefinedIndexes(db).Select(i => (i.Item1, i.Item2, i.Item3, i.Item4)).ToList();
     }
 
-    private List<(string Table, string Constraint)> Constraints()
+    private bool IsSqlite()
+    {
+        using IScope scope = ScopeProvider.CreateScope(autoComplete: true);
+        return scope.Database.DatabaseType.GetProviderName().Contains("sqlite", StringComparison.OrdinalIgnoreCase);
+    }
+
+    /// <summary>Primary key columns of a table, read from the catalog of the database in use.</summary>
+    private List<string> PrimaryKeyColumns(string table)
     {
         using IScope scope = ScopeProvider.CreateScope(autoComplete: true);
         IUmbracoDatabase db = scope.Database;
-        return db.SqlContext.SqlSyntax.GetConstraintsPerTable(db).Select(c => (c.Item1, c.Item2)).ToList();
+        return IsSqlite()
+            ? db.Fetch<string>("SELECT name FROM pragma_table_info(@0) WHERE pk > 0", table)
+            : db.Fetch<string>(
+                "SELECT k.COLUMN_NAME FROM INFORMATION_SCHEMA.TABLE_CONSTRAINTS t " +
+                "INNER JOIN INFORMATION_SCHEMA.KEY_COLUMN_USAGE k ON k.CONSTRAINT_NAME = t.CONSTRAINT_NAME " +
+                "WHERE t.CONSTRAINT_TYPE = 'PRIMARY KEY' AND t.TABLE_NAME = @0",
+                table);
+    }
+
+    /// <summary>Foreign keys of a table: referenced table and delete rule (CASCADE or NO ACTION).</summary>
+    private List<(string Referenced, string OnDelete)> ForeignKeys(string table)
+    {
+        using IScope scope = ScopeProvider.CreateScope(autoComplete: true);
+        IUmbracoDatabase db = scope.Database;
+        if (IsSqlite())
+        {
+            return db.Fetch<dynamic>("SELECT \"table\" AS referenced, on_delete AS ondelete FROM pragma_foreign_key_list(@0)", table)
+                .Select(r => ((string)r.referenced, ((string)r.ondelete).ToUpperInvariant()))
+                .ToList();
+        }
+
+        return db.Fetch<dynamic>(
+                "SELECT OBJECT_NAME(referenced_object_id) AS referenced, delete_referential_action_desc AS ondelete " +
+                "FROM sys.foreign_keys WHERE parent_object_id = OBJECT_ID(@0)",
+                table)
+            .Select(r => ((string)r.referenced, ((string)r.ondelete).Replace('_', ' ').ToUpperInvariant()))
+            .ToList();
     }
 
     private string CoreSchemaSignature()
@@ -65,14 +98,15 @@ public class MigrationTests : BannersIntegrationTestBase
     {
         await InstallPackageAsync();
 
-        List<(string Table, string Constraint)> constraints = Constraints();
-        foreach (string table in BannerTables)
+        Assert.Multiple(() =>
         {
-            Assert.That(
-                constraints.Any(c => string.Equals(c.Table, table, StringComparison.OrdinalIgnoreCase) && c.Constraint.StartsWith("PK_", StringComparison.OrdinalIgnoreCase)),
-                Is.True,
-                $"primary key missing on {table}");
-        }
+            Assert.That(PrimaryKeyColumns("meresoftBannersZone"), Is.EquivalentTo(new[] { "Id" }));
+            Assert.That(PrimaryKeyColumns("meresoftBannersBanner"), Is.EquivalentTo(new[] { "Id" }));
+            Assert.That(PrimaryKeyColumns("meresoftBannersBannerVersion"), Is.EquivalentTo(new[] { "Id" }));
+            Assert.That(PrimaryKeyColumns("meresoftBannersZoneAssignment"), Is.EquivalentTo(new[] { "BannerVersionId", "ZoneId" }));
+            Assert.That(PrimaryKeyColumns("meresoftBannersDailyStat"), Is.EquivalentTo(new[] { "Day", "BannerId", "ZoneId" }));
+            Assert.That(PrimaryKeyColumns("meresoftBannersRequestedZone"), Is.EquivalentTo(new[] { "Alias" }));
+        });
     }
 
     [Test]
@@ -112,23 +146,22 @@ public class MigrationTests : BannersIntegrationTestBase
                       || g.Select(i => i.Column).OrderBy(c => c).SequenceEqual(["BannerId", "Day"], StringComparer.OrdinalIgnoreCase));
 
         Assert.That(hasBannerDayIndex, Is.True, "index (BannerId, Day)");
-        Assert.That(
-            Constraints().Where(c => string.Equals(c.Table, "meresoftBannersDailyStat", StringComparison.OrdinalIgnoreCase)),
-            Has.None.Matches<(string Table, string Constraint)>(c => c.Constraint.StartsWith("FK_", StringComparison.OrdinalIgnoreCase)),
-            "DailyStat rows must survive banner and zone deletion");
+        Assert.That(ForeignKeys("meresoftBannersDailyStat"), Is.Empty, "DailyStat rows must survive banner and zone deletion");
     }
 
     [Test]
-    public async Task FreshInstall_CreatesTheForeignKeys()
+    public async Task FreshInstall_CreatesTheForeignKeys_WithTheRightDeleteRules()
     {
         await InstallPackageAsync();
 
-        List<(string Table, string Constraint)> constraints = Constraints();
-
         Assert.Multiple(() =>
         {
-            Assert.That(constraints.Count(c => c.Table.Equals("meresoftBannersBannerVersion", StringComparison.OrdinalIgnoreCase) && c.Constraint.StartsWith("FK_", StringComparison.OrdinalIgnoreCase)), Is.EqualTo(1));
-            Assert.That(constraints.Count(c => c.Table.Equals("meresoftBannersZoneAssignment", StringComparison.OrdinalIgnoreCase) && c.Constraint.StartsWith("FK_", StringComparison.OrdinalIgnoreCase)), Is.EqualTo(2));
+            Assert.That(
+                ForeignKeys("meresoftBannersBannerVersion").Select(f => (f.Referenced.ToLowerInvariant(), f.OnDelete)),
+                Is.EquivalentTo(new[] { ("meresoftbannersbanner", "CASCADE") }));
+            Assert.That(
+                ForeignKeys("meresoftBannersZoneAssignment").Select(f => (f.Referenced.ToLowerInvariant(), f.OnDelete)),
+                Is.EquivalentTo(new[] { ("meresoftbannersbannerversion", "CASCADE"), ("meresoftbannerszone", "NO ACTION") }));
         });
     }
 

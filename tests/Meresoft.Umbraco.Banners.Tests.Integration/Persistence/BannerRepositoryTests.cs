@@ -390,7 +390,7 @@ public class BannerRepositoryTests : BannersIntegrationTestBase
 
         using (ScopeProvider.CreateScope(autoComplete: true))
         {
-            (IReadOnlyList<Banner> items, long total) All(BannerFilter f) => Banners.GetPaged(f);
+            (IReadOnlyList<Banner> Items, long Total) All(BannerFilter f) => Banners.GetPaged(f);
 
             Assert.Multiple(() =>
             {

@@ -1,6 +1,7 @@
 using System.Net;
 using System.Text.Json;
 using Meresoft.Umbraco.Banners.Tests.Integration.TestSetup;
+using Microsoft.Extensions.DependencyInjection;
 using NUnit.Framework;
 using Umbraco.Cms.Tests.Common.Testing;
 using Umbraco.Cms.Tests.Integration.TestServerTest;
@@ -12,6 +13,9 @@ namespace Meresoft.Umbraco.Banners.Tests.Integration.ManagementApi;
 public class OpenApiDocumentTests : UmbracoTestServerTestBase
 {
     private const string DocumentUrl = "/umbraco/swagger/meresoft-banners/swagger.json";
+
+    protected override void CustomMvcSetup(IMvcBuilder mvcBuilder) =>
+        mvcBuilder.AddApplicationPart(typeof(SectionProbeController).Assembly);
 
     [Test]
     public async Task Document_IsServed()
