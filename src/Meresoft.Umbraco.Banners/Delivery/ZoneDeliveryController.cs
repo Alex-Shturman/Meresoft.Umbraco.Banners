@@ -1,7 +1,6 @@
 using System.Text.Json;
 using Meresoft.Umbraco.Banners.Caching;
 using Meresoft.Umbraco.Banners.Configuration;
-using Meresoft.Umbraco.Banners.Counting;
 using Meresoft.Umbraco.Banners.Delivery.Models;
 using Meresoft.Umbraco.Banners.Domain;
 using Meresoft.Umbraco.Banners.Selection;
@@ -22,7 +21,6 @@ public sealed class ZoneDeliveryController : ControllerBase
 {
     private readonly IBannerSelector _selector;
     private readonly ILiveSnapshotAccessor _snapshot;
-    private readonly RequestedZoneRecorder _recorder;
     private readonly IViewTokenProtector _tokens;
     private readonly bool _enabled;
     private readonly string _basePath;
@@ -31,13 +29,11 @@ public sealed class ZoneDeliveryController : ControllerBase
     public ZoneDeliveryController(
         IBannerSelector selector,
         ILiveSnapshotAccessor snapshot,
-        RequestedZoneRecorder recorder,
         IViewTokenProtector tokens,
         IOptions<BannersOptions> options)
     {
         _selector = selector;
         _snapshot = snapshot;
-        _recorder = recorder;
         _tokens = tokens;
         _enabled = options.Value.DeliveryEndpointEnabled;
         _basePath = options.Value.PublicPath;
@@ -58,10 +54,11 @@ public sealed class ZoneDeliveryController : ControllerBase
             return NotFound();
         }
 
-        // An unknown zone is answered like an empty one, and noted as requested so the editor can create it (FR-003).
+        // An unknown zone is answered like an empty one. It is not noted as requested: the tag helper that writes every
+        // client placeholder already notes missing zones (FR-003), and an anonymous caller must not be able to fill the
+        // capped set of requested zones with junk aliases.
         if (!_snapshot.Current.Zones.ContainsKey(normalised))
         {
-            _recorder.Record(normalised);
             return Answer(new ZoneDeliveryResponse(normalised, null, []));
         }
 

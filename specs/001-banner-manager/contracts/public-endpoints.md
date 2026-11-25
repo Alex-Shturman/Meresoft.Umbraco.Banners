@@ -68,8 +68,10 @@ Query: none (the zone settings decide how many banners and the image size).
 
 - Only public fields are returned: never the banner name, weights, schedule, limits, statistics,
   draft content or user data.
-- Unknown alias: 200 with `"banners": []` and no token, and the alias is recorded as a requested
-  zone (FR-003). A zone with no active banner: 200 with `"banners": []` and no token.
+- Unknown alias: 200 with `"banners": []` and no token. The alias is not recorded as a requested
+  zone here: the tag helper that writes every client placeholder already records missing zones
+  (FR-003), and an anonymous caller must not be able to fill the capped set with junk aliases.
+  A zone with no active banner: 200 with `"banners": []` and no token.
 - Alias is normalised (trimmed, lowercased); an alias that fails the alias rules is 404.
 
 ## Package script

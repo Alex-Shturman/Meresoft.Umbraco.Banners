@@ -110,7 +110,7 @@ public class ZoneDeliveryEndpointTests : PublicEndpointTestBase
     }
 
     [Test]
-    public async Task AnUnknownAlias_Gives200WithNoBannersAndNoToken_AndIsRecordedAsRequested()
+    public async Task AnUnknownAlias_Gives200WithNoBannersAndNoToken_AndIsNotRecordedAsRequested()
     {
         (HttpResponseMessage response, JsonElement body) = await GetZoneAsync("never-created-zone");
 
@@ -118,7 +118,8 @@ public class ZoneDeliveryEndpointTests : PublicEndpointTestBase
         AssertPublicHeaders(response);
         Assert.That(body.GetProperty("banners").GetArrayLength(), Is.Zero);
         Assert.That(body.TryGetProperty("token", out JsonElement token) ? token.ValueKind : JsonValueKind.Null, Is.EqualTo(JsonValueKind.Null));
-        Assert.That(GetRequiredService<RequestedZoneRecorder>().Snapshot().Select(z => z.Alias), Does.Contain("never-created-zone"));
+        // Only the tag helper records missing zones. An anonymous caller must not be able to fill the cap with junk.
+        Assert.That(GetRequiredService<RequestedZoneRecorder>().Snapshot().Select(z => z.Alias), Does.Not.Contain("never-created-zone"));
     }
 
     [Test]
