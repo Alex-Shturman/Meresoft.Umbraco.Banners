@@ -3,6 +3,7 @@ using Meresoft.Umbraco.Banners.Persistence.Dtos;
 using Meresoft.Umbraco.Banners.Persistence.Repositories;
 using Meresoft.Umbraco.Banners.Tests.Integration.TestSetup;
 using NUnit.Framework;
+using System.Data.Common;
 using Umbraco.Cms.Infrastructure.Persistence;
 using Umbraco.Cms.Infrastructure.Scoping;
 
@@ -181,6 +182,72 @@ public class BannerRepositoryTests : BannersIntegrationTestBase
     }
 
     [Test]
+    public void SaveDraft_OfADeletedBanner_Throws_AndLeavesNoAssignmentsBehind()
+    {
+        Banner banner = NewBanner("Summer promo");
+        BannerZone zone;
+        using (IScope scope = ScopeProvider.CreateScope())
+        {
+            zone = AddZone("zone-a");
+            banner.Draft!.ZoneIds = [zone.Id];
+            Banners.Add(banner);
+            Banners.Delete(banner.Id);
+            scope.Complete();
+        }
+
+        using IScope second = ScopeProvider.CreateScope();
+        banner.Draft!.ZoneIds = [zone.Id];
+        Assert.That(() => Banners.SaveDraft(banner), Throws.TypeOf<InvalidOperationException>());
+        Assert.That(second.Database.ExecuteScalar<int>("SELECT COUNT(*) FROM meresoftBannersZoneAssignment"), Is.EqualTo(0));
+    }
+
+    [Test]
+    public void SetPublished_OfAMissingBanner_Throws()
+    {
+        using IScope scope = ScopeProvider.CreateScope();
+
+        Assert.That(() => Banners.SetPublished(424242, true), Throws.TypeOf<InvalidOperationException>());
+    }
+
+    [Test]
+    public void CopyDraftOverLive_OfAMissingBanner_Throws()
+    {
+        using IScope scope = ScopeProvider.CreateScope();
+
+        Assert.That(() => Banners.CopyDraftOverLive(424242, Saved), Throws.TypeOf<InvalidOperationException>());
+    }
+
+    [Test]
+    public void Timestamps_AreStoredAtTenMillisecondResolution_SoComparisonsSurviveTheDatabase()
+    {
+        DateTime fine = new DateTime(2027, 4, 5, 6, 7, 8, DateTimeKind.Utc).AddTicks(1234567);
+        Banner banner = NewBanner("Summer promo");
+        banner.CreateDate = fine;
+        banner.Draft!.SavedDate = fine;
+        banner.Draft.StartUtc = fine;
+        banner.Draft.EndUtc = fine.AddDays(1);
+        using (IScope scope = ScopeProvider.CreateScope())
+        {
+            Banners.Add(banner);
+            Banners.CopyDraftOverLive(banner.Id, fine.AddMilliseconds(1));
+            scope.Complete();
+        }
+
+        using (ScopeProvider.CreateScope(autoComplete: true))
+        {
+            Banner loaded = Banners.GetById(banner.Id)!;
+            Assert.Multiple(() =>
+            {
+                Assert.That(loaded.CreateDate, Is.EqualTo(UtcTimestamp.Truncate(fine)));
+                Assert.That(loaded.Draft!.SavedDate, Is.EqualTo(UtcTimestamp.Truncate(fine)));
+                Assert.That(loaded.Draft.StartUtc, Is.EqualTo(UtcTimestamp.Truncate(fine)));
+                Assert.That(loaded.Draft.EndUtc, Is.EqualTo(UtcTimestamp.Truncate(fine.AddDays(1))));
+                Assert.That(loaded.PublishDate, Is.EqualTo(UtcTimestamp.Truncate(fine.AddMilliseconds(1))));
+            });
+        }
+    }
+
+    [Test]
     public void AtMostOneDraftAndOneLiveVersionPerBanner()
     {
         Banner banner = NewBanner("Summer promo");
@@ -202,7 +269,7 @@ public class BannerRepositoryTests : BannersIntegrationTestBase
             SavedBy = Guid.NewGuid(),
         };
 
-        Assert.That(() => db.Insert(duplicate), Throws.Exception);
+        Assert.That(() => db.Insert(duplicate), Throws.InstanceOf<DbException>(), "the unique index on (BannerId, Kind) must fire");
     }
 
     [Test]
@@ -323,7 +390,7 @@ public class BannerRepositoryTests : BannersIntegrationTestBase
         {
             scope.Database.Insert(new DailyStatDto
             {
-                Day = new DateTime(2027, 1, 5),
+                Day = new DateOnly(2027, 1, 5),
                 BannerId = banner.Id,
                 ZoneId = zone.Id,
                 Impressions = 12,
@@ -403,9 +470,41 @@ public class BannerRepositoryTests : BannersIntegrationTestBase
                 Assert.That(All(new BannerFilter { State = BannerState.Unpublished }).Items.Select(b => b.Name), Is.EqualTo(new[] { "Unpublished banner" }));
                 Assert.That(All(new BannerFilter { State = BannerState.Draft }).Items.Select(b => b.Name), Is.EquivalentTo(new[] { "Draft banner", "Html banner" }));
 
-                (IReadOnlyList<Banner> page, long total) = All(new BannerFilter { Skip = 2, Take = 2 });
-                Assert.That(total, Is.EqualTo(5));
-                Assert.That(page, Has.Count.EqualTo(2));
+                // Order is UpdateDate DESC, Id DESC; all rows share one UpdateDate, so newest id first:
+                // Html (5), Unpublished (4), Changed (3), Published (2), Draft (1).
+                (IReadOnlyList<Banner> page1, long total1) = All(new BannerFilter { Skip = 0, Take = 2 });
+                (IReadOnlyList<Banner> page2, long total2) = All(new BannerFilter { Skip = 2, Take = 2 });
+                (IReadOnlyList<Banner> page3, _) = All(new BannerFilter { Skip = 4, Take = 2 });
+                Assert.That(total1, Is.EqualTo(5));
+                Assert.That(total2, Is.EqualTo(5));
+                Assert.That(page1.Select(b => b.Name), Is.EqualTo(new[] { "Html banner", "Unpublished banner" }));
+                Assert.That(page2.Select(b => b.Name), Is.EqualTo(new[] { "Changed banner", "Published banner" }));
+                Assert.That(page3.Select(b => b.Name), Is.EqualTo(new[] { "Draft banner" }));
+            });
+        }
+    }
+
+    [Test]
+    public void GetPaged_TakeAboveTheMaximum_IsClampedToOneHundred()
+    {
+        using (IScope scope = ScopeProvider.CreateScope())
+        {
+            for (int i = 0; i < 105; i++)
+            {
+                Banners.Add(NewBanner($"Banner {i:000}"));
+            }
+
+            scope.Complete();
+        }
+
+        using (ScopeProvider.CreateScope(autoComplete: true))
+        {
+            (IReadOnlyList<Banner> items, long total) = Banners.GetPaged(new BannerFilter { Take = 500 });
+
+            Assert.Multiple(() =>
+            {
+                Assert.That(total, Is.EqualTo(105));
+                Assert.That(items, Has.Count.EqualTo(100));
             });
         }
     }

@@ -2,6 +2,7 @@ using Meresoft.Umbraco.Banners.Domain;
 using Meresoft.Umbraco.Banners.Persistence.Repositories;
 using Meresoft.Umbraco.Banners.Tests.Integration.TestSetup;
 using NUnit.Framework;
+using System.Data.Common;
 using Umbraco.Cms.Infrastructure.Scoping;
 
 namespace Meresoft.Umbraco.Banners.Tests.Integration.Persistence;
@@ -127,6 +128,31 @@ public class ZoneRepositoryTests : BannersIntegrationTestBase
     }
 
     [Test]
+    public void Update_OfAMissingZone_Throws()
+    {
+        BannerZone ghost = NewZone("ghost");
+        ghost.Id = 424242;
+
+        using IScope scope = ScopeProvider.CreateScope();
+        Assert.That(() => Zones.Update(ghost), Throws.TypeOf<InvalidOperationException>());
+    }
+
+    [Test]
+    public void Update_OfADeletedZone_Throws()
+    {
+        BannerZone zone = NewZone();
+        using (IScope scope = ScopeProvider.CreateScope())
+        {
+            Zones.Add(zone);
+            Zones.Delete(zone.Id);
+            scope.Complete();
+        }
+
+        using IScope second = ScopeProvider.CreateScope();
+        Assert.That(() => Zones.Update(zone), Throws.TypeOf<InvalidOperationException>());
+    }
+
+    [Test]
     public void Delete_RemovesTheZone()
     {
         BannerZone zone = NewZone();
@@ -154,7 +180,7 @@ public class ZoneRepositoryTests : BannersIntegrationTestBase
         using IScope scope = ScopeProvider.CreateScope();
         Zones.Add(NewZone("same"));
 
-        Assert.That(() => Zones.Add(NewZone("same")), Throws.Exception);
+        Assert.That(() => Zones.Add(NewZone("same")), Throws.InstanceOf<DbException>(), "the unique index on Alias must fire");
     }
 
     [Test]
@@ -176,7 +202,7 @@ public class ZoneRepositoryTests : BannersIntegrationTestBase
         }
 
         using IScope deleteScope = ScopeProvider.CreateScope();
-        Assert.That(() => Zones.Delete(zone.Id), Throws.Exception, "no cascade from zone to assignment");
+        Assert.That(() => Zones.Delete(zone.Id), Throws.InstanceOf<DbException>(), "the foreign key from the assignment must block the delete");
     }
 
     [Test]
