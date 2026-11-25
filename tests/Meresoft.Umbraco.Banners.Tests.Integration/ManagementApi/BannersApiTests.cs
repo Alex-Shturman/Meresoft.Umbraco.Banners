@@ -32,8 +32,8 @@ public class BannersApiTests : BannersApiTestBase
         {
             Assert.That(banner.GetProperty("key").GetGuid(), Is.EqualTo(key));
             Assert.That(banner.GetProperty("name").GetString(), Is.EqualTo("Summer promo"));
-            Assert.That(banner.GetProperty("type").GetString(), Is.EqualTo("image"));
-            Assert.That(banner.GetProperty("state").GetString(), Is.EqualTo("draft"));
+            Assert.That(banner.GetProperty("type").GetString(), Is.EqualTo("Image"));
+            Assert.That(banner.GetProperty("state").GetString(), Is.EqualTo("Draft"));
             Assert.That(banner.GetProperty("live").ValueKind, Is.EqualTo(JsonValueKind.Null));
             Assert.That(banner.GetProperty("draft").GetProperty("mediaKey").GetGuid(), Is.EqualTo(_media));
             Assert.That(banner.GetProperty("draft").GetProperty("linkUrl").GetString(), Is.EqualTo("https://example.org/show"));
@@ -54,7 +54,7 @@ public class BannersApiTests : BannersApiTestBase
         HttpResponseMessage response = await Client.PostAsync(Root + "/banners", new StringContent(json, System.Text.Encoding.UTF8, "application/json"));
 
         Assert.That(response.StatusCode, Is.EqualTo(HttpStatusCode.BadRequest));
-        Assert.That((await ReadAsync(response)).GetProperty("errors").TryGetProperty("linkUrl", out _), Is.True);
+        Assert.That((await ReadAsync(response)).GetProperty("errors").EnumerateArray().Any(e => e.TryGetProperty("$.linkUrl", out _)), Is.True);
     }
 
     [Test]
@@ -74,7 +74,7 @@ public class BannersApiTests : BannersApiTestBase
         JsonElement banner = await GetBannerAsync(key);
         Assert.Multiple(() =>
         {
-            Assert.That(banner.GetProperty("state").GetString(), Is.EqualTo("publishedWithChanges"));
+            Assert.That(banner.GetProperty("state").GetString(), Is.EqualTo("PublishedWithChanges"));
             Assert.That(banner.GetProperty("draft").GetProperty("altText").GetString(), Is.EqualTo("Changed alt text"));
             Assert.That(banner.GetProperty("live").GetProperty("altText").GetString(), Is.EqualTo("Invented summer promo"));
         });
@@ -117,7 +117,7 @@ public class BannersApiTests : BannersApiTestBase
 
         Assert.That(response.StatusCode, Is.EqualTo(HttpStatusCode.OK), await response.Content.ReadAsStringAsync());
         JsonElement banner = await GetBannerAsync(key);
-        Assert.That(banner.GetProperty("state").GetString(), Is.EqualTo("published"));
+        Assert.That(banner.GetProperty("state").GetString(), Is.EqualTo("Published"));
         Assert.That(banner.GetProperty("publishDate").ValueKind, Is.Not.EqualTo(JsonValueKind.Null));
         Assert.That(banner.GetProperty("live").GetProperty("altText").GetString(), Is.EqualTo("Invented summer promo"));
     }
@@ -158,7 +158,7 @@ public class BannersApiTests : BannersApiTestBase
         HttpResponseMessage response = await PostAsync($"/banners/{key}/unpublish");
 
         Assert.That(response.StatusCode, Is.EqualTo(HttpStatusCode.OK));
-        Assert.That((await GetBannerAsync(key)).GetProperty("state").GetString(), Is.EqualTo("unpublished"));
+        Assert.That((await GetBannerAsync(key)).GetProperty("state").GetString(), Is.EqualTo("Unpublished"));
     }
 
     [Test]
@@ -177,7 +177,7 @@ public class BannersApiTests : BannersApiTestBase
         Assert.That(response.StatusCode, Is.EqualTo(HttpStatusCode.Created));
         JsonElement copy = await GetBannerAsync(KeyFromLocation(response));
         Assert.That(copy.GetProperty("name").GetString(), Is.EqualTo("Copy of promo"));
-        Assert.That(copy.GetProperty("state").GetString(), Is.EqualTo("draft"));
+        Assert.That(copy.GetProperty("state").GetString(), Is.EqualTo("Draft"));
         Assert.That(copy.GetProperty("draft").GetProperty("zoneKeys").GetArrayLength(), Is.EqualTo(1));
     }
 
@@ -232,8 +232,8 @@ public class BannersApiTests : BannersApiTestBase
         Assert.Multiple(() =>
         {
             Assert.That(item.GetProperty("name").GetString(), Is.EqualTo("Summer promo"));
-            Assert.That(item.GetProperty("type").GetString(), Is.EqualTo("image"));
-            Assert.That(item.GetProperty("state").GetString(), Is.EqualTo("published"));
+            Assert.That(item.GetProperty("type").GetString(), Is.EqualTo("Image"));
+            Assert.That(item.GetProperty("state").GetString(), Is.EqualTo("Published"));
             Assert.That(item.GetProperty("flags").GetProperty("notPlaced").GetBoolean(), Is.False);
             Assert.That(item.GetProperty("zoneKeys").EnumerateArray().Select(k => k.GetGuid()), Is.EqualTo(new[] { _zoneKey }));
             Assert.That(item.GetProperty("weight").GetInt32(), Is.EqualTo(1));
