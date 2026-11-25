@@ -141,4 +141,65 @@ public class HtmlPermissionTests : BannersApiTestBase
 
         Assert.That(response.StatusCode, Is.EqualTo(HttpStatusCode.Created), await response.Content.ReadAsStringAsync());
     }
+
+    [Test]
+    public async Task WithoutTheVerb_AnImageBanner_CannotStoreHtmlText_ThroughUpdate()
+    {
+        // The html column exists on every banner row, so the check covers any change of the value, not only Html banners.
+        Guid key = await CreateBannerAsync(NewMediaKey(), _zoneKey);
+        await SignInWithGroupsAsync("no-html-image-update@test.invalid", (Section: true, Html: false));
+        JsonElement banner = await ReadAsync(await GetAsync("/banners/" + key));
+        string json = JsonSerializer.Serialize(BannerBody(NewMediaKey(), [_zoneKey], banner.GetProperty("updateDate").GetDateTime()), Json)
+            .Replace("\"weight\":1", "\"weight\":1,\"html\":\"<script>alert(1)</script>\"");
+
+        HttpResponseMessage response = await Client.PutAsync(Root + "/banners/" + key, new StringContent(json, System.Text.Encoding.UTF8, "application/json"));
+
+        await AssertHtmlPermissionRequiredAsync(response);
+    }
+
+    [Test]
+    public async Task WithoutTheVerb_ChangingAnImageBannerToHtml_Gives403()
+    {
+        Guid key = await CreateBannerAsync(NewMediaKey(), _zoneKey);
+        await SignInWithGroupsAsync("no-html-type-change@test.invalid", (Section: true, Html: false));
+        JsonElement banner = await ReadAsync(await GetAsync("/banners/" + key));
+
+        HttpResponseMessage response = await PutAsync("/banners/" + key, HtmlBody(updateDate: banner.GetProperty("updateDate").GetDateTime()));
+
+        await AssertHtmlPermissionRequiredAsync(response);
+    }
+
+    [Test]
+    public async Task WithTheVerb_ChangingAnImageBannerToHtml_IsStillRefused_BecauseTheTypeIsFixed()
+    {
+        Guid key = await CreateBannerAsync(NewMediaKey(), _zoneKey);
+        JsonElement banner = await ReadAsync(await GetAsync("/banners/" + key));
+
+        HttpResponseMessage response = await PutAsync("/banners/" + key, HtmlBody(updateDate: banner.GetProperty("updateDate").GetDateTime()));
+
+        Assert.That(response.StatusCode, Is.EqualTo(HttpStatusCode.BadRequest));
+    }
+
+    [Test]
+    public async Task WithoutTheVerb_CopyingAnHtmlBanner_KeepsTheStoredHtml_AndNeedsNoVerb()
+    {
+        // A copy only repeats what an authorized editor already stored; nobody can write new markup through it.
+        Guid key = await HtmlBannerCreatedByAdminAsync();
+        await SignInWithGroupsAsync("no-html-copy@test.invalid", (Section: true, Html: false));
+
+        Guid copyKey = KeyFromLocation(await PostAsync($"/banners/{key}/copy"));
+
+        JsonElement copy = await ReadAsync(await GetAsync("/banners/" + copyKey));
+        Assert.That(copy.GetProperty("draft").GetProperty("html").GetString(), Is.EqualTo(StoredHtml));
+    }
+
+    [Test]
+    public async Task APasswordlessCaller_Gets401_OnCreate()
+    {
+        Client.DefaultRequestHeaders.Authorization = null;
+
+        HttpResponseMessage response = await PostAsync("/banners", HtmlBody());
+
+        Assert.That(response.StatusCode, Is.EqualTo(HttpStatusCode.Unauthorized));
+    }
 }

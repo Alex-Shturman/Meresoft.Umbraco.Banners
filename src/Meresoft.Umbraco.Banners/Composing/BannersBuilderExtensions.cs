@@ -97,6 +97,7 @@ public static class BannersBuilderExtensions
 
         builder.Services.AddTransient<BannerAuditWriter>();
         builder.Services.AddSingleton<IAuthorizationHandler, SectionAccessHandler>();
+        builder.Services.AddSingleton<HtmlPermissionChecker>();
         builder.Services.AddAuthorizationBuilder().AddPolicy(BannersConstants.SectionAccessPolicy, policy =>
         {
             policy.AuthenticationSchemes.Add(OpenIddictValidationAspNetCoreDefaults.AuthenticationScheme);
