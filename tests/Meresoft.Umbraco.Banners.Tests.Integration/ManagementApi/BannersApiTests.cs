@@ -56,6 +56,21 @@ public class BannersApiTests : BannersApiTestBase
         Assert.That((await ReadAsync(response)).GetProperty("errors").EnumerateArray().Any(e => e.TryGetProperty("$.type", out _)), Is.True);
     }
 
+    [TestCase("2.5")]
+    [TestCase("null")]
+    [TestCase("0")]
+    [TestCase("101")]
+    public async Task Create_ABadWeight_Returns400WithAFieldErrorOnWeight(string weightJson)
+    {
+        string json = JsonSerializer.Serialize(BannerBody(_media, [_zoneKey]), Json).Replace("\"weight\":1", "\"weight\":" + weightJson);
+
+        HttpResponseMessage response = await Client.PostAsync(Root + "/banners", new StringContent(json, System.Text.Encoding.UTF8, "application/json"));
+
+        Assert.That(response.StatusCode, Is.EqualTo(HttpStatusCode.BadRequest));
+        JsonElement body = await ReadAsync(response);
+        Assert.That(body.GetProperty("errors").EnumerateArray().Any(e => e.TryGetProperty("$.weight", out _)), Is.True, body.ToString());
+    }
+
     [Test]
     public async Task Create_InvalidLink_Returns400WithFieldErrors()
     {

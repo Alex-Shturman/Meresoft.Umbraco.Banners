@@ -30,8 +30,12 @@ public class BannerRequestModel
     /// <summary>Optional title.</summary>
     public string? Title { get; set; }
 
-    /// <summary>Relative chance of being chosen, 1 to 100.</summary>
-    public int Weight { get; set; } = 1;
+    /// <summary>
+    /// Relative chance of being chosen, a whole number from 1 to 100. It is read as a number that may be missing or
+    /// fractional, so a wrong value reaches the validator and comes back as an error on the weight field, not as a
+    /// failed read of the whole body.
+    /// </summary>
+    public double? Weight { get; set; } = 1;
 
     /// <summary>First moment the banner may show, UTC.</summary>
     public DateTime? StartUtc { get; set; }
@@ -51,6 +55,10 @@ public class BannerRequestModel
     /// <summary>On save: the update date loaded by the client.</summary>
     public DateTime? UpdateDate { get; set; }
 
+    // 0 is below the allowed range, so the validator reports it on the weight field.
+    private static int WholeWeightOrZero(double? weight) =>
+        weight is { } w && w >= 1 && w <= 100 && w == Math.Floor(w) ? (int)w : 0;
+
     internal BannerDraftModel ToDraftModel() => new()
     {
         Name = Name,
@@ -61,7 +69,7 @@ public class BannerRequestModel
         OpenInNewWindow = OpenInNewWindow,
         AltText = AltText,
         Title = Title,
-        Weight = Weight,
+        Weight = WholeWeightOrZero(Weight),
         StartUtc = StartUtc,
         EndUtc = EndUtc,
         ImpressionLimit = ImpressionLimit,

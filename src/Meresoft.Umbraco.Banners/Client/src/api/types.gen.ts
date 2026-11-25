@@ -37,7 +37,7 @@ export type BannerRequestModel = {
     openInNewWindow: boolean;
     altText: string;
     title?: string | null;
-    weight: number;
+    weight?: number | null;
     startUtc?: string | null;
     endUtc?: string | null;
     impressionLimit?: number | null;

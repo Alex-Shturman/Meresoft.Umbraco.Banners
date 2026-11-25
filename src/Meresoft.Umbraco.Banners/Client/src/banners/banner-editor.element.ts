@@ -135,7 +135,9 @@ export class MeresoftBannerEditorElement extends UmbLitElement {
       openInNewWindow: this._openInNewWindow,
       altText: this._altText,
       title: this._title || null,
-      weight: Number(this._weight) || 1,
+      // The real number goes to the server, or null when the field is empty or not a number, so the server's
+      // error for the weight field shows instead of a silent 1.
+      weight: this._weight.trim() === "" || Number.isNaN(Number(this._weight)) ? null : Number(this._weight),
       startUtc: resolveUtc(this._start, draft?.startUtc),
       endUtc: resolveUtc(this._end, draft?.endUtc),
       impressionLimit: draft?.impressionLimit ?? null,
