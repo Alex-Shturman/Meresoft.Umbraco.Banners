@@ -33,6 +33,14 @@ void UmbInputMediaElement;
 
 const BANNERS_PATH = "section/meresoft-banners/banners";
 
+/** What differs between the editor's text fields. The range is stated by each field; nothing is assumed. */
+interface TextFieldOptions {
+  descriptionKey?: string;
+  type?: "text" | "number" | "datetime-local";
+  min?: number;
+  max?: number;
+}
+
 /** Creates and edits one banner (image or HTML): save the draft, publish, unpublish, copy and delete, and see its history. */
 @customElement("meresoft-banner-editor")
 export class MeresoftBannerEditorElement extends UmbLitElement {
@@ -336,12 +344,12 @@ export class MeresoftBannerEditorElement extends UmbLitElement {
           ${this.#textField("name", "meresoftBanners_name", this._name, (v) => (this._name = v))}
           ${!banner ? this.#renderTypeChoice() : nothing}
           ${this._type === "Html" ? this.#renderHtmlField() : this.#renderImageFields()}
-          ${this.#textField("weight", "meresoftBanners_bannerWeight", this._weight, (v) => (this._weight = v), "meresoftBanners_bannerWeightDescription", "number")}
-          ${this.#textField("startUtc", "meresoftBanners_bannerStart", this._start, (v) => (this._start = v), "meresoftBanners_bannerScheduleDescription", "datetime-local")}
-          ${this.#textField("endUtc", "meresoftBanners_bannerEnd", this._end, (v) => (this._end = v), undefined, "datetime-local")}
-          ${this.#textField("impressionLimit", "meresoftBanners_bannerImpressionLimit", this._impressionLimit, (v) => (this._impressionLimit = v), "meresoftBanners_bannerImpressionLimitDescription", "number", null)}
+          ${this.#textField("weight", "meresoftBanners_bannerWeight", this._weight, (v) => (this._weight = v), { descriptionKey: "meresoftBanners_bannerWeightDescription", type: "number", min: 1, max: 100 })}
+          ${this.#textField("startUtc", "meresoftBanners_bannerStart", this._start, (v) => (this._start = v), { descriptionKey: "meresoftBanners_bannerScheduleDescription", type: "datetime-local" })}
+          ${this.#textField("endUtc", "meresoftBanners_bannerEnd", this._end, (v) => (this._end = v), { type: "datetime-local" })}
+          ${this.#textField("impressionLimit", "meresoftBanners_bannerImpressionLimit", this._impressionLimit, (v) => (this._impressionLimit = v), { descriptionKey: "meresoftBanners_bannerImpressionLimitDescription", type: "number", min: 1 })}
           ${showsClickLimit(this._type)
-            ? this.#textField("clickLimit", "meresoftBanners_bannerClickLimit", this._clickLimit, (v) => (this._clickLimit = v), "meresoftBanners_bannerClickLimitDescription", "number", null)
+            ? this.#textField("clickLimit", "meresoftBanners_bannerClickLimit", this._clickLimit, (v) => (this._clickLimit = v), { descriptionKey: "meresoftBanners_bannerClickLimitDescription", type: "number", min: 1 })
             : nothing}
           <uui-form-layout-item>
             <uui-label slot="label">${this.localize.term("meresoftBanners_bannerZones")}</uui-label>
@@ -421,14 +429,14 @@ export class MeresoftBannerEditorElement extends UmbLitElement {
               @change=${(e: Event) => (this._mediaKey = (e.target as UmbInputMediaElement).selection[0] ?? "")}></umb-input-media>
             ${this.#error("mediaKey")}
           </uui-form-layout-item>
-          ${this.#textField("linkUrl", "meresoftBanners_bannerLink", this._linkUrl, (v) => (this._linkUrl = v), "meresoftBanners_bannerLinkDescription")}
+          ${this.#textField("linkUrl", "meresoftBanners_bannerLink", this._linkUrl, (v) => (this._linkUrl = v), { descriptionKey: "meresoftBanners_bannerLinkDescription" })}
           <uui-form-layout-item>
             <uui-toggle
               label=${this.localize.term("meresoftBanners_bannerOpenInNewWindow")}
               ?checked=${this._openInNewWindow}
               @change=${(e: Event) => (this._openInNewWindow = (e.target as HTMLInputElement).checked)}></uui-toggle>
           </uui-form-layout-item>
-          ${this.#textField("altText", "meresoftBanners_bannerAltText", this._altText, (v) => (this._altText = v), "meresoftBanners_bannerAltTextDescription")}
+          ${this.#textField("altText", "meresoftBanners_bannerAltText", this._altText, (v) => (this._altText = v), { descriptionKey: "meresoftBanners_bannerAltTextDescription" })}
           ${this.#textField("title", "meresoftBanners_bannerTitle", this._title, (v) => (this._title = v))}
     `;
   }
@@ -450,16 +458,15 @@ export class MeresoftBannerEditorElement extends UmbLitElement {
     labelKey: string,
     value: string,
     set: (value: string) => void,
-    descriptionKey?: string,
-    type: "text" | "number" | "datetime-local" = "text",
-    max: string | null = "100",
+    options: TextFieldOptions = {},
   ) {
+    const { descriptionKey, type = "text", min, max } = options;
     const label = this.localize.term(labelKey);
     return html`
       <uui-form-layout-item>
         <uui-label slot="label" for=${field}>${label}</uui-label>
         ${descriptionKey ? html`<span slot="description">${this.localize.term(descriptionKey, userTimeZone())}</span>` : nothing}
-        <uui-input id=${field} type=${type} min=${type === "number" ? "1" : nothing} max=${type === "number" && max !== null ? max : nothing} label=${label} .value=${value} @input=${(e: Event) => set((e.target as HTMLInputElement).value)}></uui-input>
+        <uui-input id=${field} type=${type} min=${min ?? nothing} max=${max ?? nothing} label=${label} .value=${value} @input=${(e: Event) => set((e.target as HTMLInputElement).value)}></uui-input>
         ${this.#error(field)}
       </uui-form-layout-item>
     `;
