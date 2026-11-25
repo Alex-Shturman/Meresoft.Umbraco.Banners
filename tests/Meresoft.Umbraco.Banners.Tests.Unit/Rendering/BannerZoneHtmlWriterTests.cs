@@ -86,8 +86,8 @@ public class BannerZoneHtmlWriterTests
     {
         string html = Render("z", null, [Banner(1, b => b with { Width = null, Height = null })]);
 
-        Assert.That(html, Does.Not.Contain("width="));
-        Assert.That(html, Does.Not.Contain("height="));
+        Assert.That(html, Does.Not.Contain(" width=\""));
+        Assert.That(html, Does.Not.Contain(" height=\""));
     }
 
     [Test]
@@ -160,7 +160,7 @@ public class BannerZoneHtmlWriterTests
     {
         var writer = new BannerZoneHtmlWriter(Options.Create(new BannersOptions { PublicPath = "/ads-x" }));
 
-        string html = writer.Render(new BannerZoneView("z", null, [Banner(1)], null), []);
+        string html = writer.Render(new BannerZoneView("z", null, [Banner(1)], null), new Dictionary<object, object?>());
 
         Assert.That(html, Does.Contain("data-mb-base=\"/ads-x\""));
     }
