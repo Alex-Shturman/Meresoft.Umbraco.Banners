@@ -231,4 +231,17 @@ public class AuditTests : BannersApiTestBase
             Assert.That((await GetAsync($"/banners/{key}/history?skip=500")).StatusCode, Is.EqualTo(HttpStatusCode.OK), "past the end is an empty page");
         });
     }
+
+    [TestCase("banners")]
+    [TestCase("zones")]
+    public async Task History_ReportsBothBadPagingFieldsAtOnce(string kind)
+    {
+        Guid key = kind == "banners" ? await CreateBannerAsync(_media, _zoneKey) : _zoneKey;
+
+        HttpResponseMessage response = await GetAsync($"/{kind}/{key}/history?skip=-5&take=0");
+
+        Assert.That(response.StatusCode, Is.EqualTo(HttpStatusCode.BadRequest));
+        JsonElement problem = await ReadAsync(response);
+        Assert.That(problem.GetProperty("errors").EnumerateArray().SelectMany(e => e.EnumerateObject().Select(f => f.Name)), Is.EquivalentTo(new[] { "$.skip", "$.take" }), problem.ToString());
+    }
 }
