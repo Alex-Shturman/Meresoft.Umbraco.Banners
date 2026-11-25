@@ -34,8 +34,8 @@ public class BannerRepositoryTests : BannersIntegrationTestBase
             MediaKey = Guid.Parse("22222222-2222-2222-2222-222222222222"),
             LinkUrl = "https://example.org/show",
             OpenInNewWindow = true,
-            AltText = "Invented boat show",
-            Title = "Boat show",
+            AltText = "Invented summer promo",
+            Title = "Summer promo",
             Weight = 3,
             StartUtc = Saved,
             EndUtc = Saved.AddDays(10),
@@ -63,7 +63,7 @@ public class BannerRepositoryTests : BannersIntegrationTestBase
     [Test]
     public void Add_RoundTripsBannerDraftAndAssignments()
     {
-        Banner banner = NewBanner("Boat show");
+        Banner banner = NewBanner("Summer promo");
         using (IScope scope = ScopeProvider.CreateScope())
         {
             BannerZone zoneA = AddZone("zone-a");
@@ -79,7 +79,7 @@ public class BannerRepositoryTests : BannersIntegrationTestBase
             Banner loaded = Banners.GetByKey(banner.Key)!;
             Assert.Multiple(() =>
             {
-                Assert.That(loaded.Name, Is.EqualTo("Boat show"));
+                Assert.That(loaded.Name, Is.EqualTo("Summer promo"));
                 Assert.That(loaded.Type, Is.EqualTo(BannerType.Image));
                 Assert.That(loaded.IsPublished, Is.False);
                 Assert.That(loaded.Live, Is.Null);
@@ -88,8 +88,8 @@ public class BannerRepositoryTests : BannersIntegrationTestBase
                 Assert.That(loaded.Draft.MediaKey, Is.EqualTo(banner.Draft!.MediaKey));
                 Assert.That(loaded.Draft.LinkUrl, Is.EqualTo("https://example.org/show"));
                 Assert.That(loaded.Draft.OpenInNewWindow, Is.True);
-                Assert.That(loaded.Draft.AltText, Is.EqualTo("Invented boat show"));
-                Assert.That(loaded.Draft.Title, Is.EqualTo("Boat show"));
+                Assert.That(loaded.Draft.AltText, Is.EqualTo("Invented summer promo"));
+                Assert.That(loaded.Draft.Title, Is.EqualTo("Summer promo"));
                 Assert.That(loaded.Draft.Weight, Is.EqualTo(3));
                 Assert.That(loaded.Draft.StartUtc, Is.EqualTo(Saved));
                 Assert.That(loaded.Draft.EndUtc, Is.EqualTo(Saved.AddDays(10)));
@@ -143,7 +143,7 @@ public class BannerRepositoryTests : BannersIntegrationTestBase
     [Test]
     public void SaveDraft_UpdatesDraftAndReplacesAssignments_NotTheLiveVersion()
     {
-        Banner banner = NewBanner("Boat show");
+        Banner banner = NewBanner("Summer promo");
         BannerZone zoneA, zoneB;
         using (IScope scope = ScopeProvider.CreateScope())
         {
@@ -158,7 +158,7 @@ public class BannerRepositoryTests : BannersIntegrationTestBase
         using (IScope scope = ScopeProvider.CreateScope())
         {
             Banner edit = Banners.GetByKey(banner.Key)!;
-            edit.Name = "Boat show 2";
+            edit.Name = "Summer promo 2";
             edit.Draft!.AltText = "Changed alt";
             edit.Draft.ZoneIds = [zoneB.Id];
             edit.Draft.SavedDate = Saved.AddDays(2);
@@ -171,10 +171,10 @@ public class BannerRepositoryTests : BannersIntegrationTestBase
             Banner loaded = Banners.GetByKey(banner.Key)!;
             Assert.Multiple(() =>
             {
-                Assert.That(loaded.Name, Is.EqualTo("Boat show 2"));
+                Assert.That(loaded.Name, Is.EqualTo("Summer promo 2"));
                 Assert.That(loaded.Draft!.AltText, Is.EqualTo("Changed alt"));
                 Assert.That(loaded.Draft.ZoneIds, Is.EqualTo(new[] { zoneB.Id }));
-                Assert.That(loaded.Live!.AltText, Is.EqualTo("Invented boat show"));
+                Assert.That(loaded.Live!.AltText, Is.EqualTo("Invented summer promo"));
                 Assert.That(loaded.Live.ZoneIds, Is.EqualTo(new[] { zoneA.Id }));
             });
         }
@@ -183,7 +183,7 @@ public class BannerRepositoryTests : BannersIntegrationTestBase
     [Test]
     public void AtMostOneDraftAndOneLiveVersionPerBanner()
     {
-        Banner banner = NewBanner("Boat show");
+        Banner banner = NewBanner("Summer promo");
         using (IScope scope = ScopeProvider.CreateScope())
         {
             Banners.Add(banner);
@@ -208,7 +208,7 @@ public class BannerRepositoryTests : BannersIntegrationTestBase
     [Test]
     public void CopyDraftOverLive_CopiesFieldsAndAssignments_InOneScope_AndPublishes()
     {
-        Banner banner = NewBanner("Boat show");
+        Banner banner = NewBanner("Summer promo");
         BannerZone zone;
         using (IScope scope = ScopeProvider.CreateScope())
         {
@@ -248,7 +248,7 @@ public class BannerRepositoryTests : BannersIntegrationTestBase
     [Test]
     public void CopyDraftOverLive_Twice_ReplacesTheLiveVersionWithoutDuplicates()
     {
-        Banner banner = NewBanner("Boat show");
+        Banner banner = NewBanner("Summer promo");
         BannerZone zoneA, zoneB;
         using (IScope scope = ScopeProvider.CreateScope())
         {
@@ -285,7 +285,7 @@ public class BannerRepositoryTests : BannersIntegrationTestBase
     [Test]
     public void SetPublished_False_KeepsTheLiveVersion()
     {
-        Banner banner = NewBanner("Boat show");
+        Banner banner = NewBanner("Summer promo");
         using (IScope scope = ScopeProvider.CreateScope())
         {
             Banners.Add(banner);
@@ -308,7 +308,7 @@ public class BannerRepositoryTests : BannersIntegrationTestBase
     [Test]
     public void Delete_RemovesVersionsAndAssignments_ButKeepsDailyStats()
     {
-        Banner banner = NewBanner("Boat show");
+        Banner banner = NewBanner("Summer promo");
         BannerZone zone;
         using (IScope scope = ScopeProvider.CreateScope())
         {

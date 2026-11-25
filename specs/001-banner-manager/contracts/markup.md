@@ -40,7 +40,7 @@ Same behaviour as the tag helper without fallback content.
 <div class="mb-zone my-ads" data-mbz="search-top" data-mb-base="/_banners" data-mbz-token="CfDJ8...">
   <div class="mb-banner" data-mbb="12">
     <a href="/_banners/c/12?z=3" rel="sponsored noopener" target="_blank">
-      <img src="/media/abc/banner.png?width=728&amp;height=90" alt="Invented boat show 2027"
+      <img src="/media/abc/banner.png?width=728&amp;height=90" alt="Invented summer promo 2027"
            width="728" height="90" loading="lazy" decoding="async">
     </a>
   </div>

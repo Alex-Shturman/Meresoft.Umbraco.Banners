@@ -10,7 +10,7 @@ public class BannerVersionValidatorTests
     {
         MediaKey = Guid.Parse("11111111-1111-1111-1111-111111111111"),
         LinkUrl = "https://example.org/show",
-        AltText = "Invented boat show 2027",
+        AltText = "Invented summer promo 2027",
         Weight = 1,
     };
 

@@ -54,7 +54,7 @@ Query: none (the zone settings decide how many banners and the image size).
       "imageUrl": "/media/abc/banner.png?width=728&height=90",
       "width": 728,
       "height": 90,
-      "alt": "Invented boat show 2027",
+      "alt": "Invented summer promo 2027",
       "title": null
     },
     {
