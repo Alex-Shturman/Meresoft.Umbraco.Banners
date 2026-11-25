@@ -1,5 +1,6 @@
 using Meresoft.Umbraco.Banners.Caching;
 using Meresoft.Umbraco.Banners.Domain;
+using Meresoft.Umbraco.Banners.Persistence;
 using Meresoft.Umbraco.Banners.Persistence.Repositories;
 using Meresoft.Umbraco.Banners.Services.Audit;
 using Meresoft.Umbraco.Banners.Services.Models;
@@ -130,7 +131,7 @@ internal sealed class BannerService : IBannerService
 
         using (IScope scope = _scopeProvider.CreateScope())
         {
-            scope.EagerWriteLock(BannersConstants.WriteLockId);
+            scope.TakeWriteLock();
             FieldValidationResult validation = ApplyDraft(banner, model.Draft, new BannerVersion { Kind = BannerVersionKind.Draft }, now, userKey);
             AddMediaProblem(validation, mediaProblem);
             if (!validation.IsValid)
@@ -156,7 +157,7 @@ internal sealed class BannerService : IBannerService
 
         using (IScope scope = _scopeProvider.CreateScope())
         {
-            scope.EagerWriteLock(BannersConstants.WriteLockId);
+            scope.TakeWriteLock();
             Banner? banner = _banners.GetByKey(key);
             if (banner?.Draft is null)
             {
@@ -204,7 +205,7 @@ internal sealed class BannerService : IBannerService
 
         using (IScope scope = _scopeProvider.CreateScope())
         {
-            scope.EagerWriteLock(BannersConstants.WriteLockId);
+            scope.TakeWriteLock();
             Banner? banner = _banners.GetByKey(key);
             if (banner?.Draft is null)
             {
@@ -246,7 +247,7 @@ internal sealed class BannerService : IBannerService
     {
         using (IScope scope = _scopeProvider.CreateScope())
         {
-            scope.EagerWriteLock(BannersConstants.WriteLockId);
+            scope.TakeWriteLock();
             Banner? banner = _banners.GetByKey(key);
             if (banner is null)
             {
@@ -279,7 +280,7 @@ internal sealed class BannerService : IBannerService
         Banner copy;
         using (IScope scope = _scopeProvider.CreateScope())
         {
-            scope.EagerWriteLock(BannersConstants.WriteLockId);
+            scope.TakeWriteLock();
             Banner? source = _banners.GetByKey(key);
             if (source?.Draft is null)
             {
@@ -342,7 +343,7 @@ internal sealed class BannerService : IBannerService
     public async Task<BannerOperationStatus> DeleteAsync(Guid key, Guid userKey)
     {
         using IScope scope = _scopeProvider.CreateScope();
-        scope.EagerWriteLock(BannersConstants.WriteLockId);
+        scope.TakeWriteLock();
         Banner? banner = _banners.GetByKey(key);
         if (banner is null)
         {

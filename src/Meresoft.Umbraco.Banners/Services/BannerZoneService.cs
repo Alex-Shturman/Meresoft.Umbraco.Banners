@@ -2,6 +2,7 @@ using System.Data.Common;
 using System.Runtime.ExceptionServices;
 using Meresoft.Umbraco.Banners.Caching;
 using Meresoft.Umbraco.Banners.Domain;
+using Meresoft.Umbraco.Banners.Persistence;
 using Meresoft.Umbraco.Banners.Persistence.Repositories;
 using Meresoft.Umbraco.Banners.Services.Audit;
 using Meresoft.Umbraco.Banners.Services.Models;
@@ -67,7 +68,7 @@ internal sealed class BannerZoneService : IBannerZoneService
     public Task DismissRequestedZoneAsync(string alias)
     {
         using IScope scope = _scopeProvider.CreateScope();
-        scope.EagerWriteLock(BannersConstants.WriteLockId);
+        scope.TakeWriteLock();
         _requestedZones.Delete(AliasNormalizer.Normalize(alias));
         scope.Complete();
         return Task.CompletedTask;
@@ -90,7 +91,7 @@ internal sealed class BannerZoneService : IBannerZoneService
         DbException? failure = null;
         using (IScope scope = _scopeProvider.CreateScope())
         {
-            scope.EagerWriteLock(BannersConstants.WriteLockId);
+            scope.TakeWriteLock();
             if (_zones.GetByAlias(zone.Alias) is not null)
             {
                 return Attempt.FailWithStatus(BannerOperationStatus.DuplicateAlias, zone);
@@ -121,7 +122,7 @@ internal sealed class BannerZoneService : IBannerZoneService
         DbException? failure = null;
         using (IScope scope = _scopeProvider.CreateScope())
         {
-            scope.EagerWriteLock(BannersConstants.WriteLockId);
+            scope.TakeWriteLock();
             try
             {
                 return await UpdateInScopeAsync(scope, key, model, userKey);
@@ -199,7 +200,7 @@ internal sealed class BannerZoneService : IBannerZoneService
     public async Task<BannerOperationStatus> DeleteAsync(Guid key, Guid userKey)
     {
         using IScope scope = _scopeProvider.CreateScope();
-        scope.EagerWriteLock(BannersConstants.WriteLockId);
+        scope.TakeWriteLock();
         BannerZone? zone = _zones.GetByKey(key);
         if (zone is null)
         {

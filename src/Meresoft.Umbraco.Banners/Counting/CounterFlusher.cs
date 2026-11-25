@@ -1,4 +1,5 @@
 using System.Data.Common;
+using Meresoft.Umbraco.Banners.Persistence;
 using Meresoft.Umbraco.Banners.Persistence.Repositories;
 using Microsoft.Extensions.Logging;
 using Umbraco.Cms.Infrastructure.Scoping;
@@ -83,7 +84,7 @@ internal sealed class CounterFlusher
     private void WriteOne(CounterEntry entry)
     {
         using IScope scope = _scopeProvider.CreateScope();
-        scope.EagerWriteLock(BannersConstants.WriteLockId);
+        scope.TakeWriteLock();
         _statistics.AddDelta(entry);
         scope.Complete();
     }

@@ -1,6 +1,7 @@
 using System.Data.Common;
 using Meresoft.Umbraco.Banners.Configuration;
 using Meresoft.Umbraco.Banners.Domain;
+using Meresoft.Umbraco.Banners.Persistence;
 using Meresoft.Umbraco.Banners.Persistence.Repositories;
 using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Options;
@@ -106,7 +107,7 @@ internal sealed class BannersFlushJob : RecurringBackgroundJobBase
         }
 
         using IScope scope = _scopeProvider.CreateScope();
-        scope.EagerWriteLock(BannersConstants.WriteLockId);
+        scope.TakeWriteLock();
         _requestedZones.Upsert(item.Alias, item.FirstSeen, item.LastSeen);
         scope.Complete();
     }

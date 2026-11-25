@@ -61,3 +61,19 @@ page are counted once per token lifetime and per server, not once per visitor. U
 cached pages: the browser asks for banners and a fresh token on every view. Client mode comes with the
 next release phase (the zone setting is not offered yet). Until then, do not cache pages that carry a
 banner zone if impression counts matter.
+
+### The package migration and its lock row
+
+The package writes its own tables and takes a write lock before every write, so that the flush job and
+editors never wait on each other in a way that stalls SQLite. The lock is a row in Umbraco's `umbracoLock`
+table, named `Meresoft.Banners.Write` (id -8201001), added by the package migration. The migration must run:
+let Umbraco run package migrations (unattended, or from the back office). If it has not run, every write of
+the package stops with an error that names the migration, and nothing is written.
+
+The package has no automatic uninstall. To remove it, take the zone markup and the `@addTagHelper` line out
+of the templates first, then remove the package tables and the lock row, which belongs to the package and
+is the only row it adds to an Umbraco table:
+
+```sql
+DELETE FROM umbracoLock WHERE id = -8201001;
+```
