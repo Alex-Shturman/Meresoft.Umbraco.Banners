@@ -142,10 +142,12 @@
 
   // The placeholder keeps its fallback until at least one banner has come back; any failure leaves it as it is.
   const load = (zone: HTMLElement): void => {
-    const { mbBase, mbz } = zone.dataset;
-    if (!mbBase || !mbz) {
+    const { mbBase, mbz, mbzAsked } = zone.dataset;
+    // One request per placeholder and page view, also when the script is included twice.
+    if (!mbBase || !mbz || mbzAsked) {
       return;
     }
+    zone.dataset.mbzAsked = "1";
     fetch(mbBase + "/zone/" + encodeURIComponent(mbz), { credentials: "omit" })
       .then((r) => (r.ok ? r.json() : null))
       .then((d: { token?: string; banners?: Delivered[] } | null) => {

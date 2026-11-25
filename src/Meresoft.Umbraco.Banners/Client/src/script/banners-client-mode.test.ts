@@ -93,8 +93,7 @@ function placeholder(alias: string, base = "/_banners") {
   return { zone, fallback };
 }
 
-async function runScript(zones: FakeElement[], answer: () => Promise<Response>) {
-  vi.resetModules();
+async function runScript(zones: FakeElement[], answer: () => Promise<Response>, times = 1) {
   vi.stubGlobal("IntersectionObserver", FakeIntersectionObserver);
   vi.stubGlobal("window", { IntersectionObserver: FakeIntersectionObserver, setTimeout: (f: () => void, ms: number) => globalThis.setTimeout(f, ms) });
   vi.stubGlobal("document", {
@@ -114,7 +113,10 @@ async function runScript(zones: FakeElement[], answer: () => Promise<Response>) 
     fetched.push({ url, init });
     return answer();
   });
-  await import("../../script/banners");
+  for (let run = 0; run < times; run++) {
+    vi.resetModules();
+    await import("../../script/banners");
+  }
   await vi.advanceTimersByTimeAsync(0);
 }
 
@@ -281,6 +283,28 @@ describe("the package script in client mode", () => {
     expect(script.attributes.get("src")).toBe("https://example.org/ad.js");
     expect(script.attributes.has("async")).toBe(true);
     expect(script.textContent).toBe("window.x = 1;");
+  });
+
+  it.each([
+    ["no endpoint base", { mbz: "z" }],
+    ["no zone alias", { mbBase: "/_banners" }],
+  ])("skips a placeholder with %s, and makes no request", async (_name, dataset) => {
+    const { zone, fallback } = placeholder("z");
+    zone.dataset = { ...dataset, mbzMode: "client" };
+
+    await runScript([zone], json({ zone: "z", token: "t", banners: [imageBanner] }));
+
+    expect(fetched).toHaveLength(0);
+    expect(zone.children).toEqual([fallback]);
+  });
+
+  it("loads a placeholder once when the script runs twice, so a banner is not observed or counted twice", async () => {
+    const { zone } = placeholder("z");
+
+    await runScript([zone], json({ zone: "z", token: "tok", banners: [imageBanner] }), 2);
+
+    expect(fetched).toHaveLength(1);
+    expect(observed.map((e) => e.attributes.get("data-mbb"))).toEqual(["12"]);
   });
 
   it("starts the requests of several placeholders independently", async () => {

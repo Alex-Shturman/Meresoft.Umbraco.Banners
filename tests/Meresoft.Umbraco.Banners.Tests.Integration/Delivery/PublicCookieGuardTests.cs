@@ -36,7 +36,7 @@ public class PublicCookieGuardTests : PublicEndpointTestBase
     [Test]
     public async Task ACookieSetByOtherMiddleware_IsRemovedFromEveryOtherPublicAnswer()
     {
-        foreach ((HttpMethod method, string path) in new[] { (HttpMethod.Post, "/_banners/seen"), (HttpMethod.Get, "/_banners/seen"), (HttpMethod.Get, "/_banners/c/99999?z=1"), (HttpMethod.Get, "/_banners/c/abc") })
+        foreach ((HttpMethod method, string path) in new[] { (HttpMethod.Post, "/_banners/seen"), (HttpMethod.Get, "/_banners/seen"), (HttpMethod.Get, "/_banners/c/99999?z=1"), (HttpMethod.Get, "/_banners/c/abc"), (HttpMethod.Get, "/_banners/zone/some-zone"), (HttpMethod.Get, "/_banners/zone/9-not-valid") })
         {
             HttpResponseMessage response = await Anonymous.SendAsync(new HttpRequestMessage(method, path) { Content = method == HttpMethod.Post ? PlainText("x y") : null });
 
