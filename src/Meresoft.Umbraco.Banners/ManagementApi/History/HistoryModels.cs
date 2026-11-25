@@ -3,8 +3,8 @@ namespace Meresoft.Umbraco.Banners.ManagementApi.History;
 /// <summary>One change of a banner or zone, from the audit log (FR-018).</summary>
 public class HistoryEntryModel
 {
-    /// <summary>Name of the back office user who made the change.</summary>
-    public string UserName { get; set; } = string.Empty;
+    /// <summary>Name of the back office user who made the change; null when the user no longer exists (the back office shows its own text).</summary>
+    public string? UserName { get; set; }
 
     /// <summary>The action: new, save, publish, unpublish, copy or delete.</summary>
     public string Action { get; set; } = string.Empty;

@@ -84,7 +84,7 @@ export type CopyBannerRequestModel = {
 };
 
 export type HistoryEntryModel = {
-    userName: string;
+    userName?: string | null;
     action: string;
     date: string;
 };

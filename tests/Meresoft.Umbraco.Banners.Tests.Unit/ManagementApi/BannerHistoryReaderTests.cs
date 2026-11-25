@@ -54,7 +54,7 @@ public class BannerHistoryReaderTests
     }
 
     [Test]
-    public async Task Names_AreLookedUpInOneBatch_AndAnIdWithNoUserShowsAPlaceholder()
+    public async Task Names_AreLookedUpInOneBatch_AndAnIdWithNoUserGivesANullName()
     {
         _history.Result = (3L,
         [
@@ -74,7 +74,7 @@ public class BannerHistoryReaderTests
         Assert.Multiple(() =>
         {
             Assert.That(page.Total, Is.EqualTo(3), "the total comes from the database filter, not from the rows of the page");
-            Assert.That(page.Items.Select(i => i.UserName), Is.EqualTo(new[] { "Invented First", "Invented Second", "(unknown user)", "Invented First" }));
+            Assert.That(page.Items.Select(i => i.UserName), Is.EqualTo(new string?[] { "Invented First", "Invented Second", null, "Invented First" }));
             Assert.That(page.Items.Select(i => i.Action), Is.EqualTo(new[] { "publish", "save", "new", "new" }));
             Assert.That(page.Items[0].Date, Is.EqualTo(new DateTime(2027, 3, 1, 10, 0, 0, DateTimeKind.Utc)));
         });

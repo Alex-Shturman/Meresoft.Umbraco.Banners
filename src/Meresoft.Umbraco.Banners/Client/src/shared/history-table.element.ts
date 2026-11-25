@@ -102,7 +102,7 @@ export class MeresoftHistoryTableElement extends UmbLitElement {
           (entry) => html`
             <uui-table-row>
               <uui-table-cell class="when">${new Date(entry.date).toLocaleString()}</uui-table-cell>
-              <uui-table-cell>${entry.userName}</uui-table-cell>
+              <uui-table-cell>${entry.userName ?? this.localize.term("meresoftBanners_historyUnknownUser")}</uui-table-cell>
               <uui-table-cell>
                 <uui-tag look="secondary" color=${ACTION_COLOR[entry.action] ?? "default"}>${this.#actionLabel(entry.action)}</uui-tag>
               </uui-table-cell>

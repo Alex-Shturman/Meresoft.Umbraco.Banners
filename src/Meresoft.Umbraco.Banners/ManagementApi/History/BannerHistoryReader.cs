@@ -14,8 +14,6 @@ public sealed class BannerHistoryReader
     /// <summary>The most entries that can be skipped; deeper pages are refused by the controllers.</summary>
     public const int MaxSkip = 10_000;
 
-    private const string UnknownUser = "(unknown user)";
-
     private readonly IAuditHistoryRepository _history;
     private readonly IScopeProvider _scopeProvider;
     private readonly IUserService _users;
@@ -54,7 +52,7 @@ public sealed class BannerHistoryReader
             Total = result.total,
             Items = result.rows.Select(row => new HistoryEntryModel
             {
-                UserName = names.GetValueOrDefault(row.UserId, UnknownUser),
+                UserName = names.GetValueOrDefault(row.UserId),
                 Action = row.Action.ToLowerInvariant(),
                 Date = row.CreatedUtc,
             }).ToList(),
@@ -75,7 +73,7 @@ public sealed class BannerHistoryReader
         }
 
         Dictionary<Guid, string> nameByKey = (await _users.GetAsync(keyById.Values))
-            .ToDictionary(user => user.Key, user => user.Name ?? UnknownUser);
+            .ToDictionary(user => user.Key, user => user.Name ?? string.Empty);
         return keyById
             .Where(pair => nameByKey.ContainsKey(pair.Value))
             .ToDictionary(pair => pair.Key, pair => nameByKey[pair.Value]);

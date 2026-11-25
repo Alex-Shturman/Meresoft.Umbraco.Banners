@@ -135,6 +135,7 @@ export default {
     historyEmpty: "No changes recorded yet.",
     historyWhen: "When",
     historyWho: "Who",
+    historyUnknownUser: "Unknown user",
     historyWhat: "Change",
     historyMore: "Show more",
     history_new: "Created",
