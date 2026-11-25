@@ -8,6 +8,7 @@
 
   const HOLD_MS = 1000;
   const SEND_EVERY_MS = 2000;
+  const MAX_LINES = 50;
   const queue: Record<string, string[]> = {};
   const timers = new Map<Element, number>();
   const inView = new Set<Element>();
@@ -16,11 +17,15 @@
   const send = (): void => {
     sendTimer = 0;
     for (const base of Object.keys(queue)) {
-      const body = queue[base].join("\n");
+      const lines = queue[base];
       delete queue[base];
       const url = base + "/seen";
-      if (!(navigator.sendBeacon && navigator.sendBeacon(url, body))) {
-        fetch(url, { method: "POST", body, keepalive: true, credentials: "omit" }).catch(() => {});
+      // The server reads at most 50 lines of a request, so a long queue goes out in parts.
+      for (let from = 0; from < lines.length; from += MAX_LINES) {
+        const body = lines.slice(from, from + MAX_LINES).join("\n");
+        if (!(navigator.sendBeacon && navigator.sendBeacon(url, body))) {
+          fetch(url, { method: "POST", body, keepalive: true, credentials: "omit" }).catch(() => {});
+        }
       }
     }
   };
@@ -83,3 +88,6 @@
 
   document.querySelectorAll("[data-mbz][data-mbz-token] [data-mbb]").forEach((el) => observer.observe(el));
 })();
+
+// Makes the file a module so the tests can import it; the build drops this line.
+export {};
