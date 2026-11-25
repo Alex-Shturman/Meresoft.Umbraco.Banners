@@ -2,7 +2,7 @@
 
 import type { Client, ClientMeta, Options as Options2, RequestResult, TDataShape } from './client';
 import { client } from './client.gen';
-import type { CopyBannerData, CopyBannerErrors, CopyBannerResponses, CreateBannerData, CreateBannerErrors, CreateBannerResponses, CreateZoneData, CreateZoneErrors, CreateZoneResponses, DeleteBannerData, DeleteBannerErrors, DeleteBannerResponses, DeleteZoneData, DeleteZoneErrors, DeleteZoneResponses, DismissRequestedZoneData, DismissRequestedZoneErrors, DismissRequestedZoneResponses, GetBannerData, GetBannerErrors, GetBannerResponses, GetReportCsvData, GetReportCsvErrors, GetReportCsvResponses, GetReportData, GetReportErrors, GetReportResponses, GetZoneData, GetZoneErrors, GetZoneResponses, ListBannersData, ListBannersErrors, ListBannersResponses, ListRequestedZonesData, ListRequestedZonesErrors, ListRequestedZonesResponses, ListZonesData, ListZonesErrors, ListZonesResponses, PublishBannerData, PublishBannerErrors, PublishBannerResponses, UnpublishBannerData, UnpublishBannerErrors, UnpublishBannerResponses, UpdateBannerData, UpdateBannerErrors, UpdateBannerResponses, UpdateZoneData, UpdateZoneErrors, UpdateZoneResponses } from './types.gen';
+import type { CopyBannerData, CopyBannerErrors, CopyBannerResponses, CreateBannerData, CreateBannerErrors, CreateBannerResponses, CreateZoneData, CreateZoneErrors, CreateZoneResponses, DeleteBannerData, DeleteBannerErrors, DeleteBannerResponses, DeleteZoneData, DeleteZoneErrors, DeleteZoneResponses, DismissRequestedZoneData, DismissRequestedZoneErrors, DismissRequestedZoneResponses, GetBannerData, GetBannerErrors, GetBannerHistoryData, GetBannerHistoryErrors, GetBannerHistoryResponses, GetBannerResponses, GetReportCsvData, GetReportCsvErrors, GetReportCsvResponses, GetReportData, GetReportErrors, GetReportResponses, GetZoneData, GetZoneErrors, GetZoneHistoryData, GetZoneHistoryErrors, GetZoneHistoryResponses, GetZoneResponses, ListBannersData, ListBannersErrors, ListBannersResponses, ListRequestedZonesData, ListRequestedZonesErrors, ListRequestedZonesResponses, ListZonesData, ListZonesErrors, ListZonesResponses, PublishBannerData, PublishBannerErrors, PublishBannerResponses, UnpublishBannerData, UnpublishBannerErrors, UnpublishBannerResponses, UpdateBannerData, UpdateBannerErrors, UpdateBannerResponses, UpdateZoneData, UpdateZoneErrors, UpdateZoneResponses } from './types.gen';
 
 export type Options<TData extends TDataShape = TDataShape, ThrowOnError extends boolean = boolean, TResponse = unknown> = Options2<TData, ThrowOnError, TResponse> & {
     /**
@@ -64,6 +64,12 @@ export const copyBanner = <ThrowOnError extends boolean = false>(options: Option
         'Content-Type': 'application/json',
         ...options.headers
     }
+});
+
+export const getBannerHistory = <ThrowOnError extends boolean = false>(options: Options<GetBannerHistoryData, ThrowOnError>): RequestResult<GetBannerHistoryResponses, GetBannerHistoryErrors, ThrowOnError> => (options.client ?? client).get<GetBannerHistoryResponses, GetBannerHistoryErrors, ThrowOnError>({
+    security: [{ scheme: 'bearer', type: 'http' }],
+    url: '/umbraco/management/api/v1/meresoft-banners/banners/{key}/history',
+    ...options
 });
 
 export const publishBanner = <ThrowOnError extends boolean = false>(options: Options<PublishBannerData, ThrowOnError>): RequestResult<PublishBannerResponses, PublishBannerErrors, ThrowOnError> => (options.client ?? client).post<PublishBannerResponses, PublishBannerErrors, ThrowOnError>({
@@ -142,4 +148,10 @@ export const updateZone = <ThrowOnError extends boolean = false>(options: Option
         'Content-Type': 'application/json',
         ...options.headers
     }
+});
+
+export const getZoneHistory = <ThrowOnError extends boolean = false>(options: Options<GetZoneHistoryData, ThrowOnError>): RequestResult<GetZoneHistoryResponses, GetZoneHistoryErrors, ThrowOnError> => (options.client ?? client).get<GetZoneHistoryResponses, GetZoneHistoryErrors, ThrowOnError>({
+    security: [{ scheme: 'bearer', type: 'http' }],
+    url: '/umbraco/management/api/v1/meresoft-banners/zones/{key}/history',
+    ...options
 });
