@@ -1,0 +1,17 @@
+{
+  "$schema": "https://marketplace.umbraco.com/umbraco-marketplace-schema.json",
+  "Title": "Meresoft Banners",
+  "Description": "A free banner manager for Umbraco 17: zones, weighted rotation, schedules, impression and click limits, viewable impression statistics, draft and publish. No cookies, no personal data.",
+  "AuthorDetails": {
+    "Name": "Meresoft",
+    "Description": "Open source tools for Umbraco.",
+    "Url": "https://github.com/meresoft"
+  },
+  "Category": "Editor Tools",
+  "LicenseTypes": [ "Free" ],
+  "PackageType": "Package",
+  "VersionSupport": [
+    { "UmbracoVersion": "17", "DotNetVersion": "10" }
+  ],
+  "RelatedPackages": []
+}
