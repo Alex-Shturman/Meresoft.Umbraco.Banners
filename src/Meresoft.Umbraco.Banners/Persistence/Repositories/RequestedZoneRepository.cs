@@ -19,19 +19,21 @@ internal sealed class RequestedZoneRepository : RepositoryBase, IRequestedZoneRe
 
         DateTime firstSeen = UtcTimestamp.Truncate(firstSeenUtc);
         DateTime lastSeen = UtcTimestamp.Truncate(lastSeenUtc);
-        RequestedZoneDto? existing = Database.FirstOrDefault<RequestedZoneDto>(
-            NewSql().Select<RequestedZoneDto>().From<RequestedZoneDto>().Where<RequestedZoneDto>(r => r.Alias == alias));
+        // Writes first and never reads before it: a read then a write in one transaction holds a read lock while asking for the
+        // write lock, which can wait for another connection of the process that does the same (SQLite shared cache).
+        // Move the last seen time forward, and insert only when no row exists, in one statement.
+        Database.Execute(NewSql()
+            .Update<RequestedZoneDto>(u => u.Set(r => r.LastSeen, lastSeen))
+            .Where<RequestedZoneDto>(r => r.Alias == alias && r.LastSeen < lastSeen));
 
-        if (existing is null)
-        {
-            Database.Insert(new RequestedZoneDto { Alias = alias, FirstSeen = firstSeen, LastSeen = lastSeen });
-        }
-        else if (lastSeen > existing.LastSeen)
-        {
-            Database.Execute(NewSql()
-                .Update<RequestedZoneDto>(u => u.Set(r => r.LastSeen, lastSeen))
-                .Where<RequestedZoneDto>(r => r.Alias == alias));
-        }
+        string table = Syntax.GetQuotedTableName(RequestedZoneDto.TableName);
+        string aliasColumn = Syntax.GetQuotedColumnName("Alias");
+        Database.Execute(
+            $"INSERT INTO {table} ({aliasColumn}, {Syntax.GetQuotedColumnName("FirstSeen")}, {Syntax.GetQuotedColumnName("LastSeen")}) "
+            + $"SELECT @0, @1, @2 WHERE NOT EXISTS (SELECT 1 FROM {table} WHERE {aliasColumn} = @0)",
+            alias,
+            firstSeen,
+            lastSeen);
     }
 
     public bool Delete(string alias) =>

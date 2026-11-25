@@ -92,13 +92,21 @@ internal sealed class BannersFlushJob : RecurringBackgroundJobBase
 
     private void WriteOne(RequestedZone item)
     {
-        using IScope scope = _scopeProvider.CreateScope();
-        // A zone with this alias may have been created since the template asked for it.
-        if (_zones.GetByAlias(item.Alias) is null)
+        // The check is its own short scope, so no read lock is held while the write waits for its turn.
+        bool zoneExists;
+        using (_scopeProvider.CreateScope(autoComplete: true))
         {
-            _requestedZones.Upsert(item.Alias, item.FirstSeen, item.LastSeen);
+            // A zone with this alias may have been created since the template asked for it.
+            zoneExists = _zones.GetByAlias(item.Alias) is not null;
         }
 
+        if (zoneExists)
+        {
+            return;
+        }
+
+        using IScope scope = _scopeProvider.CreateScope();
+        _requestedZones.Upsert(item.Alias, item.FirstSeen, item.LastSeen);
         scope.Complete();
     }
 }
