@@ -11,5 +11,5 @@ public sealed class FieldValidationResult
     /// <summary>True when nothing failed.</summary>
     public bool IsValid => _errors.Count == 0;
 
-    internal void Add(string field, string message) => _errors.TryAdd(field, message);
+    public void Add(string field, string message) => _errors.TryAdd(field, message);
 }

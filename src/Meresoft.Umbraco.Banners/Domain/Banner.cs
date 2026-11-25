@@ -33,6 +33,12 @@ public class Banner
     /// <summary>Time of the last publish, UTC.</summary>
     public DateTime? PublishDate { get; set; }
 
+    /// <summary>Publish state; filled in by the banner service, not stored.</summary>
+    public BannerState State { get; set; }
+
+    /// <summary>Runtime flags; filled in by the banner service, not stored.</summary>
+    public BannerFlags Flags { get; set; }
+
     /// <summary>The draft version.</summary>
     public BannerVersion? Draft { get; set; }
 

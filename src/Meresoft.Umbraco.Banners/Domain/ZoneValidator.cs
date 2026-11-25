@@ -13,6 +13,10 @@ public static partial class ZoneValidator
     [GeneratedRegex("^[a-z][a-z0-9_-]*$", RegexOptions.CultureInvariant)]
     private static partial Regex AliasPattern();
 
+    /// <summary>True when the (already normalised) alias has the allowed form and length.</summary>
+    public static bool IsValidAlias(string alias) =>
+        alias.Length is > 0 and <= MaxAliasLength && AliasPattern().IsMatch(alias);
+
     /// <summary>Validates a zone. The alias is normalised before it is checked; the zone is not changed.</summary>
     public static FieldValidationResult Validate(BannerZone zone)
     {
@@ -20,7 +24,7 @@ public static partial class ZoneValidator
         var result = new FieldValidationResult();
 
         string alias = AliasNormalizer.Normalize(zone.Alias);
-        if (alias.Length is 0 or > MaxAliasLength || !AliasPattern().IsMatch(alias))
+        if (!IsValidAlias(alias))
         {
             result.Add("alias", "The alias must be 1 to 100 characters: lowercase letters, digits, '-' and '_', starting with a letter.");
         }
