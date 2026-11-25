@@ -23,6 +23,9 @@ jobs:
       - name: Back office client lint
         run: npm run lint
         working-directory: src/Meresoft.Umbraco.Banners/Client
+      - name: Back office client unit tests
+        run: npm test
+        working-directory: src/Meresoft.Umbraco.Banners/Client
       - name: Back office client build
         run: npm run build
         working-directory: src/Meresoft.Umbraco.Banners/Client

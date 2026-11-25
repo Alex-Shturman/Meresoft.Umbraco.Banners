@@ -1,6 +1,15 @@
 /**
  * Times in the editor are shown and typed in the user's time zone and stored in UTC. A
  * `datetime-local` input holds "YYYY-MM-DDTHH:mm" with no zone, so these helpers convert at the edge.
+ *
+ * Daylight saving time (tested in date-time.test.ts under Europe/Berlin):
+ * - A time typed inside the spring gap does not exist (02:30 on the day the clocks go forward). It moves forward
+ *   by the length of the gap, so 02:30 becomes 03:30 summer time.
+ * - A time typed inside the autumn overlap happens twice. The first occurrence (summer time) is taken.
+ * - A stored time is never changed by merely opening and saving a banner: `resolveUtc` keeps the stored value
+ *   while the input still shows it, so the second occurrence of an overlap time survives a save.
+ * These are the rules of the JavaScript `Date` for a zone-less local time; the editor guide should say the same
+ * once it exists: "Times in the hour that is skipped or repeated at a clock change take the first valid moment."
  */
 
 const pad = (n: number) => String(n).padStart(2, "0");

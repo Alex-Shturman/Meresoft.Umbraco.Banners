@@ -12,5 +12,5 @@
     "isolatedModules": true,
     "types": ["vite/client"]
   },
-  "include": ["src", "script", "vite.config.ts", "openapi-ts.config.ts", "vite.script.config.ts"]
+  "include": ["src", "script", "vite.config.ts", "openapi-ts.config.ts", "vite.script.config.ts", "vitest.config.ts"]
 }
