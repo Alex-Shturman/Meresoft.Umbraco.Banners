@@ -67,6 +67,26 @@ public class OpenApiDocumentTests : UmbracoTestServerTestBase
             }));
     }
 
+    [Test]
+    public async Task BannerRequestWeight_IsANullableNumber_WithItsRangeDescribed()
+    {
+        using JsonDocument document = await ReadDocumentAsync();
+
+        JsonElement weight = document.RootElement.GetProperty("components").GetProperty("schemas")
+            .GetProperty("BannerRequestModel").GetProperty("properties").GetProperty("weight");
+
+        Assert.Multiple(() =>
+        {
+            Assert.That(weight.GetProperty("type").GetString(), Is.EqualTo("number"));
+            Assert.That(weight.TryGetProperty("nullable", out JsonElement nullable) && nullable.GetBoolean(), Is.True, weight.ToString());
+            Assert.That(
+                weight.TryGetProperty("minimum", out JsonElement min) && min.GetDouble() == 1
+                && weight.TryGetProperty("maximum", out JsonElement max) && max.GetDouble() == 100,
+                Is.True,
+                "the 1 to 100 range is part of the schema: " + weight);
+        });
+    }
+
     private async Task<JsonDocument> ReadDocumentAsync()
     {
         HttpResponseMessage response = await Client.GetAsync(DocumentUrl);
