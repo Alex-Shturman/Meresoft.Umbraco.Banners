@@ -1,4 +1,5 @@
 using Meresoft.Umbraco.Banners.Domain;
+using Meresoft.Umbraco.Banners.Selection;
 using Umbraco.Cms.Core.Media;
 using Umbraco.Cms.Core.Models;
 using Umbraco.Cms.Core.Models.PublishedContent;
@@ -34,7 +35,8 @@ internal sealed class LiveSnapshotBuilder
     public async Task<LiveSnapshot> BuildAsync(
         IReadOnlyList<BannerZone> zones,
         IReadOnlyList<Banner> banners,
-        IReadOnlySet<Guid>? mediaKeysTreatedAsMissing = null)
+        IReadOnlySet<Guid>? mediaKeysTreatedAsMissing = null,
+        IReadOnlyDictionary<int, BannerTotals>? limitedTotals = null)
     {
         ArgumentNullException.ThrowIfNull(zones);
         ArgumentNullException.ThrowIfNull(banners);
@@ -119,7 +121,10 @@ internal sealed class LiveSnapshotBuilder
             result[alias] = new SnapshotZone(zone.Id, alias, zone.ShowCount, zone.RenderMode, zone.ImageWidth, zone.ImageHeight, candidates);
         }
 
-        return new LiveSnapshot(result, missing, baseUrls.Keys.ToHashSet());
+        var snapshot = new LiveSnapshot(result, missing, baseUrls.Keys.ToHashSet());
+
+        // Banners whose limit is used up are not candidates (US5). Without totals nothing is dropped.
+        return limitedTotals is null ? snapshot : LimitFilter.Apply(snapshot, limitedTotals);
     }
 
     private async Task<string?> ResolveMediaUrlAsync(Guid mediaKey)

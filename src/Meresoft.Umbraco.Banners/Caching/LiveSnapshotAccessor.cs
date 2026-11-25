@@ -1,5 +1,6 @@
 using Meresoft.Umbraco.Banners.Domain;
 using Meresoft.Umbraco.Banners.Persistence.Repositories;
+using Meresoft.Umbraco.Banners.Selection;
 using Microsoft.Extensions.Logging;
 using Umbraco.Cms.Infrastructure.Scoping;
 
@@ -11,6 +12,7 @@ internal sealed class LiveSnapshotAccessor : ILiveSnapshotAccessor
     private readonly IScopeProvider _scopeProvider;
     private readonly IZoneRepository _zones;
     private readonly IBannerRepository _banners;
+    private readonly IStatisticsRepository _statistics;
     private readonly LiveSnapshotBuilder _builder;
     private readonly ILogger<LiveSnapshotAccessor> _logger;
 
@@ -26,12 +28,14 @@ internal sealed class LiveSnapshotAccessor : ILiveSnapshotAccessor
         IScopeProvider scopeProvider,
         IZoneRepository zones,
         IBannerRepository banners,
+        IStatisticsRepository statistics,
         LiveSnapshotBuilder builder,
         ILogger<LiveSnapshotAccessor> logger)
     {
         _scopeProvider = scopeProvider;
         _zones = zones;
         _banners = banners;
+        _statistics = statistics;
         _builder = builder;
         _logger = logger;
     }
@@ -78,15 +82,54 @@ internal sealed class LiveSnapshotAccessor : ILiveSnapshotAccessor
         {
             IReadOnlyList<BannerZone> zones;
             IReadOnlyList<Banner> banners;
+            IReadOnlyDictionary<int, BannerTotals> totals;
             using (IScope scope = _scopeProvider.CreateScope(autoComplete: true))
             {
                 zones = _zones.GetAll();
                 banners = _banners.GetAllPublished();
+
+                // Only banners with a limit need their totals (summed over all zones and days, imported rows included).
+                int[] limited = [.. banners
+                    .Where(b => b.Live is { } live && (live.ImpressionLimit is not null || live.ClickLimit is not null))
+                    .Select(b => b.Id)];
+                totals = _statistics.GetTotals(limited);
             }
 
-            _current = await _builder.BuildAsync(zones, banners, mediaKeysTreatedAsMissing);
+            _current = await _builder.BuildAsync(zones, banners, mediaKeysTreatedAsMissing, totals);
             _built = true;
             _logger.LogDebug("Banner snapshot rebuilt: {ZoneCount} zones, {MissingImageCount} banners with a missing image.", zones.Count, _current.ImageMissingBannerIds.Count);
+        }
+        finally
+        {
+            _rebuildLock.Release();
+        }
+    }
+
+    public async Task ReloadLimitsAsync()
+    {
+        // Behind the same lock as a rebuild, so a reload can never put an older snapshot over a newer one.
+        await _rebuildLock.WaitAsync();
+        try
+        {
+            LiveSnapshot current = _current;
+            IReadOnlyCollection<int> limited = LimitFilter.LimitedBannerIds(current);
+            if (limited.Count == 0)
+            {
+                return;
+            }
+
+            IReadOnlyDictionary<int, BannerTotals> totals;
+            using (_scopeProvider.CreateScope(autoComplete: true))
+            {
+                totals = _statistics.GetTotals(limited);
+            }
+
+            LiveSnapshot next = LimitFilter.Apply(current, totals);
+            if (!ReferenceEquals(next, current))
+            {
+                _current = next;
+                _logger.LogDebug("Banner limit reload: {StoppedCount} banners reached their limit and left the snapshot.", limited.Count - LimitFilter.LimitedBannerIds(next).Count);
+            }
         }
         finally
         {

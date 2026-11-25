@@ -262,13 +262,13 @@ and localization base, audit writer. No user story starts before this phase is d
 
 ### Tests for User Story 5 (write first, they must fail)
 
-- [ ] T113 [P] [US5] Unit tests in `tests/Meresoft.Umbraco.Banners.Tests.Unit/Selection/LimitFilterTests.cs`: a banner with total impressions >= ImpressionLimit or total clicks >= ClickLimit is not a candidate; null limits never block; totals include imported rows
-- [ ] T114 [P] [US5] Integration tests in `tests/Meresoft.Umbraco.Banners.Tests.Integration/Counting/LimitReachedTests.cs`: limit 3, 5 counted views across two zones, after the flush the banner is gone from the snapshot and the list flag is `limitReached`; raising the limit and publishing shows it again (US5 scenario 2); overshoot is at most the views of one flush interval
-- [ ] T118 [P] [US5] Browser test `tests/e2e/us5-limits.spec.ts`, covering the limit fields and flag of T117: quickstart scenario 13
+- [x] T113 [P] [US5] Unit tests in `tests/Meresoft.Umbraco.Banners.Tests.Unit/Selection/LimitFilterTests.cs`: a banner with total impressions >= ImpressionLimit or total clicks >= ClickLimit is not a candidate; null limits never block; totals include imported rows
+- [x] T114 [P] [US5] Integration tests in `tests/Meresoft.Umbraco.Banners.Tests.Integration/Counting/LimitReachedTests.cs`: limit 3, 5 counted views across two zones, after the flush the banner is gone from the snapshot and the list flag is `limitReached`; raising the limit and publishing shows it again (US5 scenario 2); overshoot is at most the views of one flush interval
+- [x] T118 [P] [US5] Browser test `tests/e2e/us5-limits.spec.ts`, covering the limit fields and flag of T117: quickstart scenario 13
 
 ### Implementation for User Story 5
 
-- [ ] T115 [US5] Load totals for banners with limits in `src/Meresoft.Umbraco.Banners/Caching/LiveSnapshotBuilder.cs` (from `StatisticsRepository` totals per banner, summed over all zones and days including imported rows) and implement `src/Meresoft.Umbraco.Banners/Selection/LimitFilter.cs` (makes T113 pass)
+- [x] T115 [US5] Load totals for banners with limits in `src/Meresoft.Umbraco.Banners/Caching/LiveSnapshotBuilder.cs` (from `StatisticsRepository` totals per banner, summed over all zones and days including imported rows) and implement `src/Meresoft.Umbraco.Banners/Selection/LimitFilter.cs` (makes T113 pass)
 - [ ] T116 [US5] After each successful flush, `src/Meresoft.Umbraco.Banners/Counting/BannersFlushJob.cs` reloads the totals of limited banners and swaps the snapshot locally when a banner crosses its limit; `BannerStateCalculator` uses the same totals for the flag (makes T114 pass)
 - [ ] T117 [P] [US5] Add the impression and click limit fields (click limit hidden for Html banners, FR-006) and the "Limit reached" flag to `src/Meresoft.Umbraco.Banners/Client/src/banners/banner-editor.element.ts` and `banners-list-view.element.ts`
 

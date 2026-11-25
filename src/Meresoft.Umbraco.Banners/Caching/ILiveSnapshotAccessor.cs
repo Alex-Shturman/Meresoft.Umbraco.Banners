@@ -18,4 +18,10 @@ public interface ILiveSnapshotAccessor
     /// <summary>Reads zones and published banners from the database and swaps in a new snapshot.</summary>
     /// <param name="mediaKeysTreatedAsMissing">Media items known to be gone; they count as missing without asking the media cache, which may not have caught up yet.</param>
     Task RebuildAsync(IReadOnlySet<Guid>? mediaKeysTreatedAsMissing = null);
+
+    /// <summary>
+    /// Reads the totals of the banners in the snapshot that have a limit and swaps in a snapshot without those that
+    /// reached it. Cheap: no zones, banners or media are read. Called after each flush (US5).
+    /// </summary>
+    Task ReloadLimitsAsync();
 }

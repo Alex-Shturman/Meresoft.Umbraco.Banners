@@ -68,8 +68,7 @@ public sealed class BannerStateCalculator
             flags |= BannerFlags.Expired;
         }
 
-        if ((version.ImpressionLimit is { } impressionLimit && info.TotalImpressions >= impressionLimit)
-            || (version.ClickLimit is { } clickLimit && info.TotalClicks >= clickLimit))
+        if (BannerLimits.IsReached(version.ImpressionLimit, version.ClickLimit, info.TotalImpressions, info.TotalClicks))
         {
             flags |= BannerFlags.LimitReached;
         }
