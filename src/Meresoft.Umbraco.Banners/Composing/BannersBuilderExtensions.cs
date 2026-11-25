@@ -14,6 +14,7 @@ using Meresoft.Umbraco.Banners.Services;
 using Meresoft.Umbraco.Banners.Services.Audit;
 using Meresoft.Umbraco.Banners.Tokens;
 using Microsoft.AspNetCore.Authorization;
+using Microsoft.AspNetCore.Hosting;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.AspNetCore.Mvc.ApplicationParts;
 using Microsoft.Extensions.DependencyInjection;
@@ -70,6 +71,7 @@ public static class BannersBuilderExtensions
         builder.Services.AddSingleton<CounterBuffer>();
         builder.Services.AddSingleton<CounterFlusher>();
         builder.Services.AddSingleton<IBannerLinkLookup, BannerLinkLookup>();
+        builder.Services.AddTransient<IStartupFilter, PublicCookieGuardStartupFilter>();
         builder.Services.AddOptions<MvcOptions>().Configure<IOptions<BannersOptions>>(
             (mvc, options) => mvc.Conventions.Add(new PublicPathRouteConvention(options.Value.PublicPath)));
 
