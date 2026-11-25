@@ -160,8 +160,14 @@ internal sealed class BannerService : IBannerService
         BannerType? storedType = PeekType(key);
         string? mediaProblem = storedType is { } type ? await MediaProblemAsync(type, model.MediaKey) : null;
 
-        // Asked before the scope opens, so no scope is held across this await.
-        bool mayEditHtml = await _htmlPermission.IsAllowedAsync(userKey);
+        // The user and groups are loaded only when the request could touch html (it names the Html type or carries html
+        // text), and before the scope opens, so no scope is held across the lookup and the banner is read once. The
+        // scope below decides against the stored banner and refuses a change of html when no lookup was made or the
+        // answer was no (fail closed); a request that clears the html of an Html banner without a lookup is refused
+        // too, although the validator would reject it anyway.
+        bool? mayEditHtml = model.Type == BannerType.Html || !string.IsNullOrEmpty(model.Html)
+            ? await _htmlPermission.IsAllowedAsync(userKey)
+            : null;
 
         using (IScope scope = _scopeProvider.CreateScope())
         {
@@ -174,11 +180,8 @@ internal sealed class BannerService : IBannerService
 
             // Only a change of the html value, or a request to make the banner an Html banner, needs the HTML permission
             // (FR-006); saving the other fields of an Html banner, with its html unchanged, does not. Checked before the
-            // type rule, so a user without the permission learns nothing about it. The stored html is read from the draft,
-            // or from the live version when no draft is left, so the check never depends on which version exists.
-            string? storedHtml = banner.Draft is not null ? banner.Draft.Html : banner.Live?.Html;
-            if ((HtmlPermissionChecker.ChangesHtml(storedHtml, model.Html) || (model.Type == BannerType.Html && banner.Type != BannerType.Html))
-                && !mayEditHtml)
+            // type rule, so a user without the permission learns nothing about it.
+            if (TouchesHtml(banner, model) && mayEditHtml != true)
             {
                 return Attempt.FailWithStatus(BannerOperationStatus.HtmlPermissionRequired, banner);
             }
@@ -375,6 +378,16 @@ internal sealed class BannerService : IBannerService
         scope.Complete();
 
         return BannerOperationStatus.Success;
+    }
+
+    /// <summary>
+    /// True when the save changes the html value (the stored html is read from the draft, or from the live version when
+    /// no draft is left), or turns the banner into an Html banner. Such a save needs the HTML permission (FR-006).
+    /// </summary>
+    private static bool TouchesHtml(Banner banner, BannerDraftModel model)
+    {
+        string? storedHtml = banner.Draft is not null ? banner.Draft.Html : banner.Live?.Html;
+        return HtmlPermissionChecker.ChangesHtml(storedHtml, model.Html) || (model.Type == BannerType.Html && banner.Type != BannerType.Html);
     }
 
     private static bool IsStale(DateTime? loaded, Banner banner) =>

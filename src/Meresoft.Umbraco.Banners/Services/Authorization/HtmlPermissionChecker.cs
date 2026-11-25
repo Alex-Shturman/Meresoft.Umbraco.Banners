@@ -7,7 +7,7 @@ namespace Meresoft.Umbraco.Banners.Services.Authorization;
 /// of a user group, so it is granted when any of the user's groups has the verb (research R4). The banner service
 /// asks it for every write that can set or change HTML, so no caller can bypass it.
 /// </summary>
-public sealed class HtmlPermissionChecker
+public class HtmlPermissionChecker
 {
     private readonly IUserService _userService;
 
@@ -18,7 +18,7 @@ public sealed class HtmlPermissionChecker
     }
 
     /// <summary>True when any group of the user has <see cref="BannersConstants.HtmlPermission"/>; false for an unknown user.</summary>
-    public async Task<bool> IsAllowedAsync(Guid userKey)
+    public virtual async Task<bool> IsAllowedAsync(Guid userKey)
     {
         var user = await _userService.GetAsync(userKey);
         return user is not null && user.Groups.Any(group => group.Permissions.Contains(BannersConstants.HtmlPermission));
