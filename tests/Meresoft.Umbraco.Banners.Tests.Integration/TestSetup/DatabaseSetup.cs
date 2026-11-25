@@ -1,4 +1,25 @@
 using NUnit.Framework;
+using NUnit.Framework.Interfaces;
+using NUnit.Framework.Internal;
+
+[assembly: SqlServerVariant]
+
+/// <summary>
+/// Marks the whole assembly with the category <c>SqlServer</c> in a run that targets SQL Server (the environment variable
+/// <see cref="DatabaseSetup.SqlServerEnvironmentVariable"/> is set), so <c>--filter Category=SqlServer</c> selects the
+/// complete integration suite of that run. Without the variable the suite is the SQLite variant and carries no such category.
+/// </summary>
+[AttributeUsage(AttributeTargets.Assembly)]
+public sealed class SqlServerVariantAttribute : Attribute, IApplyToTest
+{
+    public void ApplyToTest(Test test)
+    {
+        if (!string.IsNullOrWhiteSpace(Environment.GetEnvironmentVariable(DatabaseSetup.SqlServerEnvironmentVariable)))
+        {
+            test.Properties.Add(PropertyNames.Category, "SqlServer");
+        }
+    }
+}
 
 /// <summary>
 /// Assembly-wide setup (no namespace on purpose, so it applies to every test). It chooses the test
