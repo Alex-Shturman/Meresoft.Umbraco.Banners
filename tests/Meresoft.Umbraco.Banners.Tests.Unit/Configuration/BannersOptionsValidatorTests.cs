@@ -174,12 +174,20 @@ public class BannersOptionsValidatorTests
         Assert.That(result.FailureMessage, Does.Contain("Meresoft:Banners:Bots:AdditionalUserAgentPatterns"));
     }
 
-    [TestCase("(unclosed")]
+    [TestCase("foo(")]
     [TestCase("[a-")]
     [TestCase("*leading")]
-    public void BotPatterns_ThatDoNotCompileAsRegex_FailAndNameTheIndex(string bad)
+    public void BotPatterns_WithRegexMetacharacters_AreAccepted(string substring)
     {
-        ValidateOptionsResult result = Validate(o => o.Bots.AdditionalUserAgentPatterns = ["ok-agent", bad]);
+        // Patterns are case-insensitive substrings (contract), not regular expressions.
+        Assert.That(Validate(o => o.Bots.AdditionalUserAgentPatterns = ["ok-agent", substring]).Succeeded, Is.True);
+    }
+
+    [TestCase("")]
+    [TestCase("   ")]
+    public void BotPatterns_Empty_OrWhitespace_FailAndNameTheIndex(string blank)
+    {
+        ValidateOptionsResult result = Validate(o => o.Bots.AdditionalUserAgentPatterns = ["ok-agent", blank]);
 
         Assert.That(result.Failed, Is.True);
         Assert.That(result.FailureMessage, Does.Contain("Meresoft:Banners:Bots:AdditionalUserAgentPatterns:1"));
