@@ -116,4 +116,39 @@ public class BannerSelectorTests
     {
         Assert.That(SelectorFor(1, 2).Select("  Home-Top "), Has.Count.EqualTo(1));
     }
+
+    [Test]
+    public void SelectingOne_AllocatesOnlyTheTwoSmallLists()
+    {
+        // A plain fake, because a mocking library records every call and would be what the test measures.
+        var zone = new SnapshotZone(1, "home-top", 1, ZoneRenderMode.Server, null, null, [Banner(1, 1), Banner(2, 3)]);
+        var snapshot = new LiveSnapshot(new Dictionary<string, SnapshotZone> { ["home-top"] = zone }, new HashSet<int>(), new HashSet<Guid>());
+        var selector = NewSelector(new FixedSnapshotAccessor(snapshot), new FakeTimeProvider(Now));
+        for (int i = 0; i < 2000; i++)
+        {
+            selector.Select("home-top");
+        }
+
+        long before = GC.GetAllocatedBytesForCurrentThread();
+        for (int i = 0; i < 1000; i++)
+        {
+            selector.Select("home-top");
+        }
+
+        long perCall = (GC.GetAllocatedBytesForCurrentThread() - before) / 1000;
+        Assert.That(perCall, Is.LessThanOrEqualTo(72), "the sampler's list and the result list; the SelectedBanner is built once");
+    }
+
+    private sealed class FixedSnapshotAccessor(LiveSnapshot snapshot) : ILiveSnapshotAccessor
+    {
+        public LiveSnapshot Current => snapshot;
+
+        public bool IsBuilt => true;
+
+        public void MarkStartupBuildFinished()
+        {
+        }
+
+        public Task RebuildAsync(IReadOnlySet<Guid>? mediaKeysTreatedAsMissing = null) => Task.CompletedTask;
+    }
 }

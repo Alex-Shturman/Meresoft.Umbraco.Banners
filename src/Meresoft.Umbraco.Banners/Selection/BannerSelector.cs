@@ -28,19 +28,13 @@ internal sealed class BannerSelector : IBannerSelector
 
         // The schedule is judged now, per request: a start or end time changes what shows without a publish.
         IReadOnlyList<SnapshotBanner> active = _schedule.Active(zone.Candidates);
-        return _sampler.Pick(active, zone.ShowCount).Select(ToSelected).ToArray();
-    }
+        IReadOnlyList<SnapshotBanner> picked = _sampler.Pick(active, zone.ShowCount);
+        var result = new SelectedBanner[picked.Count];
+        for (int i = 0; i < result.Length; i++)
+        {
+            result[i] = picked[i].Selected;
+        }
 
-    private static SelectedBanner ToSelected(SnapshotBanner banner) => new()
-    {
-        BannerId = banner.BannerId,
-        ZoneId = banner.ZoneId,
-        ImageUrl = banner.ImageUrl,
-        Width = banner.Width,
-        Height = banner.Height,
-        AltText = banner.AltText,
-        Title = banner.Title,
-        LinkUrl = banner.LinkUrl,
-        OpenInNewWindow = banner.OpenInNewWindow,
-    };
+        return result;
+    }
 }

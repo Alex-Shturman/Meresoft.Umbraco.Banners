@@ -1,4 +1,5 @@
 using Meresoft.Umbraco.Banners.Domain;
+using Meresoft.Umbraco.Banners.Selection;
 
 namespace Meresoft.Umbraco.Banners.Caching;
 
@@ -90,4 +91,23 @@ public sealed record SnapshotBanner
 
     /// <summary>Clicks after which the banner stops.</summary>
     public long? ClickLimit { get; init; }
+
+    private SelectedBanner? _selected;
+
+    /// <summary>
+    /// What the markup needs, built once on first use so a page request allocates no new object for it.
+    /// Two threads may build it at the same time; both results are equal and immutable, so either may win.
+    /// </summary>
+    internal SelectedBanner Selected => _selected ??= new SelectedBanner
+    {
+        BannerId = BannerId,
+        ZoneId = ZoneId,
+        ImageUrl = ImageUrl,
+        Width = Width,
+        Height = Height,
+        AltText = AltText,
+        Title = Title,
+        LinkUrl = LinkUrl,
+        OpenInNewWindow = OpenInNewWindow,
+    };
 }

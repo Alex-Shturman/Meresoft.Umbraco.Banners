@@ -26,9 +26,10 @@ internal sealed class WeightedSampler
             return [];
         }
 
-        if (candidates.Count == 1)
+        if (take == 1)
         {
-            return [candidates[0]];
+            // The common case: one weighted pass over the candidates, no copy and no removal.
+            return new[] { candidates.Count == 1 ? candidates[0] : PickOne(candidates) };
         }
 
         // Work on a copy so the snapshot's shared list stays untouched.
@@ -64,6 +65,29 @@ internal sealed class WeightedSampler
         }
 
         return picked;
+    }
+
+    private SnapshotBanner PickOne(IReadOnlyList<SnapshotBanner> candidates)
+    {
+        int total = 0;
+        for (int i = 0; i < candidates.Count; i++)
+        {
+            total += WeightOf(candidates[i]);
+        }
+
+        int ticket = _random.Next(total);
+        for (int i = 0; i < candidates.Count - 1; i++)
+        {
+            int weight = WeightOf(candidates[i]);
+            if (ticket < weight)
+            {
+                return candidates[i];
+            }
+
+            ticket -= weight;
+        }
+
+        return candidates[^1];
     }
 
     // The editor and the validator allow 1 to 100. Anything outside is clamped, so a bad stored value never breaks

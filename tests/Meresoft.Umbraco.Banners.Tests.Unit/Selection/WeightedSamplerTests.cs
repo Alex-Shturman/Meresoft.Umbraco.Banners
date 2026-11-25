@@ -137,4 +137,24 @@ public class WeightedSamplerTests
 
         Assert.That(Sampler().Pick(candidates, 3).Select(b => b.BannerId), Is.EquivalentTo(new[] { 1, 2, 3 }));
     }
+
+    [Test]
+    public void PickingOneOfSeveral_AllocatesLittleMoreThanTheResult()
+    {
+        WeightedSampler sampler = Sampler();
+        SnapshotBanner[] candidates = [Candidate(1, 1), Candidate(2, 3), Candidate(3, 5), Candidate(4, 2)];
+        for (int i = 0; i < 2000; i++)
+        {
+            sampler.Pick(candidates, 1); // Warm up the JIT so tiering does not count.
+        }
+
+        long before = GC.GetAllocatedBytesForCurrentThread();
+        for (int i = 0; i < 1000; i++)
+        {
+            sampler.Pick(candidates, 1);
+        }
+
+        long perCall = (GC.GetAllocatedBytesForCurrentThread() - before) / 1000;
+        Assert.That(perCall, Is.LessThanOrEqualTo(32), "only the one element result list, no copy of the candidates");
+    }
 }
