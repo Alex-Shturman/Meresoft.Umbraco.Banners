@@ -26,4 +26,7 @@ public enum BannerOperationStatus
 
     /// <summary>The type of a banner cannot be changed after creation.</summary>
     TypeChangeNotAllowed,
+
+    /// <summary>The change sets or changes HTML and the user has no HTML permission (FR-006).</summary>
+    HtmlPermissionRequired,
 }

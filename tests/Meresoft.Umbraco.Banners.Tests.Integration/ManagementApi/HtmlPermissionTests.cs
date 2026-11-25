@@ -1,5 +1,12 @@
 using System.Net;
 using System.Text.Json;
+using Meresoft.Umbraco.Banners.Domain;
+using Meresoft.Umbraco.Banners.Persistence.Repositories;
+using Meresoft.Umbraco.Banners.Services;
+using Meresoft.Umbraco.Banners.Services.Models;
+using Umbraco.Cms.Core;
+using Umbraco.Cms.Core.Services;
+using Umbraco.Cms.Infrastructure.Scoping;
 using Meresoft.Umbraco.Banners.Tests.Integration.TestSetup;
 using NUnit.Framework;
 
@@ -201,5 +208,68 @@ public class HtmlPermissionTests : BannersApiTestBase
         HttpResponseMessage response = await PostAsync("/banners", HtmlBody());
 
         Assert.That(response.StatusCode, Is.EqualTo(HttpStatusCode.Unauthorized));
+    }
+
+    /// <summary>The key of the user the helper signed in.</summary>
+    private Guid UserKeyOf(string email) => GetRequiredService<IUserService>().GetByEmail(email)!.Key;
+
+    [Test]
+    public async Task WithoutTheVerb_UpdatingTheHtml_OfABannerWithNoDraft_Gives403()
+    {
+        // A banner that only has a live version must not let the check be skipped (fail closed).
+        BannerZone zone = (await GetRequiredService<IBannerZoneService>().GetAsync(_zoneKey))!;
+        var banner = new Banner
+        {
+            Key = Guid.NewGuid(),
+            Name = "Live only html",
+            Type = BannerType.Html,
+            IsPublished = true,
+            CreateDate = DateTime.UtcNow,
+            UpdateDate = DateTime.UtcNow,
+            CreatedBy = Constants.Security.SuperUserKey,
+            UpdatedBy = Constants.Security.SuperUserKey,
+            Live = new BannerVersion { Kind = BannerVersionKind.Live, Html = StoredHtml, Weight = 1, SavedDate = DateTime.UtcNow, SavedBy = Constants.Security.SuperUserKey, ZoneIds = [zone.Id] },
+        };
+        using (IScope scope = ScopeProvider.CreateScope())
+        {
+            GetRequiredService<IBannerRepository>().Add(banner);
+            scope.Complete();
+        }
+
+        await SignInWithGroupsAsync("no-html-no-draft@test.invalid", (Section: true, Html: false));
+
+        await AssertHtmlPermissionRequiredAsync(await PutAsync("/banners/" + banner.Key, HtmlBody("<p>Changed</p>", updateDate: DateTime.UtcNow)));
+    }
+
+    [Test]
+    public async Task TheService_RefusesEveryHtmlWrite_ForAUserWithoutTheVerb()
+    {
+        Guid key = await HtmlBannerCreatedByAdminAsync();
+        await SignInWithGroupsAsync("no-html-service@test.invalid", (Section: true, Html: false));
+        Guid user = UserKeyOf("no-html-service@test.invalid");
+        IBannerService service = GetRequiredService<IBannerService>();
+        Banner stored = (await service.GetAsync(key))!;
+        var draft = new BannerDraftModel { Name = "Html offer", Html = "<p>Changed</p>", Weight = 1, ZoneKeys = [_zoneKey] };
+
+        var create = await service.CreateAsync(new BannerCreateModel { Type = BannerType.Html, Draft = draft }, user);
+        draft.UpdateDate = stored.UpdateDate;
+        var save = await service.SaveDraftAsync(key, draft, user);
+
+        Assert.Multiple(() =>
+        {
+            Assert.That(create.Status, Is.EqualTo(BannerOperationStatus.HtmlPermissionRequired));
+            Assert.That(save.Status, Is.EqualTo(BannerOperationStatus.HtmlPermissionRequired));
+        });
+    }
+
+    [Test]
+    public async Task TheService_AllowsHtmlWrites_ForAUserWithTheVerb()
+    {
+        await SignInWithGroupsAsync("html-service@test.invalid", (Section: true, Html: true));
+        var draft = new BannerDraftModel { Name = "Html offer", Html = StoredHtml, Weight = 1, ZoneKeys = [_zoneKey] };
+
+        var create = await GetRequiredService<IBannerService>().CreateAsync(new BannerCreateModel { Type = BannerType.Html, Draft = draft }, UserKeyOf("html-service@test.invalid"));
+
+        Assert.That(create.Success, Is.True, create.Status.ToString());
     }
 }

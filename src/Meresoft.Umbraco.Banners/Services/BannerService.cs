@@ -1,5 +1,6 @@
 using Meresoft.Umbraco.Banners.Caching;
 using Meresoft.Umbraco.Banners.Domain;
+using Meresoft.Umbraco.Banners.ManagementApi.Authorization;
 using Meresoft.Umbraco.Banners.Persistence;
 using Meresoft.Umbraco.Banners.Persistence.Repositories;
 using Meresoft.Umbraco.Banners.Services.Audit;
@@ -25,6 +26,7 @@ internal sealed class BannerService : IBannerService
     private readonly IPublishedMediaCache _mediaCache;
     private readonly BannerStateCalculator _stateCalculator;
     private readonly TimeProvider _timeProvider;
+    private readonly HtmlPermissionChecker _htmlPermission;
 
     public BannerService(
         IScopeProvider scopeProvider,
@@ -33,7 +35,8 @@ internal sealed class BannerService : IBannerService
         BannerAuditWriter audit,
         IPublishedMediaCache mediaCache,
         BannerStateCalculator stateCalculator,
-        TimeProvider timeProvider)
+        TimeProvider timeProvider,
+        HtmlPermissionChecker htmlPermission)
     {
         _scopeProvider = scopeProvider;
         _banners = banners;
@@ -42,6 +45,7 @@ internal sealed class BannerService : IBannerService
         _mediaCache = mediaCache;
         _stateCalculator = stateCalculator;
         _timeProvider = timeProvider;
+        _htmlPermission = htmlPermission;
     }
 
     public async Task<Banner?> GetAsync(Guid key)
@@ -109,6 +113,12 @@ internal sealed class BannerService : IBannerService
     {
         ArgumentNullException.ThrowIfNull(model);
 
+        // An Html banner, or any html value, needs the HTML permission of the acting user (FR-006).
+        if ((model.Type == BannerType.Html || HtmlPermissionChecker.ChangesHtml(null, model.Draft.Html)) && !await _htmlPermission.IsAllowedAsync(userKey))
+        {
+            return Attempt.FailWithStatus<Banner, BannerOperationStatus>(BannerOperationStatus.HtmlPermissionRequired, null!);
+        }
+
         DateTime now = UtcTimestamp.Truncate(_timeProvider.GetUtcNow().UtcDateTime);
         var banner = new Banner
         {
@@ -150,11 +160,30 @@ internal sealed class BannerService : IBannerService
         BannerType? storedType = PeekType(key);
         string? mediaProblem = storedType is { } type ? await MediaProblemAsync(type, model.MediaKey) : null;
 
+        // Asked before the scope opens, so no scope is held across this await.
+        bool mayEditHtml = await _htmlPermission.IsAllowedAsync(userKey);
+
         using (IScope scope = _scopeProvider.CreateScope())
         {
             scope.TakeWriteLock();
             Banner? banner = _banners.GetByKey(key);
-            if (banner?.Draft is null)
+            if (banner is null)
+            {
+                return Attempt.FailWithStatus<Banner, BannerOperationStatus>(BannerOperationStatus.NotFound, null!);
+            }
+
+            // Only a change of the html value, or a request to make the banner an Html banner, needs the HTML permission
+            // (FR-006); saving the other fields of an Html banner, with its html unchanged, does not. Checked before the
+            // type rule, so a user without the permission learns nothing about it. The stored html is read from the draft,
+            // or from the live version when no draft is left, so the check never depends on which version exists.
+            string? storedHtml = banner.Draft?.Html ?? banner.Live?.Html;
+            if ((HtmlPermissionChecker.ChangesHtml(storedHtml, model.Html) || (model.Type == BannerType.Html && banner.Type != BannerType.Html))
+                && !mayEditHtml)
+            {
+                return Attempt.FailWithStatus(BannerOperationStatus.HtmlPermissionRequired, banner);
+            }
+
+            if (banner.Draft is null)
             {
                 return Attempt.FailWithStatus<Banner, BannerOperationStatus>(BannerOperationStatus.NotFound, null!);
             }

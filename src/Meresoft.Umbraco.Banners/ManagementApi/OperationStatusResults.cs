@@ -44,6 +44,9 @@ public static class OperationStatusResults
             case BannerOperationStatus.TypeChangeNotAllowed:
                 return Problem(StatusCodes.Status400BadRequest, "type-change-not-allowed", "Type cannot change", "The type of a banner cannot be changed after it is created.");
 
+            case BannerOperationStatus.HtmlPermissionRequired:
+                return HtmlPermissionRequired();
+
             case BannerOperationStatus.DuplicateAlias:
                 return Problem(StatusCodes.Status409Conflict, "alias-taken", "Alias taken", "Another zone already uses this alias.");
 
