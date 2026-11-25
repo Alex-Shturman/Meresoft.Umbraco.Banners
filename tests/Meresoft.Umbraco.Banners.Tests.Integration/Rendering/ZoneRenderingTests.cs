@@ -92,6 +92,20 @@ public class ZoneRenderingTests : BannersServiceTestBase
     }
 
     [Test]
+    public async Task TagHelper_InAClientModeZone_WritesThePlaceholderWithTheFallback_AndChoosesNoBanner()
+    {
+        BannerZone zone = await NewZoneAsync("cached-top", renderMode: ZoneRenderMode.Client);
+        _banner = await NewBannerAsync(ImageDraft(NewMediaKey(), zone.Key));
+        Assert.That((await BannerService.PublishAsync(_banner.Key, User)).Success, Is.True);
+        await WaitForSnapshotAsync(s => s.Zones.TryGetValue("cached-top", out SnapshotZone? z) && z.Candidates.Count > 0);
+
+        string html = await RenderTagHelperAsync(new DefaultHttpContext(), "Cached-Top", fallback: "<p>Fallback</p>");
+
+        Assert.That(html, Does.Contain("<div class=\"mb-zone\" data-mbz=\"cached-top\" data-mb-base=\"/_banners\" data-mbz-mode=\"client\"><p>Fallback</p></div>"));
+        Assert.That(html, Does.Not.Contain("data-mbz-token").And.Not.Contain("data-mbb"));
+    }
+
+    [Test]
     public async Task TagHelper_DoesNotRunItsChildContent_WhenABannerIsShown()
     {
         await PublishBannerInZoneAsync();

@@ -35,10 +35,10 @@ public abstract class BannersServiceTestBase : BannersIntegrationTestBase
     }
 
     /// <summary>Creates a zone through the service and returns it.</summary>
-    protected async Task<BannerZone> NewZoneAsync(string alias, int showCount = 1, int? width = null, int? height = null)
+    protected async Task<BannerZone> NewZoneAsync(string alias, int showCount = 1, int? width = null, int? height = null, ZoneRenderMode renderMode = ZoneRenderMode.Server)
     {
         var attempt = await ZoneService.CreateAsync(
-            new BannerZoneModel { Alias = alias, Name = "Zone " + alias, ShowCount = showCount, ImageWidth = width, ImageHeight = height },
+            new BannerZoneModel { Alias = alias, Name = "Zone " + alias, ShowCount = showCount, ImageWidth = width, ImageHeight = height, RenderMode = renderMode },
             User);
         Assert.That(attempt.Success, Is.True, $"zone {alias}: {attempt.Status}");
         return attempt.Result!;

@@ -1,4 +1,5 @@
 using Meresoft.Umbraco.Banners.Configuration;
+using Meresoft.Umbraco.Banners.Domain;
 using Meresoft.Umbraco.Banners.Rendering;
 using Meresoft.Umbraco.Banners.Selection;
 using Meresoft.Umbraco.Banners.Tokens;
@@ -265,5 +266,48 @@ public class BannerZoneHtmlWriterTests
         string html = Render("z", null, [HtmlBanner(1, stored)]);
 
         Assert.That(html, Does.Contain("data-mbb=\"1\">" + stored + "</div>"));
+    }
+
+    private string RenderClient(string alias, string? cssClass, string? fallback, bool deliveryEnabled = true)
+    {
+        var writer = new BannerZoneHtmlWriter(Options.Create(new BannersOptions { DeliveryEndpointEnabled = deliveryEnabled }), _tokens);
+        return writer.Render(new BannerZoneView(alias, cssClass, [], fallback, ZoneRenderMode.Client), _requestItems);
+    }
+
+    [Test]
+    public void ClientMode_WritesThePlaceholder_WithTheFallbackInside_AndNoToken()
+    {
+        string html = RenderClient("search-top", null, "<p>Fallback</p>");
+
+        Assert.That(html, Is.EqualTo(
+            "<div class=\"mb-zone\" data-mbz=\"search-top\" data-mb-base=\"/_banners\" data-mbz-mode=\"client\"><p>Fallback</p></div>" + ScriptTag));
+        Assert.That(html, Does.Not.Contain("data-mbz-token"));
+        Assert.That(_tokens.Issued, Is.Empty, "the server does not choose banners, so it issues no token");
+    }
+
+    [Test]
+    public void ClientMode_WithoutFallback_StillWritesTheEmptyPlaceholder_AndTheExtraClass()
+    {
+        string html = RenderClient("sidebar", "my-ads", null);
+
+        Assert.That(html, Does.StartWith("<div class=\"mb-zone my-ads\" data-mbz=\"sidebar\" data-mb-base=\"/_banners\" data-mbz-mode=\"client\"></div>"));
+    }
+
+    [Test]
+    public void ClientMode_WritesTheScriptOncePerPage()
+    {
+        string first = RenderClient("a", null, null);
+        string second = RenderClient("b", null, null);
+
+        Assert.That(first, Does.EndWith(ScriptTag));
+        Assert.That(second, Does.Not.Contain("<script"));
+    }
+
+    [Test]
+    public void ClientMode_WithTheDeliveryEndpointDisabled_WritesOnlyTheFallback()
+    {
+        Assert.That(RenderClient("search-top", "my-ads", "<p>Fallback</p>", deliveryEnabled: false), Is.EqualTo("<p>Fallback</p>"));
+        Assert.That(RenderClient("search-top", null, null, deliveryEnabled: false), Is.Empty);
+        Assert.That(_requestItems, Is.Empty, "no script tag when there is nothing for it to do");
     }
 }
