@@ -113,7 +113,6 @@ public class HtmlPermissionTests : BannersApiTestBase
     }
 
     [Test]
-    [Ignore("needs Track 4: the reports endpoint (GET /reports) does not exist before US3 is merged")]
     public async Task WithoutTheVerb_ReportsOfAnHtmlBanner_AreAvailable()
     {
         Guid key = await HtmlBannerCreatedByAdminAsync();
