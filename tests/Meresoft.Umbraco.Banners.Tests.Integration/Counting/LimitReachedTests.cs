@@ -3,6 +3,7 @@ using Meresoft.Umbraco.Banners.Counting;
 using Meresoft.Umbraco.Banners.Domain;
 using Meresoft.Umbraco.Banners.Persistence.Dtos;
 using Meresoft.Umbraco.Banners.Persistence.Repositories;
+using Meresoft.Umbraco.Banners.Selection;
 using Meresoft.Umbraco.Banners.Services.Models;
 using Meresoft.Umbraco.Banners.Tests.Integration.TestSetup;
 using Microsoft.Extensions.DependencyInjection;
@@ -152,32 +153,53 @@ public class LimitReachedTests : BannersServiceTestBase
         Assert.That((await FlagsAsync(_banner)).HasFlag(BannerFlags.LimitReached), Is.False);
     }
 
-    [Test]
-    public async Task TheOvershoot_IsAtMostTheViewsOfOneFlushInterval()
+    /// <summary>One page request per call: the real selector picks, and every served banner counts one view, as the page script would.</summary>
+    private int ServeRequests(int requests)
     {
-        // Views of the first interval: below the limit, so the banner keeps showing.
-        Buffer.AddImpression(Day, _banner.Id, _top.Id);
-        await FlushAsync();
-        Assert.That(Shows(Snapshot.Current, "limit-top", _banner.Id), Is.True);
-
-        // The interval that crosses the limit: the banner still shows during it, so all of these are counted.
-        const int viewsInTheCrossingInterval = 4;
-        for (int i = 0; i < viewsInTheCrossingInterval; i++)
+        IBannerSelector selector = GetRequiredService<IBannerSelector>();
+        int counted = 0;
+        for (int i = 0; i < requests; i++)
         {
-            Buffer.AddImpression(Day, _banner.Id, _top.Id);
+            foreach (SelectedBanner served in selector.Select("limit-top"))
+            {
+                if (served.BannerId == _banner.Id)
+                {
+                    Buffer.AddImpression(Day, _banner.Id, _top.Id);
+                    counted++;
+                }
+            }
         }
 
+        return counted;
+    }
+
+    private long StoredImpressions()
+    {
+        using IScope scope = ScopeProvider.CreateScope(autoComplete: true);
+        return GetRequiredService<IStatisticsRepository>().GetDailyRows(new DateOnly(2000, 1, 1), new DateOnly(2100, 1, 1), null, _banner.Id).Sum(r => r.Impressions);
+    }
+
+    [Test]
+    public async Task TheOvershoot_IsAtMostTheViewsOfOneFlushInterval_AndNothingIsCountedAfterIt()
+    {
+        // Interval 1: below the limit of 3, so the banner keeps being served.
+        Assert.That(ServeRequests(1), Is.EqualTo(1));
         await FlushAsync();
 
-        // After that flush the banner is gone, so nothing more is counted.
-        Assert.That(Shows(Snapshot.Current, "limit-top", _banner.Id), Is.False);
-        long total;
-        using (IScope scope = ScopeProvider.CreateScope(autoComplete: true))
-        {
-            total = GetRequiredService<IStatisticsRepository>().GetDailyRows(new DateOnly(2000, 1, 1), new DateOnly(2100, 1, 1), null, _banner.Id).Sum(r => r.Impressions);
-        }
+        // Interval 2 crosses the limit. The banner is still served during the whole interval (the snapshot only
+        // changes at the flush), so every request counts: this is the allowed overshoot.
+        const int requestsInTheCrossingInterval = 4;
+        Assert.That(ServeRequests(requestsInTheCrossingInterval), Is.EqualTo(requestsInTheCrossingInterval));
+        await FlushAsync();
 
-        Assert.That(total, Is.EqualTo(1 + viewsInTheCrossingInterval));
-        Assert.That(total, Is.LessThanOrEqualTo(3 + viewsInTheCrossingInterval), "limit plus the views of one interval");
+        // Interval 3: the selection path no longer serves the banner, so nothing is recorded.
+        Assert.That(GetRequiredService<IBannerSelector>().Select("limit-top"), Is.Empty);
+        Assert.That(GetRequiredService<IBannerSelector>().Select("limit-side"), Is.Empty);
+        Assert.That(ServeRequests(requestsInTheCrossingInterval), Is.EqualTo(0));
+        await FlushAsync();
+
+        long total = StoredImpressions();
+        Assert.That(total, Is.EqualTo(1 + requestsInTheCrossingInterval), "views past the limit exist only in the crossing interval");
+        Assert.That(total - 3, Is.LessThanOrEqualTo(requestsInTheCrossingInterval), "overshoot is at most the views of one interval");
     }
 }
