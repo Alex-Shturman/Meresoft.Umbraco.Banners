@@ -31,12 +31,12 @@ public class ZonesApiTests : BannersApiTestBase
     }
 
     [Test]
-    public async Task Create_ClientRenderMode_Returns400_UntilClientModeExists()
+    public async Task Create_ClientRenderMode_Returns201_AndTheModeIsStored()
     {
         HttpResponseMessage response = await PostAsync("/zones", ZoneBody("cached-top", renderMode: "client"));
 
-        Assert.That(response.StatusCode, Is.EqualTo(HttpStatusCode.BadRequest));
-        Assert.That((await ReadAsync(response)).GetProperty("errors").EnumerateArray().Any(e => e.TryGetProperty("$.renderMode", out _)), Is.True);
+        Assert.That(response.StatusCode, Is.EqualTo(HttpStatusCode.Created), await response.Content.ReadAsStringAsync());
+        Assert.That((await ReadAsync(await GetAsync("/zones/" + KeyFromLocation(response)))).GetProperty("renderMode").GetString(), Is.EqualTo("Client"));
     }
 
     [Test]
