@@ -51,6 +51,7 @@ public class SnapshotStartupHandlerTests
         await Run();
 
         await _accessor.Received(1).RebuildAsync(Arg.Any<IReadOnlySet<Guid>?>());
+        _accessor.Received(1).MarkStartupBuildFinished();
         Assert.That(_logger.Levels, Is.Empty);
     }
 
@@ -62,6 +63,7 @@ public class SnapshotStartupHandlerTests
         await Run();
 
         await _accessor.DidNotReceive().RebuildAsync(Arg.Any<IReadOnlySet<Guid>?>());
+        _accessor.DidNotReceive().MarkStartupBuildFinished();
     }
 
     [Test]
@@ -84,6 +86,7 @@ public class SnapshotStartupHandlerTests
 
         await _accessor.Received(4).RebuildAsync(Arg.Any<IReadOnlySet<Guid>?>());
         Assert.That(_logger.Levels, Does.Contain(LogLevel.Error));
+        _accessor.Received(1).MarkStartupBuildFinished();
     }
 
     [Test]
@@ -93,6 +96,7 @@ public class SnapshotStartupHandlerTests
         _accessor.RebuildAsync(Arg.Any<IReadOnlySet<Guid>?>()).Returns(Task.FromException(new OperationCanceledException(source.Token)));
 
         Assert.That(async () => await Run(source.Token), Throws.InstanceOf<OperationCanceledException>());
+        _accessor.DidNotReceive().MarkStartupBuildFinished();
     }
 
     private sealed class CapturingLogger : ILogger<SnapshotStartupHandler>

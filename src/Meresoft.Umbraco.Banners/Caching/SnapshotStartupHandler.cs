@@ -38,6 +38,7 @@ internal sealed class SnapshotStartupHandler : INotificationAsyncHandler<Umbraco
             try
             {
                 await _accessor.RebuildAsync();
+                _accessor.MarkStartupBuildFinished();
                 return;
             }
             catch (OperationCanceledException)
@@ -55,6 +56,7 @@ internal sealed class SnapshotStartupHandler : INotificationAsyncHandler<Umbraco
                 // Startup must go on. Zones that exist show nothing and are listed as "placed but not set up"
                 // until a publish, a zone change or the safety reload builds the snapshot.
                 _logger.LogError(ex, "The first banner snapshot could not be built after {MaxAttempts} tries; banners stay hidden until the next refresh or safety reload.", MaxAttempts);
+                _accessor.MarkStartupBuildFinished();
                 return;
             }
         }

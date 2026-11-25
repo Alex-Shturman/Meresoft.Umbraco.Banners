@@ -20,8 +20,23 @@ public class SnapshotAccessorWarningTests : BannersServiceTestBase
     }
 
     [Test]
-    public void ReadingTheSnapshotBeforeTheFirstBuild_LogsOneWarning_NotOnePerRead()
+    public void ReadingTheSnapshotInTheShortWindowBeforeTheStartupBuildHasFinished_IsNotAWarning()
     {
+        for (int i = 0; i < 5; i++)
+        {
+            _ = _accessor.Current;
+        }
+
+        Assert.That(_accessor.IsBuilt, Is.False);
+        Assert.That(_logger.Levels, Does.Not.Contain(LogLevel.Warning));
+        Assert.That(_logger.Levels.Count(l => l == LogLevel.Debug), Is.EqualTo(1), "noted once at Debug");
+    }
+
+    [Test]
+    public void ReadingTheSnapshotAfterTheStartupBuildFinishedWithoutSuccess_LogsOneWarning_NotOnePerRead()
+    {
+        _accessor.MarkStartupBuildFinished();
+
         for (int i = 0; i < 5; i++)
         {
             _ = _accessor.Current;
@@ -35,6 +50,7 @@ public class SnapshotAccessorWarningTests : BannersServiceTestBase
     public async Task ReadingTheSnapshotAfterTheFirstBuild_LogsNoWarning()
     {
         await _accessor.RebuildAsync();
+        _accessor.MarkStartupBuildFinished();
 
         _ = _accessor.Current;
 
