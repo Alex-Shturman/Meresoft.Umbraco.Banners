@@ -1,6 +1,9 @@
 // Package script (server mode): reports banners that were really seen. No dependencies, no cookies, nothing stored.
 // A banner counts after 1,000 ms of continuous visibility at 50% or more while the tab is visible (FR-011).
 // Without IntersectionObserver nothing is counted. The server decides what counts; see contracts/public-endpoints.md.
+// Without IntersectionObserver the script stops at once, so client mode placeholders are not even fetched and the
+// visitor sees the fallback content. That is deliberate: fetch and IntersectionObserver ship together in every
+// browser that matters, and a banner that can never be counted should not be shown.
 // Client mode (cached pages): a placeholder asks {base}/zone/{alias}, gets public fields, builds the banners through
 // the DOM and then treats them like server mode banners.
 (() => {

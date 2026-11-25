@@ -89,4 +89,7 @@ Query: none (the zone settings decide how many banners and the image size).
   (`document.visibilityState === "visible"`); leaving the viewport or hiding the tab resets the
   timer. Each banner element reports at most once per page view.
 - Reports are queued and sent at most every 2 seconds and on `pagehide`.
-- Without `IntersectionObserver` (very old browsers) nothing is counted.
+- Without `IntersectionObserver` (very old browsers) nothing is counted, and the script stops before it
+  does anything else: client mode placeholders are not fetched and the visitor sees the fallback content.
+  This is deliberate: `fetch` and `IntersectionObserver` ship together, and a banner that cannot be
+  counted should not be shown.

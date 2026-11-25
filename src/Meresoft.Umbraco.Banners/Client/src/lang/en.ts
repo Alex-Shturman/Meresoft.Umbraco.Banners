@@ -40,7 +40,7 @@ export default {
     zoneRenderModeServer: "Server",
     zoneRenderModeClient: "Client",
     zoneRenderModeHelp:
-      "Server: the banner is chosen while the page renders, and is part of the page HTML. Client: the page holds a placeholder and the browser loads the banner, so use it on pages that are cached (output cache, CDN). Client mode needs JavaScript and the delivery endpoint; without them visitors see the fallback content.",
+      "Server: the banner is chosen while the page renders, and is part of the page HTML. Client: the page holds a placeholder and the browser loads the banner, so use it on pages that are cached (output cache, CDN). Client mode needs JavaScript (a browser with IntersectionObserver and fetch) and the delivery endpoint; without them visitors see the fallback content.",
     zoneActiveBanners: "Active banners",
     zoneInUseHeadline: "Banners are still assigned to this zone",
     zoneInUseContent: "Remove the zone from these banners, then delete it.",
