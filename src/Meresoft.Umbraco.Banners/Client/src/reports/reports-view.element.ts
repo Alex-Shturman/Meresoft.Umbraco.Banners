@@ -153,7 +153,7 @@ export class MeresoftReportsViewElement extends UmbLitElement {
   #renderFilters() {
     return html`
       <div class="filters">
-        <uui-button-group aria-label=${this.localize.term("meresoftBanners_reportPeriod")}>
+        <uui-button-group role="group" aria-label=${this.localize.term("meresoftBanners_reportPeriod")}>
           ${PRESETS.map(
             (preset) => html`
               <uui-button

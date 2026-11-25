@@ -506,6 +506,11 @@ export class MeresoftBannerEditorElement extends UmbLitElement {
         display: block;
         height: 100%;
       }
+
+      /* The default help text colour of the form layout item is below the AA contrast ratio on the editor background. */
+      span[slot="description"] {
+        color: var(--uui-color-text);
+      }
       uui-alert,
       uui-box,
       .state {

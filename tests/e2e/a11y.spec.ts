@@ -34,7 +34,7 @@ let page: Page;
 let bannerPath = "";
 
 test.beforeAll(async ({ browser }) => {
-  page = await browser.newPage();
+  page = await (await browser.newContext()).newPage();
   await loginAsAdmin(page);
 });
 
@@ -113,7 +113,7 @@ async function tabTo(name: RegExp, limit = 80): Promise<boolean> {
 
 test("setup: a zone and an Html banner exist for the views to show", async () => {
   await openBannersView(page, "zones");
-  await expect(page.getByRole("heading", { name: "Zones" })).toBeVisible();
+  await expect(page.locator("#headline").and(page.getByRole("heading", { name: "Zones" }))).toBeVisible();
   await page.getByRole("button", { name: "Create zone" }).first().click();
   await page.getByLabel("Alias").fill(ZONE_ALIAS);
   await page.getByLabel("Name", { exact: true }).fill(ZONE_NAME);
@@ -135,7 +135,7 @@ test("setup: a zone and an Html banner exist for the views to show", async () =>
 
 test("banners list: no serious violations", async () => {
   await openBannersView(page, "banners");
-  await expect(page.getByRole("heading", { name: "Banners" })).toBeVisible();
+  await expect(page.locator("#headline").and(page.getByRole("heading", { name: "Banners" }))).toBeVisible();
   await expect(page.getByRole("row", { name: new RegExp(BANNER_NAME) })).toBeVisible();
   await expectNoSeriousViolations("banners list");
 });
@@ -156,9 +156,8 @@ test("banner editor: fields have labels, no serious violations", async () => {
   await expect(page.getByLabel("HTML code")).toHaveValue(HTML);
   await expect(page.getByRole("button", { name: "Save" })).toBeVisible();
 
-  // Every field of the editor is reachable by its label, and the type choice is a named radio group.
+  // Every field of the editor is reachable by its label (the type choice exists only when creating).
   await expect(page.getByLabel("Name", { exact: true })).toBeEditable();
-  await expect(page.locator("meresoft-banner-editor uui-radio").first()).toBeVisible();
   await expect(page.locator("uui-checkbox", { hasText: ZONE_NAME })).toBeVisible();
 
   // An input without a name for assistive technology would also be an axe violation (label, aria-input-field-name);
@@ -201,7 +200,7 @@ test("banner editor: Tab reaches Save, Space or Enter saves", async () => {
 
 test("zones list: no serious violations, Tab reaches Create zone and Enter opens the editor", async () => {
   await openBannersView(page, "zones");
-  await expect(page.getByRole("heading", { name: "Zones" })).toBeVisible();
+  await expect(page.locator("#headline").and(page.getByRole("heading", { name: "Zones" }))).toBeVisible();
   await expect(page.getByRole("row", { name: new RegExp(ZONE_ALIAS) })).toBeVisible();
   await expectNoSeriousViolations("zones list");
 
@@ -223,8 +222,8 @@ test("zone editor: fields have labels, no serious violations", async () => {
 
 test("reports: no serious violations, the filters have labels and the period buttons work by keyboard", async () => {
   await openBannersView(page, "reports");
-  await expect(page.getByRole("heading", { name: "Reports" })).toBeVisible();
-  await expect(page.getByRole("table", { name: "Per day" })).toBeVisible();
+  await expect(page.locator("#headline").and(page.getByRole("heading", { name: "Reports" }))).toBeVisible();
+  await expect(page.getByText("Show the daily values as a table")).toBeVisible();
 
   await expect(page.getByLabel("From").first()).toBeVisible();
   await expect(page.getByLabel("To").first()).toBeVisible();
@@ -250,6 +249,7 @@ test("reports: the chart has a text alternative and the table carries the same n
   await expect(chart).toBeVisible();
 
   // The text alternative: the totals, and the table "Per day" with one row per day of the chart.
+  await page.getByText("Show the daily values as a table").click();
   const table = page.getByRole("table", { name: "Per day" });
   await expect(table).toBeVisible();
   const days = await page.locator("meresoft-daily-chart g.day").count();
