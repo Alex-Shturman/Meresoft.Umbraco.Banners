@@ -16,6 +16,7 @@ internal sealed class CounterFlusher
     private readonly IScopeProvider _scopeProvider;
     private readonly IStatisticsRepository _statistics;
     private readonly ILogger<CounterFlusher> _logger;
+    private readonly object _gate = new();
 
     public CounterFlusher(CounterBuffer buffer, IScopeProvider scopeProvider, IStatisticsRepository statistics, ILogger<CounterFlusher> logger)
     {
@@ -25,8 +26,19 @@ internal sealed class CounterFlusher
         _logger = logger;
     }
 
-    /// <summary>Takes the counts so far and adds them to the database.</summary>
+    /// <summary>
+    /// Takes the counts so far and adds them to the database. Flushes never overlap: the one at shutdown waits for a
+    /// running flush and for the counts that flush puts back after a failure, so nothing is left behind.
+    /// </summary>
     public void Flush()
+    {
+        lock (_gate)
+        {
+            FlushLocked();
+        }
+    }
+
+    private void FlushLocked()
     {
         IReadOnlyList<CounterEntry> entries = _buffer.Swap();
         if (entries.Count == 0)
