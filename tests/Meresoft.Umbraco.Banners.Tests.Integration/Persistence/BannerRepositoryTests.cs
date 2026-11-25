@@ -228,6 +228,37 @@ public class BannerRepositoryTests : BannersIntegrationTestBase
     }
 
     [Test]
+    public void GetAllPublished_ReturnsOnlyPublishedBannersWithBothVersionsAndZones()
+    {
+        Banner shown = NewBanner("Shown");
+        Banner unpublished = NewBanner("Unpublished");
+        Banner draftOnly = NewBanner("Draft only");
+        using (IScope scope = ScopeProvider.CreateScope())
+        {
+            BannerZone zone = AddZone("zone-a");
+            foreach (Banner b in new[] { shown, unpublished, draftOnly })
+            {
+                b.Draft!.ZoneIds = [zone.Id];
+                Banners.Add(b);
+            }
+
+            Banners.CopyDraftOverLive(shown.Id, Saved);
+            Banners.CopyDraftOverLive(unpublished.Id, Saved);
+            Banners.SetPublished(unpublished.Id, false);
+            scope.Complete();
+        }
+
+        using (ScopeProvider.CreateScope(autoComplete: true))
+        {
+            IReadOnlyList<Banner> published = Banners.GetAllPublished();
+
+            Assert.That(published.Select(b => b.Name), Is.EqualTo(new[] { "Shown" }));
+            Assert.That(published[0].Live!.ZoneIds, Has.Count.EqualTo(1));
+            Assert.That(published[0].Draft, Is.Not.Null);
+        }
+    }
+
+    [Test]
     public void SaveDraft_WritesOnlyNameAndUpdateColumnsOfTheBannerRow()
     {
         Banner banner = NewBanner("Summer promo");
