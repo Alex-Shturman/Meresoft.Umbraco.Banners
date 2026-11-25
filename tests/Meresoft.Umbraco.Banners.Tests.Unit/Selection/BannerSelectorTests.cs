@@ -61,8 +61,8 @@ public class BannerSelectorTests
     }
 
     [Test]
-    public void TheAliasIsExpectedNormalised_SoTheSelectorDoesNotNormaliseAgain()
+    public void APublicCallerMayPassAnAliasThatIsNotNormalised()
     {
-        Assert.That(SelectorFor(1, 2).Select("Home-Top"), Is.Empty);
+        Assert.That(SelectorFor(1, 2).Select("  Home-Top "), Has.Count.EqualTo(1));
     }
 }

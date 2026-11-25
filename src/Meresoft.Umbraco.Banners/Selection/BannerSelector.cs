@@ -1,4 +1,5 @@
 using Meresoft.Umbraco.Banners.Caching;
+using Meresoft.Umbraco.Banners.Domain;
 
 namespace Meresoft.Umbraco.Banners.Selection;
 
@@ -11,7 +12,9 @@ internal sealed class BannerSelector : IBannerSelector
 
     public IReadOnlyList<SelectedBanner> Select(string zoneAlias)
     {
-        if (!_snapshot.Current.Zones.TryGetValue(zoneAlias, out SnapshotZone? zone) || zone.Candidates.Count == 0)
+        // Normalising an alias that is already normalised allocates nothing, so the renderer, which normalises
+        // once itself, pays no real cost here, and a public caller may pass any spelling.
+        if (!_snapshot.Current.Zones.TryGetValue(AliasNormalizer.Normalize(zoneAlias), out SnapshotZone? zone) || zone.Candidates.Count == 0)
         {
             return [];
         }
