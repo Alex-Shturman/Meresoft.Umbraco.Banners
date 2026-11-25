@@ -83,6 +83,17 @@ export type CopyBannerRequestModel = {
     name?: string | null;
 };
 
+export type HistoryEntryModel = {
+    userName: string;
+    action: string;
+    date: string;
+};
+
+export type HistoryPageModel = {
+    total: number;
+    items: Array<HistoryEntryModel>;
+};
+
 export type ProblemDetails = {
     type?: string | null;
     title?: string | null;
@@ -375,6 +386,48 @@ export type CopyBannerResponses = {
      */
     201: unknown;
 };
+
+export type GetBannerHistoryData = {
+    body?: never;
+    path: {
+        key: string;
+    };
+    query?: {
+        skip?: number;
+        take?: number;
+    };
+    url: '/umbraco/management/api/v1/meresoft-banners/banners/{key}/history';
+};
+
+export type GetBannerHistoryErrors = {
+    /**
+     * Bad Request
+     */
+    400: ProblemDetails;
+    /**
+     * The resource is protected and requires an authentication token
+     */
+    401: unknown;
+    /**
+     * The authenticated user does not have access to this resource
+     */
+    403: unknown;
+    /**
+     * Not Found
+     */
+    404: ProblemDetails;
+};
+
+export type GetBannerHistoryError = GetBannerHistoryErrors[keyof GetBannerHistoryErrors];
+
+export type GetBannerHistoryResponses = {
+    /**
+     * OK
+     */
+    200: HistoryPageModel;
+};
+
+export type GetBannerHistoryResponse = GetBannerHistoryResponses[keyof GetBannerHistoryResponses];
 
 export type PublishBannerData = {
     body?: PublishBannerRequestModel;
@@ -762,3 +815,45 @@ export type UpdateZoneResponses = {
 };
 
 export type UpdateZoneResponse = UpdateZoneResponses[keyof UpdateZoneResponses];
+
+export type GetZoneHistoryData = {
+    body?: never;
+    path: {
+        key: string;
+    };
+    query?: {
+        skip?: number;
+        take?: number;
+    };
+    url: '/umbraco/management/api/v1/meresoft-banners/zones/{key}/history';
+};
+
+export type GetZoneHistoryErrors = {
+    /**
+     * Bad Request
+     */
+    400: ProblemDetails;
+    /**
+     * The resource is protected and requires an authentication token
+     */
+    401: unknown;
+    /**
+     * The authenticated user does not have access to this resource
+     */
+    403: unknown;
+    /**
+     * Not Found
+     */
+    404: ProblemDetails;
+};
+
+export type GetZoneHistoryError = GetZoneHistoryErrors[keyof GetZoneHistoryErrors];
+
+export type GetZoneHistoryResponses = {
+    /**
+     * OK
+     */
+    200: HistoryPageModel;
+};
+
+export type GetZoneHistoryResponse = GetZoneHistoryResponses[keyof GetZoneHistoryResponses];
