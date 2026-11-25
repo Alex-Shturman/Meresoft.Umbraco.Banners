@@ -32,6 +32,8 @@ public class ScheduleFilterTests
         EndUtc = end,
     };
 
+    private bool IsActive(SnapshotBanner banner) => _filter.Active([banner]).Count == 1;
+
     // A fake clock cannot move backwards, so each moment gets a fresh clock and filter.
     private void At(DateTime utc)
     {
@@ -40,37 +42,37 @@ public class ScheduleFilterTests
     }
 
     [Test]
-    public void InsideTheWindow_IsActive() => Assert.That(_filter.IsActive(Banner(1, Start, End)), Is.True);
+    public void InsideTheWindow_IsActive() => Assert.That(IsActive(Banner(1, Start, End)), Is.True);
 
     [Test]
     public void AtStart_IsActive_BeforeStart_IsNot()
     {
         At(Start);
-        Assert.That(_filter.IsActive(Banner(1, Start, End)), Is.True, "start is inclusive");
+        Assert.That(IsActive(Banner(1, Start, End)), Is.True, "start is inclusive");
 
         At(Start.AddTicks(-1));
-        Assert.That(_filter.IsActive(Banner(1, Start, End)), Is.False);
+        Assert.That(IsActive(Banner(1, Start, End)), Is.False);
     }
 
     [Test]
     public void AtEnd_IsNotActive_JustBeforeEnd_IsActive()
     {
         At(End.AddTicks(-1));
-        Assert.That(_filter.IsActive(Banner(1, Start, End)), Is.True);
+        Assert.That(IsActive(Banner(1, Start, End)), Is.True);
 
         At(End);
-        Assert.That(_filter.IsActive(Banner(1, Start, End)), Is.False, "end is exclusive");
+        Assert.That(IsActive(Banner(1, Start, End)), Is.False, "end is exclusive");
     }
 
     [Test]
     public void OpenEnds_AreAlwaysOpen()
     {
         At(new DateTime(2099, 1, 1, 0, 0, 0, DateTimeKind.Utc));
-        Assert.That(_filter.IsActive(Banner(1, null, null)), Is.True);
-        Assert.That(_filter.IsActive(Banner(2, Start, null)), Is.True);
+        Assert.That(IsActive(Banner(1, null, null)), Is.True);
+        Assert.That(IsActive(Banner(2, Start, null)), Is.True);
 
         At(new DateTime(2001, 1, 1, 0, 0, 0, DateTimeKind.Utc));
-        Assert.That(_filter.IsActive(Banner(3, null, End)), Is.True);
+        Assert.That(IsActive(Banner(3, null, End)), Is.True);
     }
 
     [Test]

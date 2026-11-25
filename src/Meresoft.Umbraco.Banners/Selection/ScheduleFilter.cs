@@ -1,4 +1,5 @@
 using Meresoft.Umbraco.Banners.Caching;
+using Meresoft.Umbraco.Banners.Domain;
 
 namespace Meresoft.Umbraco.Banners.Selection;
 
@@ -11,9 +12,6 @@ internal sealed class ScheduleFilter
     private readonly TimeProvider _timeProvider;
 
     public ScheduleFilter(TimeProvider timeProvider) => _timeProvider = timeProvider ?? throw new ArgumentNullException(nameof(timeProvider));
-
-    /// <summary>True when the banner may show now. A missing start or end is an open end.</summary>
-    public bool IsActive(SnapshotBanner banner) => IsActive(banner, _timeProvider.GetUtcNow().UtcDateTime);
 
     /// <summary>
     /// The active candidates in their order. When all are active the same list is returned, so the common
@@ -53,5 +51,5 @@ internal sealed class ScheduleFilter
     }
 
     private static bool IsActive(SnapshotBanner banner, DateTime nowUtc) =>
-        (banner.StartUtc is not { } start || nowUtc >= start) && (banner.EndUtc is not { } end || nowUtc < end);
+        Schedule.IsActive(banner.StartUtc, banner.EndUtc, nowUtc);
 }

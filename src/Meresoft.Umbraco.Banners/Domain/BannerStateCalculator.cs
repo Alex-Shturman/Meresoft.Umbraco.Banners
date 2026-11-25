@@ -58,12 +58,12 @@ public sealed class BannerStateCalculator
             flags |= BannerFlags.ImageMissing;
         }
 
-        if (version.StartUtc is { } start && now < start)
+        if (!Schedule.HasStarted(version.StartUtc, now))
         {
             flags |= BannerFlags.Scheduled;
         }
 
-        if (version.EndUtc is { } end && now >= end)
+        if (Schedule.HasEnded(version.EndUtc, now))
         {
             flags |= BannerFlags.Expired;
         }
