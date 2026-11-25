@@ -22,14 +22,19 @@ describe("showsClickLimit", () => {
 });
 
 describe("parseLimit", () => {
-  it("is null for an empty field, so there is no limit", () => {
-    expect(parseLimit("")).toBeNull();
-    expect(parseLimit("   ")).toBeNull();
+  it("is no limit for an empty field", () => {
+    expect(parseLimit("")).toEqual({ ok: true, value: null });
+    expect(parseLimit("   ")).toEqual({ ok: true, value: null });
   });
 
-  it("is the number otherwise", () => {
-    expect(parseLimit("10000")).toBe(10000);
-    expect(parseLimit(" 3 ")).toBe(3);
+  it("is the number for a whole number of 1 or more", () => {
+    expect(parseLimit("10000")).toEqual({ ok: true, value: 10000 });
+    expect(parseLimit(" 3 ")).toEqual({ ok: true, value: 3 });
+    expect(parseLimit("1")).toEqual({ ok: true, value: 1 });
+  });
+
+  it.each(["abc", "2.5", "0", "-1", "1e3", "12abc", "9007199254740993"])("refuses %s", (text) => {
+    expect(parseLimit(text)).toEqual({ ok: false });
   });
 });
 

@@ -28,6 +28,12 @@ import { STATE_DISPLAY, activeFlags, limitToText, parseLimit, showsClickLimit } 
 import { canEditHtml, htmlFieldAccess, offeredBannerTypes } from "./html-permission.js";
 import "./banner-history.element.js";
 
+/** The number of a limit field that #limitErrors accepted: null for an empty field. */
+function limitValue(text: string): number | null {
+  const parsed = parseLimit(text);
+  return parsed.ok ? parsed.value : null;
+}
+
 // The picker is a back office component; this import makes sure it is defined.
 void UmbInputMediaElement;
 
@@ -39,6 +45,7 @@ interface TextFieldOptions {
   type?: "text" | "number" | "datetime-local";
   min?: number;
   max?: number;
+  step?: number;
 }
 
 /** Creates and edits one banner (image or HTML): save the draft, publish, unpublish, copy and delete, and see its history. */
@@ -173,12 +180,26 @@ export class MeresoftBannerEditorElement extends UmbLitElement {
       weight: this._weight.trim() === "" || Number.isNaN(Number(this._weight)) ? null : Number(this._weight),
       startUtc: resolveUtc(this._start, draft?.startUtc),
       endUtc: resolveUtc(this._end, draft?.endUtc),
-      impressionLimit: parseLimit(this._impressionLimit),
+      // The fields were checked by #limitErrors before this runs, so a refused text cannot get here.
+      impressionLimit: limitValue(this._impressionLimit),
       // An Html banner has no click limit (FR-006), whatever the field held.
-      clickLimit: showsClickLimit(this._type) ? parseLimit(this._clickLimit) : null,
+      clickLimit: showsClickLimit(this._type) ? limitValue(this._clickLimit) : null,
       zoneKeys: this._zoneKeys,
       updateDate: this._banner?.updateDate ?? null,
     };
+  }
+
+  /** Field errors for limit fields that hold something other than a whole number of 1 or more. */
+  #limitErrors(): Record<string, string> {
+    const errors: Record<string, string> = {};
+    const message = this.localize.term("meresoftBanners_bannerLimitInvalid");
+    if (!parseLimit(this._impressionLimit).ok) {
+      errors.impressionLimit = message;
+    }
+    if (showsClickLimit(this._type) && !parseLimit(this._clickLimit).ok) {
+      errors.clickLimit = message;
+    }
+    return errors;
   }
 
   #toast(key: string) {
@@ -199,6 +220,12 @@ export class MeresoftBannerEditorElement extends UmbLitElement {
     this._errors = {};
     this._problem = "";
     this._conflict = false;
+
+    const limitErrors = this.#limitErrors();
+    if (Object.keys(limitErrors).length > 0) {
+      this._errors = limitErrors;
+      return false;
+    }
 
     if (!this.#bannerKey) {
       const created = await send(createBanner({ body: this.#body() }));
@@ -347,9 +374,9 @@ export class MeresoftBannerEditorElement extends UmbLitElement {
           ${this.#textField("weight", "meresoftBanners_bannerWeight", this._weight, (v) => (this._weight = v), { descriptionKey: "meresoftBanners_bannerWeightDescription", type: "number", min: 1, max: 100 })}
           ${this.#textField("startUtc", "meresoftBanners_bannerStart", this._start, (v) => (this._start = v), { descriptionKey: "meresoftBanners_bannerScheduleDescription", type: "datetime-local" })}
           ${this.#textField("endUtc", "meresoftBanners_bannerEnd", this._end, (v) => (this._end = v), { type: "datetime-local" })}
-          ${this.#textField("impressionLimit", "meresoftBanners_bannerImpressionLimit", this._impressionLimit, (v) => (this._impressionLimit = v), { descriptionKey: "meresoftBanners_bannerImpressionLimitDescription", type: "number", min: 1 })}
+          ${this.#textField("impressionLimit", "meresoftBanners_bannerImpressionLimit", this._impressionLimit, (v) => (this._impressionLimit = v), { descriptionKey: "meresoftBanners_bannerImpressionLimitDescription", type: "number", min: 1, step: 1 })}
           ${showsClickLimit(this._type)
-            ? this.#textField("clickLimit", "meresoftBanners_bannerClickLimit", this._clickLimit, (v) => (this._clickLimit = v), { descriptionKey: "meresoftBanners_bannerClickLimitDescription", type: "number", min: 1 })
+            ? this.#textField("clickLimit", "meresoftBanners_bannerClickLimit", this._clickLimit, (v) => (this._clickLimit = v), { descriptionKey: "meresoftBanners_bannerClickLimitDescription", type: "number", min: 1, step: 1 })
             : nothing}
           <uui-form-layout-item>
             <uui-label slot="label">${this.localize.term("meresoftBanners_bannerZones")}</uui-label>
@@ -460,13 +487,13 @@ export class MeresoftBannerEditorElement extends UmbLitElement {
     set: (value: string) => void,
     options: TextFieldOptions = {},
   ) {
-    const { descriptionKey, type = "text", min, max } = options;
+    const { descriptionKey, type = "text", min, max, step } = options;
     const label = this.localize.term(labelKey);
     return html`
       <uui-form-layout-item>
         <uui-label slot="label" for=${field}>${label}</uui-label>
         ${descriptionKey ? html`<span slot="description">${this.localize.term(descriptionKey, userTimeZone())}</span>` : nothing}
-        <uui-input id=${field} type=${type} min=${min ?? nothing} max=${max ?? nothing} label=${label} .value=${value} @input=${(e: Event) => set((e.target as HTMLInputElement).value)}></uui-input>
+        <uui-input id=${field} type=${type} min=${min ?? nothing} max=${max ?? nothing} step=${step ?? nothing} label=${label} .value=${value} @input=${(e: Event) => set((e.target as HTMLInputElement).value)}></uui-input>
         ${this.#error(field)}
       </uui-form-layout-item>
     `;

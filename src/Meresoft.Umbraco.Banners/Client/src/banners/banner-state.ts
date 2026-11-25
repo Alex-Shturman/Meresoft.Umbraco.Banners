@@ -34,9 +34,20 @@ export function showsClickLimit(type: BannerType): boolean {
   return type !== "Html";
 }
 
-/** The number in a limit field, or null when the field is empty (no limit). */
-export function parseLimit(text: string): number | null {
-  return text.trim() === "" ? null : Number(text);
+/** The reading of a limit field: no limit, a whole number of 1 or more, or not acceptable. */
+export type LimitParse = { ok: true; value: number | null } | { ok: false };
+
+/** Reads a limit field. An empty field is no limit; anything but a whole number from 1 up to the largest safe integer is refused. */
+export function parseLimit(text: string): LimitParse {
+  const trimmed = text.trim();
+  if (trimmed === "") {
+    return { ok: true, value: null };
+  }
+  if (!/^\d+$/.test(trimmed)) {
+    return { ok: false };
+  }
+  const value = Number(trimmed);
+  return value >= 1 && Number.isSafeInteger(value) ? { ok: true, value } : { ok: false };
 }
 
 /** The text of a limit field for a stored limit. */

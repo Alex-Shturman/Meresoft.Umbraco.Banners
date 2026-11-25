@@ -118,7 +118,10 @@ test("setup: the zone exists, nothing else is published, and a banner with a lim
 test("an invalid limit is refused with a message at the field", async () => {
   await admin.getByLabel("Impression limit").fill("0");
   await admin.getByRole("button", { name: "Save" }).click();
-  await expect(admin.getByText("The impression limit must be at least 1.")).toBeVisible();
+  await expect(admin.getByText("Enter a whole number of 1 or more, or leave the field empty.")).toBeVisible();
+  await admin.getByLabel("Impression limit").fill("2.5");
+  await admin.getByRole("button", { name: "Save" }).click();
+  await expect(admin.getByText("Enter a whole number of 1 or more, or leave the field empty.")).toBeVisible();
   await admin.getByLabel("Impression limit").fill(String(LIMIT));
   await admin.getByRole("button", { name: "Save" }).click();
   await expect(toast("Banner saved")).toBeVisible();

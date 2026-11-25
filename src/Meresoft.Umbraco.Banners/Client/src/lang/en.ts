@@ -77,6 +77,7 @@ export default {
     bannerScheduleDescription: "Leave empty to show without a time limit. Times are in your time zone (%0%).",
     bannerImpressionLimit: "Impression limit",
     bannerImpressionLimitDescription: "The banner stops showing after this many views in total, over all its zones. Leave empty for no limit. Views are counted in batches, so it may show a little longer (at most the views of one flush interval, one minute by default).",
+    bannerLimitInvalid: "Enter a whole number of 1 or more, or leave the field empty.",
     bannerClickLimit: "Click limit",
     bannerClickLimitDescription: "The banner stops showing after this many clicks in total, over all its zones. Leave empty for no limit.",
     bannerUpdated: "Updated",
