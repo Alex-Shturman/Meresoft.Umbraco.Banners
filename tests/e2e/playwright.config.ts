@@ -1,6 +1,7 @@
 import { defineConfig, devices } from "@playwright/test";
 
-const baseURL = "http://localhost:5100";
+// MB_SAMPLE_BASE_URL lets a second checkout run its own sample site on another port.
+const baseURL = process.env.MB_SAMPLE_BASE_URL ?? "http://localhost:5100";
 
 export default defineConfig({
   testDir: ".",
@@ -16,7 +17,7 @@ export default defineConfig({
   projects: [{ name: "chromium", use: { ...devices["Desktop Chrome"] } }],
   webServer: {
     command:
-      "dotnet run --project ../../samples/Meresoft.Umbraco.Banners.Sample --urls http://localhost:5100",
+      `dotnet run --project ../../samples/Meresoft.Umbraco.Banners.Sample --urls ${baseURL}`,
     url: baseURL,
     reuseExistingServer: !process.env.CI,
     timeout: 180_000,
