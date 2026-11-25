@@ -5,11 +5,16 @@ import type { UmbControllerHost } from "@umbraco-cms/backoffice/controller-api";
 
 /**
  * Wires a hey-api generated client to the backoffice auth context (base URL,
- * bearer token, credentials, 401 handling). Once `npm run generate:api` has
- * produced `src/api/client.gen.ts`, pass its `client` export as the argument.
+ * bearer token, credentials, 401 handling). Pass the `client` export of
+ * `client.gen.ts`. `onReady` runs once the client can make authorized calls, so a
+ * view loads its data only after that.
  */
-export function configureBannersClient(host: UmbControllerHost, client: UmbApiClient): void {
+export function configureBannersClient(host: UmbControllerHost, client: UmbApiClient, onReady?: () => void): void {
   new UmbContextConsumerController(host, UMB_AUTH_CONTEXT, (authContext) => {
-    authContext?.configureClient(client);
+    if (!authContext) {
+      return;
+    }
+    authContext.configureClient(client);
+    onReady?.();
   });
 }
