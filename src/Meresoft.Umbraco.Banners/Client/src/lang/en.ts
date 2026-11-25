@@ -121,5 +121,30 @@ export default {
     reportNoteDelay: "Counts may be up to one minute behind.",
     chartSummary: "Impressions and clicks per day from %0% to %1%: %2% impressions and %3% clicks in total.",
     chartTip: "%0%: %1% impressions, %2% clicks",
+
+    // HTML banners and their permission
+    htmlPermissionLabel: "Edit HTML banners",
+    htmlPermissionDescription: "Create HTML banners and change their HTML. Without it, HTML banners can still be published, unpublished, copied and deleted.",
+    bannerHtml: "HTML code",
+    bannerHtmlDescription: "Shown on the site exactly as written, so scripts from an ad network work. Only add code you trust.",
+    bannerHtmlLocked: "You need the HTML banner permission to change this code.",
+
+    // History
+    details: "Details",
+    history: "History",
+    historyEmpty: "No changes recorded yet.",
+    historyWhen: "When",
+    historyWho: "Who",
+    historyWhat: "Change",
+    historyMore: "Show more",
+    history_new: "Created",
+    history_save: "Saved",
+    history_publish: "Published",
+    history_unpublish: "Unpublished",
+    history_copy: "Copied",
+    history_delete: "Deleted",
+  },
+  user: {
+    "permissionsEntityGroup_meresoft-banner": "Banners",
   },
 } as UmbLocalizationDictionary;

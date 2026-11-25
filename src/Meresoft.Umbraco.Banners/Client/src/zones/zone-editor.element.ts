@@ -1,5 +1,6 @@
 import { css, customElement, html, nothing, property, repeat, state } from "@umbraco-cms/backoffice/external/lit";
 import { UmbLitElement } from "@umbraco-cms/backoffice/lit-element";
+import "./zone-history.element.js";
 import { UmbTextStyles } from "@umbraco-cms/backoffice/style";
 import { umbConfirmModal } from "@umbraco-cms/backoffice/modal";
 import { UMB_NOTIFICATION_CONTEXT } from "@umbraco-cms/backoffice/notification";
@@ -36,6 +37,7 @@ export class MeresoftZoneEditorElement extends UmbLitElement {
   @property({ attribute: false })
   initialAlias?: string;
 
+  @state() private _view: "details" | "history" = "details";
   @state() private _loading = true;
   @state() private _missing = false;
   @state() private _alias = "";
@@ -210,6 +212,16 @@ export class MeresoftZoneEditorElement extends UmbLitElement {
     return html`
       <umb-body-layout headline=${this._name || this.localize.term("meresoftBanners_createZone")}>
         <uui-button slot="header" compact href=${ZONES_PATH} label=${this.localize.term("meresoftBanners_zones")}></uui-button>
+        ${this.#zoneKey
+          ? html`<uui-tab-group slot="navigation">
+              <uui-tab label=${this.localize.term("meresoftBanners_details")} ?active=${this._view === "details"} @click=${() => (this._view = "details")}></uui-tab>
+              <uui-tab label=${this.localize.term("meresoftBanners_history")} ?active=${this._view === "history"} @click=${() => (this._view = "history")}></uui-tab>
+            </uui-tab-group>`
+          : nothing}
+        ${this.#zoneKey && this._view === "history"
+          ? html`<meresoft-zone-history .zoneKey=${this.#zoneKey}></meresoft-zone-history>`
+          : nothing}
+        <div ?hidden=${this._view === "history"}>
         ${this._conflict
           ? html`<uui-alert color="warning">
               ${this.localize.term("meresoftBanners_changedByAnotherUser")}
@@ -232,6 +244,7 @@ export class MeresoftZoneEditorElement extends UmbLitElement {
             the API only accepts server rendering, so no control is shown and new zones use Server.
           -->
         </uui-box>
+        </div>
         <umb-footer-layout slot="footer">
           ${this.#zoneKey
             ? html`<uui-button
@@ -309,6 +322,9 @@ export class MeresoftZoneEditorElement extends UmbLitElement {
       uui-input,
       uui-select {
         width: 100%;
+      }
+      [hidden] {
+        display: none;
       }
       .field-error {
         color: var(--uui-color-danger-standalone);

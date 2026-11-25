@@ -12,6 +12,8 @@ export Umbraco__CMS__Unattended__UnattendedUserEmail="<admin email>"
 export Umbraco__CMS__Unattended__UnattendedUserPassword="<admin password>"
 export MB_SAMPLE_EDITOR_EMAIL="<editor email>"        # optional: creates an editor without the Banners section
 export MB_SAMPLE_EDITOR_PASSWORD="<editor password>"
+export MB_SAMPLE_BANNER_EDITOR_EMAIL="<banner editor email>"  # optional: Banners section without the HTML permission
+export MB_SAMPLE_BANNER_EDITOR_PASSWORD="<banner editor password>"
 dotnet run --urls http://localhost:5100
 ```
 

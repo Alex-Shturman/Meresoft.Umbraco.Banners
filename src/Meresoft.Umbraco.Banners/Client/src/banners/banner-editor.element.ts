@@ -3,6 +3,7 @@ import { UmbLitElement } from "@umbraco-cms/backoffice/lit-element";
 import { UmbTextStyles } from "@umbraco-cms/backoffice/style";
 import { umbConfirmModal } from "@umbraco-cms/backoffice/modal";
 import { UMB_NOTIFICATION_CONTEXT } from "@umbraco-cms/backoffice/notification";
+import { UMB_CURRENT_USER_CONTEXT } from "@umbraco-cms/backoffice/current-user";
 import { UmbInputMediaElement } from "@umbraco-cms/backoffice/media";
 import {
   deleteBanner,
@@ -24,13 +25,15 @@ import { configureBannersClient } from "../api/client-setup.js";
 import { client, fieldErrors, keyFromLocation, navigate, send, type ApiProblem } from "../shared/api.js";
 import { resolveUtc, userTimeZone, utcToLocalInput } from "../shared/date-time.js";
 import { STATE_DISPLAY, activeFlags } from "./banner-state.js";
+import { HTML_PERMISSION_VERB } from "../permissions/manifests.js";
+import "./banner-history.element.js";
 
 // The picker is a back office component; this import makes sure it is defined.
 void UmbInputMediaElement;
 
 const BANNERS_PATH = "section/meresoft-banners/banners";
 
-/** Creates and edits one image banner: save the draft, publish, unpublish, copy and delete. */
+/** Creates and edits one banner (image or HTML): save the draft, publish, unpublish, copy and delete, and see its history. */
 @customElement("meresoft-banner-editor")
 export class MeresoftBannerEditorElement extends UmbLitElement {
   /** Key of the banner to edit; unset when creating. */
@@ -51,6 +54,10 @@ export class MeresoftBannerEditorElement extends UmbLitElement {
   @state() private _banner?: BannerResponseModel;
   @state() private _zones: ZoneResponseModel[] = [];
   @state() private _name = "";
+  @state() private _type: "Image" | "Html" = "Image";
+  @state() private _html = "";
+  @state() private _canEditHtml = false;
+  @state() private _view: "details" | "history" = "details";
   @state() private _mediaKey = "";
   @state() private _linkUrl = "";
   @state() private _openInNewWindow = false;
@@ -71,6 +78,13 @@ export class MeresoftBannerEditorElement extends UmbLitElement {
   constructor() {
     super();
     this.consumeContext(UMB_NOTIFICATION_CONTEXT, (context) => (this.#notifications = context));
+    // The server enforces the HTML permission on every write; this only decides what the editor can type. It is the
+    // same check as the Umb.Condition.UserPermission.Fallback condition: any group of the user has the verb.
+    this.consumeContext(UMB_CURRENT_USER_CONTEXT, (context) => {
+      this.observe(context?.fallbackPermissions, (permissions) => {
+        this._canEditHtml = permissions?.includes(HTML_PERMISSION_VERB) ?? false;
+      });
+    });
     configureBannersClient(this, client, () => {
       this.#ready = true;
       void this.#load();
@@ -89,6 +103,8 @@ export class MeresoftBannerEditorElement extends UmbLitElement {
 
     if (!this.#bannerKey) {
       this._banner = undefined;
+      this._type = "Image";
+      this._view = "details";
       this.#apply("", undefined);
       this._loading = false;
       return;
@@ -107,12 +123,14 @@ export class MeresoftBannerEditorElement extends UmbLitElement {
 
   #show(banner: BannerResponseModel) {
     this._banner = banner;
+    this._type = banner.type === "Html" ? "Html" : "Image";
     this.#apply(banner.name, banner.draft ?? undefined);
   }
 
   #apply(name: string, draft: BannerVersionModel | undefined) {
     this._name = name;
     this._mediaKey = draft?.mediaKey ?? "";
+    this._html = draft?.html ?? "";
     this._linkUrl = draft?.linkUrl ?? "";
     this._openInNewWindow = draft?.openInNewWindow ?? false;
     this._altText = draft?.altText ?? "";
@@ -128,9 +146,11 @@ export class MeresoftBannerEditorElement extends UmbLitElement {
     const draft = this._banner?.draft;
     return {
       name: this._name,
-      type: this._banner?.type ?? "Image",
-      mediaKey: this._mediaKey || null,
-      html: draft?.html ?? null,
+      type: this._banner?.type ?? this._type,
+      mediaKey: this._type === "Image" ? this._mediaKey || null : null,
+      // Without the permission the stored HTML is sent back unchanged (the field is read-only), so saving other
+      // fields works and the server sees no change.
+      html: this._type === "Html" ? this._html : (draft?.html ?? null),
       linkUrl: this._linkUrl || null,
       openInNewWindow: this._openInNewWindow,
       altText: this._altText,
@@ -288,6 +308,16 @@ export class MeresoftBannerEditorElement extends UmbLitElement {
     return html`
       <umb-body-layout headline=${banner?.name || this.localize.term("meresoftBanners_createBanner")}>
         <uui-button slot="header" compact href=${BANNERS_PATH} label=${this.localize.term("meresoftBanners_banners")}></uui-button>
+        ${banner
+          ? html`<uui-tab-group slot="navigation">
+              <uui-tab label=${this.localize.term("meresoftBanners_details")} ?active=${this._view === "details"} @click=${() => (this._view = "details")}></uui-tab>
+              <uui-tab label=${this.localize.term("meresoftBanners_history")} ?active=${this._view === "history"} @click=${() => (this._view = "history")}></uui-tab>
+            </uui-tab-group>`
+          : nothing}
+        ${banner && this._view === "history"
+          ? html`<meresoft-banner-history .bannerKey=${this.#bannerKey}></meresoft-banner-history>`
+          : nothing}
+        <div ?hidden=${this._view === "history"}>
         ${banner ? this.#renderState(banner) : nothing}
         ${this._conflict
           ? html`<uui-alert color="warning">
@@ -298,22 +328,8 @@ export class MeresoftBannerEditorElement extends UmbLitElement {
         ${this._problem ? html`<uui-alert color="danger">${this._problem}</uui-alert>` : nothing}
         <uui-box>
           ${this.#textField("name", "meresoftBanners_name", this._name, (v) => (this._name = v))}
-          <uui-form-layout-item>
-            <uui-label slot="label">${this.localize.term("meresoftBanners_bannerImage")}</uui-label>
-            <umb-input-media
-              max="1"
-              .selection=${this._mediaKey ? [this._mediaKey] : []}
-              @change=${(e: Event) => (this._mediaKey = (e.target as UmbInputMediaElement).selection[0] ?? "")}></umb-input-media>
-            ${this.#error("mediaKey")}
-          </uui-form-layout-item>
-          ${this.#textField("linkUrl", "meresoftBanners_bannerLink", this._linkUrl, (v) => (this._linkUrl = v), "meresoftBanners_bannerLinkDescription")}
-          <uui-form-layout-item>
-            <uui-toggle
-              label=${this.localize.term("meresoftBanners_bannerOpenInNewWindow")}
-              ?checked=${this._openInNewWindow}
-              @change=${(e: Event) => (this._openInNewWindow = (e.target as HTMLInputElement).checked)}></uui-toggle>
-          </uui-form-layout-item>
-          ${this.#textField("altText", "meresoftBanners_bannerAltText", this._altText, (v) => (this._altText = v), "meresoftBanners_bannerAltTextDescription")}
+          ${!banner ? this.#renderTypeChoice() : nothing}
+          ${this._type === "Html" ? this.#renderHtmlField() : this.#renderImageFields()}
           ${this.#textField("title", "meresoftBanners_bannerTitle", this._title, (v) => (this._title = v))}
           ${this.#textField("weight", "meresoftBanners_bannerWeight", this._weight, (v) => (this._weight = v), "meresoftBanners_bannerWeightDescription", "number")}
           ${this.#textField("startUtc", "meresoftBanners_bannerStart", this._start, (v) => (this._start = v), "meresoftBanners_bannerScheduleDescription", "datetime-local")}
@@ -335,6 +351,7 @@ export class MeresoftBannerEditorElement extends UmbLitElement {
             ${this.#error("zoneKeys")}
           </uui-form-layout-item>
         </uui-box>
+        </div>
         <umb-footer-layout slot="footer">
           ${banner
             ? html`<uui-button slot="actions" look="secondary" color="danger" label=${this.localize.term("meresoftBanners_delete")} @click=${() => this.#delete()}></uui-button>
@@ -347,6 +364,63 @@ export class MeresoftBannerEditorElement extends UmbLitElement {
           <uui-button slot="actions" look="primary" color="positive" label=${this.localize.term("meresoftBanners_publish")} @click=${() => this.#publish()}></uui-button>
         </umb-footer-layout>
       </umb-body-layout>
+    `;
+  }
+
+  /** Image or HTML, chosen when a banner is created; HTML is offered only to users with the permission. */
+  #renderTypeChoice() {
+    return html`<uui-form-layout-item>
+      <uui-label slot="label">${this.localize.term("meresoftBanners_bannerType")}</uui-label>
+      <uui-radio-group
+        .value=${this._type}
+        @change=${(e: Event) => (this._type = (e.target as HTMLInputElement).value === "Html" ? "Html" : "Image")}>
+        <uui-radio value="Image" label=${this.localize.term("meresoftBanners_bannerTypeImage")}></uui-radio>
+        ${this._canEditHtml
+          ? html`<uui-radio value="Html" label=${this.localize.term("meresoftBanners_bannerTypeHtml")}></uui-radio>`
+          : nothing}
+      </uui-radio-group>
+    </uui-form-layout-item>`;
+  }
+
+  /** The code of an HTML banner: monospaced, and read-only without the HTML permission. */
+  #renderHtmlField() {
+    const label = this.localize.term("meresoftBanners_bannerHtml");
+    return html`<uui-form-layout-item>
+      <uui-label slot="label" for="html">${label}</uui-label>
+      <span slot="description">
+        ${this._canEditHtml ? this.localize.term("meresoftBanners_bannerHtmlDescription") : this.localize.term("meresoftBanners_bannerHtmlLocked")}
+      </span>
+      <uui-textarea
+        id="html"
+        class="code"
+        label=${label}
+        rows="12"
+        spellcheck="false"
+        ?readonly=${!this._canEditHtml}
+        .value=${this._html}
+        @input=${(e: Event) => (this._html = (e.target as HTMLTextAreaElement).value)}></uui-textarea>
+      ${this.#error("html")}
+    </uui-form-layout-item>`;
+  }
+
+  #renderImageFields() {
+    return html`
+          <uui-form-layout-item>
+            <uui-label slot="label">${this.localize.term("meresoftBanners_bannerImage")}</uui-label>
+            <umb-input-media
+              max="1"
+              .selection=${this._mediaKey ? [this._mediaKey] : []}
+              @change=${(e: Event) => (this._mediaKey = (e.target as UmbInputMediaElement).selection[0] ?? "")}></umb-input-media>
+            ${this.#error("mediaKey")}
+          </uui-form-layout-item>
+          ${this.#textField("linkUrl", "meresoftBanners_bannerLink", this._linkUrl, (v) => (this._linkUrl = v), "meresoftBanners_bannerLinkDescription")}
+          <uui-form-layout-item>
+            <uui-toggle
+              label=${this.localize.term("meresoftBanners_bannerOpenInNewWindow")}
+              ?checked=${this._openInNewWindow}
+              @change=${(e: Event) => (this._openInNewWindow = (e.target as HTMLInputElement).checked)}></uui-toggle>
+          </uui-form-layout-item>
+          ${this.#textField("altText", "meresoftBanners_bannerAltText", this._altText, (v) => (this._altText = v), "meresoftBanners_bannerAltTextDescription")}
     `;
   }
 
@@ -396,8 +470,16 @@ export class MeresoftBannerEditorElement extends UmbLitElement {
       .state uui-tag + uui-tag {
         margin-left: var(--uui-size-space-2);
       }
-      uui-input {
+      uui-input,
+      uui-textarea {
         width: 100%;
+      }
+      uui-textarea.code {
+        font-family: var(--uui-font-monospace, ui-monospace, monospace);
+        font-size: var(--uui-type-small-size);
+      }
+      [hidden] {
+        display: none;
       }
       .field-error {
         color: var(--uui-color-danger-standalone);
