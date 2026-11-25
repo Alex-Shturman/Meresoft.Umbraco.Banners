@@ -25,7 +25,7 @@ import { configureBannersClient } from "../api/client-setup.js";
 import { client, fieldErrors, keyFromLocation, navigate, send, type ApiProblem } from "../shared/api.js";
 import { resolveUtc, userTimeZone, utcToLocalInput } from "../shared/date-time.js";
 import { STATE_DISPLAY, activeFlags } from "./banner-state.js";
-import { HTML_PERMISSION_VERB } from "../permissions/manifests.js";
+import { canEditHtml, htmlFieldAccess, offeredBannerTypes } from "./html-permission.js";
 import "./banner-history.element.js";
 
 // The picker is a back office component; this import makes sure it is defined.
@@ -82,7 +82,7 @@ export class MeresoftBannerEditorElement extends UmbLitElement {
     // same check as the Umb.Condition.UserPermission.Fallback condition: any group of the user has the verb.
     this.consumeContext(UMB_CURRENT_USER_CONTEXT, (context) => {
       this.observe(context?.fallbackPermissions, (permissions) => {
-        this._canEditHtml = permissions?.includes(HTML_PERMISSION_VERB) ?? false;
+        this._canEditHtml = canEditHtml(permissions);
       });
     });
     configureBannersClient(this, client, () => {
@@ -375,7 +375,7 @@ export class MeresoftBannerEditorElement extends UmbLitElement {
         .value=${this._type}
         @change=${(e: Event) => (this._type = (e.target as HTMLInputElement).value === "Html" ? "Html" : "Image")}>
         <uui-radio value="Image" label=${this.localize.term("meresoftBanners_bannerTypeImage")}></uui-radio>
-        ${this._canEditHtml
+        ${offeredBannerTypes(this._canEditHtml).includes("Html")
           ? html`<uui-radio value="Html" label=${this.localize.term("meresoftBanners_bannerTypeHtml")}></uui-radio>`
           : nothing}
       </uui-radio-group>
@@ -385,18 +385,17 @@ export class MeresoftBannerEditorElement extends UmbLitElement {
   /** The code of an HTML banner: monospaced, and read-only without the HTML permission. */
   #renderHtmlField() {
     const label = this.localize.term("meresoftBanners_bannerHtml");
+    const access = htmlFieldAccess(this._canEditHtml);
     return html`<uui-form-layout-item>
       <uui-label slot="label" for="html">${label}</uui-label>
-      <span slot="description">
-        ${this._canEditHtml ? this.localize.term("meresoftBanners_bannerHtmlDescription") : this.localize.term("meresoftBanners_bannerHtmlLocked")}
-      </span>
+      <span slot="description">${this.localize.term(access.noteKey)}</span>
       <uui-textarea
         id="html"
         class="code"
         label=${label}
         rows="12"
         spellcheck="false"
-        ?readonly=${!this._canEditHtml}
+        ?readonly=${access.readonly}
         .value=${this._html}
         @input=${(e: Event) => (this._html = (e.target as HTMLTextAreaElement).value)}></uui-textarea>
       ${this.#error("html")}
