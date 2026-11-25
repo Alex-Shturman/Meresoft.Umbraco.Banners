@@ -134,6 +134,37 @@ public class ZoneDeliveryEndpointTests : PublicEndpointTestBase
     }
 
     [Test]
+    public async Task ABannerThatReachedItsImpressionLimit_IsNotDelivered_LikeInTheServerModeSnapshot()
+    {
+        (Guid zoneKey, _) = await CreateZoneAsync("deliver-limit");
+        var draft = new BannerDraftModel
+        {
+            Name = "Limited promo",
+            MediaKey = NewMediaKey(),
+            LinkUrl = "https://example.org/show",
+            AltText = "Invented limited promo",
+            Weight = 1,
+            ImpressionLimit = 1,
+            ZoneKeys = [zoneKey],
+        };
+        var created = await GetRequiredService<IBannerService>().CreateAsync(new BannerCreateModel { Type = BannerType.Image, Draft = draft }, Constants.Security.SuperUserKey);
+        Assert.That(created.Success, Is.True, created.Status.ToString());
+        Assert.That((await PublishAsync(created.Result!.Key)).StatusCode, Is.EqualTo(HttpStatusCode.OK));
+        int bannerId = created.Result.Id;
+        int zoneId = (await GetRequiredService<IBannerZoneService>().GetAsync(zoneKey))!.Id;
+        await WaitForSnapshotAsync(s => s.Zones.TryGetValue("deliver-limit", out var z) && z.Candidates.Any(c => c.BannerId == bannerId));
+        (_, JsonElement before) = await GetZoneAsync("deliver-limit");
+        Assert.That(before.GetProperty("banners").GetArrayLength(), Is.EqualTo(1), "delivered while below the limit");
+
+        Buffer.AddImpression(Today, bannerId, zoneId);
+        await ActivatorUtilities.CreateInstance<BannersFlushJob>(Factory.Services).RunJobAsync(CancellationToken.None);
+
+        (_, JsonElement after) = await GetZoneAsync("deliver-limit");
+        Assert.That(after.GetProperty("banners").GetArrayLength(), Is.Zero);
+        Assert.That(after.TryGetProperty("token", out JsonElement token) ? token.ValueKind : JsonValueKind.Null, Is.EqualTo(JsonValueKind.Null));
+    }
+
+    [Test]
     public async Task TheAlias_IsNormalised()
     {
         await PublishBannerAsync("deliver-case");
