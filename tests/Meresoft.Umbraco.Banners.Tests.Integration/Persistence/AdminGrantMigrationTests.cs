@@ -81,6 +81,73 @@ public class AdminGrantMigrationTests : BannersIntegrationTestBase
         await AssertAdministratorsHaveNoGrantsAsync();
     }
 
+    /// <summary>The plan state of an install that ran only the first two steps, before the HTML verb step existed.</summary>
+    private const string StateAfterFirstGrant = "c9a4f1d2-3b8e-4e6a-b7d1-2e5f9c3a7b02";
+
+    private void RewindThePlanToTheFirstGrant() =>
+        GetRequiredService<IKeyValueService>().SetValue("Umbraco.Core.Upgrader.State+" + BannersConstants.MigrationPlanName, StateAfterFirstGrant);
+
+    private async Task RemoveOnlyTheHtmlVerbAsync()
+    {
+        IUserGroup admins = (await UserGroupService.GetAsync(Constants.Security.AdminGroupKey))!;
+        admins.Permissions.Remove(BannersConstants.HtmlPermission);
+        await UserGroupService.UpdateAsync(admins, Constants.Security.SuperUserKey);
+    }
+
+    [Test]
+    public async Task AnInstallThatLacksTheHtmlVerb_ButHasTheSection_GetsTheVerbFromTheNewStep()
+    {
+        await InstallPackageAsync();
+        await RemoveOnlyTheHtmlVerbAsync();
+        RewindThePlanToTheFirstGrant();
+
+        await InstallPackageAsync();
+
+        IUserGroup admins = (await UserGroupService.GetAsync(Constants.Security.AdminGroupKey))!;
+        Assert.Multiple(() =>
+        {
+            Assert.That(admins.Permissions, Does.Contain(BannersConstants.HtmlPermission));
+            Assert.That(admins.AllowedSections, Does.Contain(BannersConstants.SectionAlias));
+        });
+    }
+
+    [Test]
+    public async Task TheNewStep_IsIdempotent_AndLeavesOtherGroupsAlone()
+    {
+        await InstallPackageAsync();
+        IUserGroup before = (await UserGroupService.GetAsync(Constants.Security.AdminGroupKey))!;
+        string[] sections = before.AllowedSections.OrderBy(x => x).ToArray();
+        string[] permissions = before.Permissions.OrderBy(x => x).ToArray();
+
+        RewindThePlanToTheFirstGrant();
+        await InstallPackageAsync(); // runs the new step on an install that already has the verb
+        RewindThePlanToTheFirstGrant();
+        await InstallPackageAsync(); // and again
+
+        IUserGroup after = (await UserGroupService.GetAsync(Constants.Security.AdminGroupKey))!;
+        Assert.Multiple(() =>
+        {
+            Assert.That(after.AllowedSections.OrderBy(x => x), Is.EqualTo(sections));
+            Assert.That(after.Permissions.OrderBy(x => x), Is.EqualTo(permissions));
+        });
+        foreach (IUserGroup other in (await UserGroupService.GetAllAsync(0, 1000)).Items.Where(g => g.Key != Constants.Security.AdminGroupKey))
+        {
+            Assert.That(other.Permissions, Does.Not.Contain(BannersConstants.HtmlPermission), other.Alias);
+        }
+    }
+
+    [Test]
+    public async Task TheNewStep_DoesNotGiveTheVerbBack_WhenAdministratorsNoLongerHaveTheSection()
+    {
+        await InstallPackageAsync();
+        await RemoveGrantsFromAdministratorsAsync();
+        RewindThePlanToTheFirstGrant();
+
+        await InstallPackageAsync();
+
+        await AssertAdministratorsHaveNoGrantsAsync();
+    }
+
     private async Task RemoveGrantsFromAdministratorsAsync()
     {
         IUserGroup admins = (await UserGroupService.GetAsync(Constants.Security.AdminGroupKey))!;
