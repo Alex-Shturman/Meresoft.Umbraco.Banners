@@ -96,10 +96,8 @@ back, 100 per request.
 **Permissions.** Access to the section is the user group setting "Banners" (section access). Creating
 HTML banners and changing their HTML needs the extra "Edit HTML banners" permission, shown in the user
 group editor under "Banners". Without it an editor can still publish, unpublish, copy and delete HTML
-banners and read their statistics. On a fresh install only the Administrators group gets both; an
-upgrade from an early build that granted the section without the HTML permission adds the HTML
-permission to Administrators once, when they still have the section. Other groups are never changed by
-the package.
+banners and read their statistics. On a fresh install only the Administrators group gets both. The package never
+changes group permissions on later upgrades, so other groups are given access in the user group settings.
 
 HTML banners are shown on the site exactly as stored, scripts included, so only give the HTML
 permission to people you trust with the code of your pages.
