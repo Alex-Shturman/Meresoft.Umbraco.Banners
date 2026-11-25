@@ -41,6 +41,9 @@ internal interface IBannerRepository
     /// <summary>All published banners (versions and zone ids included), for building the live snapshot.</summary>
     IReadOnlyList<Banner> GetAllPublished();
 
+    /// <summary>The highest banner id in use, or 0 when there is no banner. One cheap query.</summary>
+    int GetMaxId();
+
     /// <summary>A page of banners (versions included) and the total count.</summary>
     (IReadOnlyList<Banner> Items, long Total) GetPaged(BannerFilter filter);
 }

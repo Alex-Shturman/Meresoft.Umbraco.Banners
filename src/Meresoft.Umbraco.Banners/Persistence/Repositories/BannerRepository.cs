@@ -163,6 +163,9 @@ internal sealed class BannerRepository : RepositoryBase, IBannerRepository
             .Where(b => b.Live is not null)
             .ToList();
 
+    public int GetMaxId() =>
+        Database.ExecuteScalar<int?>($"SELECT MAX({Syntax.GetQuotedColumnName("Id")}) FROM {Syntax.GetQuotedTableName(BannerDto.TableName)}") ?? 0;
+
     public (IReadOnlyList<Banner> Items, long Total) GetPaged(BannerFilter filter)
     {
         ArgumentNullException.ThrowIfNull(filter);
