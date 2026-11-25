@@ -25,7 +25,7 @@ public class ZonesApiTests : BannersApiTestBase
             Assert.That(zone.GetProperty("name").GetString(), Is.EqualTo("Zone Search-Top"));
             Assert.That(zone.GetProperty("showCount").GetInt32(), Is.EqualTo(3));
             Assert.That(zone.GetProperty("imageWidth").GetInt32(), Is.EqualTo(728));
-            Assert.That(zone.GetProperty("renderMode").GetString(), Is.EqualTo("client"));
+            Assert.That(zone.GetProperty("renderMode").GetString(), Is.EqualTo("Client"));
             Assert.That(zone.GetProperty("updateDate").GetDateTime(), Is.Not.EqualTo(default(DateTime)));
         });
     }
@@ -37,7 +37,7 @@ public class ZonesApiTests : BannersApiTestBase
 
         Assert.That(response.StatusCode, Is.EqualTo(HttpStatusCode.BadRequest));
         JsonElement problem = await ReadAsync(response);
-        Assert.That(problem.GetProperty("errors").TryGetProperty("alias", out _), Is.True);
+        Assert.That(problem.GetProperty("errors").EnumerateArray().Any(e => e.TryGetProperty("$.alias", out _)), Is.True);
     }
 
     [Test]

@@ -1,6 +1,9 @@
 using Asp.Versioning;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
+using Microsoft.Extensions.DependencyInjection;
+using Umbraco.Cms.Core.Models.Membership;
+using Umbraco.Cms.Core.Security.Authorization;
 using Umbraco.Cms.Api.Common.Attributes;
 using Umbraco.Cms.Api.Management.Controllers;
 using Umbraco.Cms.Api.Management.Routing;
@@ -18,4 +21,15 @@ namespace Meresoft.Umbraco.Banners.ManagementApi;
 [Authorize(Policy = BannersConstants.SectionAccessPolicy)]
 public abstract class BannersManagementApiControllerBase : ManagementApiControllerBase
 {
+    private const string ApiRoot = "/umbraco/management/api/v1/" + BannersConstants.ApiName;
+
+    /// <summary>Key of the signed in back office user; the authorization policy guarantees there is one.</summary>
+    protected Guid CurrentUserKey() =>
+        HttpContext.RequestServices.GetRequiredService<IAuthorizationHelper>().TryGetUmbracoUser(User, out IUser? user)
+            ? user.Key
+            : throw new InvalidOperationException("The request has no back office user.");
+
+    /// <summary>A 201 response whose Location header points at <c>{collection}/{key}</c> of this API.</summary>
+    protected IActionResult CreatedAtKey(string collection, Guid key) =>
+        Created($"{Request.PathBase}{ApiRoot}/{collection}/{key}", null);
 }
