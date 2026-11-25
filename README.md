@@ -77,3 +77,29 @@ is the only row it adds to an Umbraco table:
 ```sql
 DELETE FROM umbracoLock WHERE id = -8201001;
 ```
+
+### History and permissions
+
+Every change to a banner or a zone (created, saved, published, unpublished, copied, deleted) is written
+to Umbraco's own audit log, with the user, the time and the action only. No banner content goes into
+it. The back office shows it as the History tab of a banner and of a zone, newest change first.
+
+**How long history is kept.** Umbraco's log cleanup job (the log scrubber, every few hours, using
+`Umbraco:CMS:Logging:MaxLogAge`, one day by default) removes only audit rows whose header is `open` or
+`system`. The rows of this package use the headers `New`, `Save`, `Publish`, `Unpublish`, `Copy` and
+`Delete`, so they are not removed by it: editors see the full history of a banner or zone for as long
+as it exists (an integration test pins this for the Umbraco version in use). History is kept after a
+banner is deleted but is no longer shown in the back office. Only a manual clean-up of the `umbracoLog`
+table, or a change in a later Umbraco version, shortens it. The history view reads up to 10,000 entries
+back, 100 per request.
+
+**Permissions.** Access to the section is the user group setting "Banners" (section access). Creating
+HTML banners and changing their HTML needs the extra "Edit HTML banners" permission, shown in the user
+group editor under "Banners". Without it an editor can still publish, unpublish, copy and delete HTML
+banners and read their statistics. On a fresh install only the Administrators group gets both; an
+upgrade from an early build that granted the section without the HTML permission adds the HTML
+permission to Administrators once, when they still have the section. Other groups are never changed by
+the package.
+
+HTML banners are shown on the site exactly as stored, scripts included, so only give the HTML
+permission to people you trust with the code of your pages.
