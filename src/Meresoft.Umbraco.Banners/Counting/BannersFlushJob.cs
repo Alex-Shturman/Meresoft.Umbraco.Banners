@@ -1,3 +1,4 @@
+using System.Data.Common;
 using Meresoft.Umbraco.Banners.Configuration;
 using Meresoft.Umbraco.Banners.Domain;
 using Meresoft.Umbraco.Banners.Persistence.Repositories;
@@ -54,25 +55,45 @@ internal sealed class BannersFlushJob : RecurringBackgroundJobBase
             return Task.CompletedTask;
         }
 
-        try
+        // One scope per alias: a failure on one alias (for example two servers inserting the same new alias
+        // at once) must not roll back or lose the others.
+        foreach (RequestedZone item in requested)
         {
-            using IScope scope = _scopeProvider.CreateScope();
-            foreach (RequestedZone item in requested)
+            try
             {
-                // A zone with this alias may have been created since the template asked for it.
-                if (_zones.GetByAlias(item.Alias) is null)
+                WriteOne(item);
+            }
+            catch (DbException ex)
+            {
+                // A unique index violation from a racing server: the row exists now, so the second try is an update.
+                _logger.LogDebug(ex, "Writing requested banner zone {Alias} failed; trying once more.", item.Alias);
+                try
                 {
-                    _requestedZones.Upsert(item.Alias, item.FirstSeen, item.LastSeen);
+                    WriteOne(item);
+                }
+                catch (Exception retryEx)
+                {
+                    _logger.LogError(retryEx, "Writing requested banner zone {Alias} failed twice; it is asked for again on the next page request.", item.Alias);
                 }
             }
-
-            scope.Complete();
-        }
-        catch (Exception ex)
-        {
-            _logger.LogError(ex, "Writing {Count} requested banner zones failed; they are asked for again on the next page request.", requested.Count);
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "Writing requested banner zone {Alias} failed; it is asked for again on the next page request.", item.Alias);
+            }
         }
 
         return Task.CompletedTask;
+    }
+
+    private void WriteOne(RequestedZone item)
+    {
+        using IScope scope = _scopeProvider.CreateScope();
+        // A zone with this alias may have been created since the template asked for it.
+        if (_zones.GetByAlias(item.Alias) is null)
+        {
+            _requestedZones.Upsert(item.Alias, item.FirstSeen, item.LastSeen);
+        }
+
+        scope.Complete();
     }
 }
