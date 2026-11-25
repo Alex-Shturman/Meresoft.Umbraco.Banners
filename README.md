@@ -110,3 +110,22 @@ changes group permissions on later upgrades, so other groups are given access in
 
 HTML banners are shown on the site exactly as stored, scripts included, so only give the HTML
 permission to people you trust with the code of your pages.
+
+## End-to-end tests
+
+The browser tests in `tests/e2e` (Playwright) run against the sample site in `samples/`, never against a real
+site. Start the sample site (see `samples/README.md`), then run `npx playwright test --workers=1` in `tests/e2e`.
+
+Environment variables:
+
+- `MB_SAMPLE_BASE_URL`: the sample site, `http://localhost:5100` by default.
+- `MB_SAMPLE_ADMIN_EMAIL` and `MB_SAMPLE_ADMIN_PASSWORD`: the sample site's unattended administrator.
+- `MB_SAMPLE_BANNER_EDITOR_EMAIL`, `MB_SAMPLE_BANNER_EDITOR_PASSWORD`, `MB_SAMPLE_EDITOR_EMAIL` and
+  `MB_SAMPLE_EDITOR_PASSWORD`: the permission tests' users, the ones the sample site creates.
+
+**The run is destructive.** Before the first spec, `tests/e2e/support/global-reset.ts` deletes every banner and
+zone of the site, so a rerun on a used sample database starts like a fresh one. Statistics stay.
+
+**The guard.** The run refuses to start (nothing is started, not even the sample site) unless `MB_SAMPLE_BASE_URL` is
+on this machine: `localhost`, `127.0.0.1` or `[::1]`. A remote sample site needs the explicit override
+`MB_E2E_ALLOW_REMOTE_RESET=1`. Never point the tests at a site whose banners you want to keep.

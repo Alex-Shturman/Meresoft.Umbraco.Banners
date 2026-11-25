@@ -1,5 +1,6 @@
 import { chromium, expect, type FullConfig, type Page } from "@playwright/test";
 import { loginAsAdmin, openBannersView } from "./backoffice";
+import { assertResetAllowed } from "./reset-guard";
 
 /**
  * Runs once before the specs: takes every banner and zone off the sample site, so that a rerun on a database that
@@ -9,25 +10,28 @@ import { loginAsAdmin, openBannersView } from "./backoffice";
  */
 export default async function globalReset(config: FullConfig): Promise<void> {
   const baseURL = config.projects[0].use.baseURL;
+  // Also checked when the configuration loads, which is before the sample site is started; kept here too, so the
+  // reset can never run without it.
+  assertResetAllowed(baseURL);
   const browser = await chromium.launch();
   try {
     const page = await (await browser.newContext({ baseURL })).newPage();
     await loginAsAdmin(page);
-    await removeAll(page, "banners", "Banners", "Banner deleted");
-    await removeAll(page, "zones", "Zones", "Zone deleted");
+    await removeAll(page, "banners", "Banners", /No banners match/, "Banner deleted");
+    await removeAll(page, "zones", "Zones", /No zones yet/, "Zone deleted");
   } finally {
     await browser.close();
   }
 }
 
 /** Opens the first row of the list, deletes it, and repeats until the list has no rows left. */
-async function removeAll(page: Page, view: string, heading: string, deletedToast: string): Promise<void> {
+async function removeAll(page: Page, view: string, heading: string, emptyText: RegExp, deletedToast: string): Promise<void> {
   for (let guard = 0; guard < 200; guard++) {
     await openBannersView(page, view);
     await expect(page.getByRole("heading", { name: heading }).first()).toBeVisible();
-    // The list loads after the heading; give it a moment before it is judged empty.
-    await page.waitForTimeout(1_000);
+    // The list shows a loader first, then either its rows or its empty message: wait for one of the two.
     const rows = page.getByRole("row").filter({ has: page.getByRole("link") });
+    await expect(rows.first().or(page.getByText(emptyText))).toBeVisible();
     if ((await rows.count()) === 0) {
       return;
     }

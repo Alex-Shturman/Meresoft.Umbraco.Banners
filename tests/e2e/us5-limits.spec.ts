@@ -19,6 +19,10 @@ const LIMIT = 3;
 // The flush job takes the banner off some time after its limit is reached (5 s interval), so more views than the
 // limit can still be served. This is the most views the scenario tries before it gives up waiting for that flush.
 const MAX_VIEWS = 12;
+// The sample site flushes every 5 seconds (Meresoft:Banners:FlushInterval in the sample's appsettings.json). A banner
+// may be served at most until the first flush after its limit was reached, plus time to write and reload.
+const FLUSH_MS = 5_000;
+const FLUSH_SLACK_MS = 3_000;
 
 let admin: Page;
 
@@ -142,10 +146,19 @@ test("scenario 13: after the limit of views the banner stops showing and the lis
   // Views go on while the banner is served. When the flush takes it off is up to the flush job, so the test does
   // not assume a view count beyond the limit: it requires that the banner is served until the limit is reached.
   let counted = 0;
+  let limitReachedAt = 0;
+  let lastViewAt = 0;
   while (counted < MAX_VIEWS && (await homeShowsBanner(request)) && (await view(browser))) {
     counted++;
+    lastViewAt = Date.now();
+    if (counted === LIMIT) {
+      limitReachedAt = lastViewAt;
+    }
   }
   expect(counted, "the banner is served until its limit is reached").toBeGreaterThanOrEqual(LIMIT);
+  // A limit that is ignored must fail: the banner may only be served until the first flush after the limit.
+  expect(counted, "the banner stopped before the view cap").toBeLessThan(MAX_VIEWS);
+  expect(lastViewAt - limitReachedAt, "views served after the limit are bounded by the flush interval").toBeLessThanOrEqual(FLUSH_MS + FLUSH_SLACK_MS);
 
   // The flush job writes every 5 seconds and then takes the banner out of the snapshot (overshoot: one interval).
   await expect.poll(() => homeShowsBanner(request), { timeout: 60_000, intervals: [1_000] }).toBeFalsy();

@@ -39,8 +39,9 @@ committed.
 
 ## Browser tests
 
-`tests/e2e` expects a sample site on `http://localhost:5100` with an empty banners database: delete
-`umbraco/Data` before the start, because the tests create the zone `home-top` and a banner. Set
+`tests/e2e` expects a sample site on `http://localhost:5100` (`MB_SAMPLE_BASE_URL`). The run first deletes every
+banner and zone of the site, and refuses a site that is not on this machine (see the README at the repository root).
+Set
 `MB_SAMPLE_ADMIN_EMAIL` and `MB_SAMPLE_ADMIN_PASSWORD` to the unattended administrator, then run
 `npx playwright test` in `tests/e2e`. The sample flushes requested zones every 5 seconds
 (`Meresoft:Banners:FlushInterval` in `appsettings.json`), and the job starts 30 seconds after the site.

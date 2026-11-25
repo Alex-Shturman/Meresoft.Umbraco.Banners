@@ -1,7 +1,12 @@
 import { defineConfig, devices } from "@playwright/test";
+import { assertResetAllowed } from "./support/reset-guard";
 
 // MB_SAMPLE_BASE_URL lets a second checkout run its own sample site on another port.
 const baseURL = process.env.MB_SAMPLE_BASE_URL ?? "http://localhost:5100";
+
+// The run deletes every banner and zone of the site first (support/global-reset.ts), so it refuses a site that is not
+// on this machine. Checked here, while the configuration loads, so nothing at all starts (not the sample site either).
+assertResetAllowed(baseURL);
 
 export default defineConfig({
   testDir: ".",
