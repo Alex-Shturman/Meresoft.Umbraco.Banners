@@ -1,3 +1,5 @@
+using System.Data.Common;
+using System.Runtime.ExceptionServices;
 using Meresoft.Umbraco.Banners.Caching;
 using Meresoft.Umbraco.Banners.Domain;
 using Meresoft.Umbraco.Banners.Persistence.Repositories;
@@ -88,26 +90,54 @@ internal sealed class BannerZoneService : IBannerZoneService
             return Attempt.FailWithStatus<BannerZone, BannerOperationStatus>(BannerOperationStatus.InvalidData, zone, new BannerValidationException(validation));
         }
 
-        using IScope scope = _scopeProvider.CreateScope();
-        if (_zones.GetByAlias(zone.Alias) is not null)
+        DbException? failure = null;
+        using (IScope scope = _scopeProvider.CreateScope())
         {
-            return Attempt.FailWithStatus(BannerOperationStatus.DuplicateAlias, zone);
+            if (_zones.GetByAlias(zone.Alias) is not null)
+            {
+                return Attempt.FailWithStatus(BannerOperationStatus.DuplicateAlias, zone);
+            }
+
+            try
+            {
+                _zones.Add(zone);
+                _requestedZones.Delete(zone.Alias);
+                await _audit.WriteZoneAsync(BannerAuditAction.New, userKey, zone.Id);
+                _distributedCache.RefreshBannersAfterCommit(_scopeProvider, new BannersCacheRefresherPayload { ZoneId = zone.Id });
+                scope.Complete();
+                return Attempt.SucceedWithStatus(BannerOperationStatus.Success, zone);
+            }
+            catch (DbException ex)
+            {
+                failure = ex; // The scope ends here without completing, which rolls the attempt back.
+            }
         }
 
-        _zones.Add(zone);
-        _requestedZones.Delete(zone.Alias);
-        await _audit.WriteZoneAsync(BannerAuditAction.New, userKey, zone.Id);
-        _distributedCache.RefreshBannersAfterCommit(_scopeProvider, new BannersCacheRefresherPayload { ZoneId = zone.Id });
-        scope.Complete();
-
-        return Attempt.SucceedWithStatus(BannerOperationStatus.Success, zone);
+        return await DuplicateOrRethrowAsync(zone.Alias, zone, failure);
     }
 
     public async Task<Attempt<BannerZone, BannerOperationStatus>> UpdateAsync(Guid key, BannerZoneModel model, Guid userKey)
     {
         ArgumentNullException.ThrowIfNull(model);
 
-        using IScope scope = _scopeProvider.CreateScope();
+        DbException? failure = null;
+        using (IScope scope = _scopeProvider.CreateScope())
+        {
+            try
+            {
+                return await UpdateInScopeAsync(scope, key, model, userKey);
+            }
+            catch (DbException ex)
+            {
+                failure = ex; // The scope ends here without completing, which rolls the attempt back.
+            }
+        }
+
+        return await DuplicateOrRethrowAsync(AliasNormalizer.Normalize(model.Alias), null, failure);
+    }
+
+    private async Task<Attempt<BannerZone, BannerOperationStatus>> UpdateInScopeAsync(IScope scope, Guid key, BannerZoneModel model, Guid userKey)
+    {
         BannerZone? zone = _zones.GetByKey(key);
         if (zone is null)
         {
@@ -147,6 +177,24 @@ internal sealed class BannerZoneService : IBannerZoneService
         scope.Complete();
 
         return Attempt.SucceedWithStatus(BannerOperationStatus.Success, zone);
+    }
+
+    /// <summary>
+    /// After a database error: when the alias exists now, another editor won the race and the answer is DuplicateAlias
+    /// (checked in a fresh scope, because the failed one is rolled back); otherwise the error is not about the alias and is rethrown.
+    /// </summary>
+    private Task<Attempt<BannerZone, BannerOperationStatus>> DuplicateOrRethrowAsync(string alias, BannerZone? zone, DbException failure)
+    {
+        using (_scopeProvider.CreateScope(autoComplete: true))
+        {
+            if (_zones.GetByAlias(alias) is not null)
+            {
+                return Task.FromResult(Attempt.FailWithStatus(BannerOperationStatus.DuplicateAlias, zone!));
+            }
+        }
+
+        ExceptionDispatchInfo.Capture(failure).Throw();
+        throw failure; // Not reached; keeps the compiler satisfied.
     }
 
     public async Task<BannerOperationStatus> DeleteAsync(Guid key, Guid userKey)
