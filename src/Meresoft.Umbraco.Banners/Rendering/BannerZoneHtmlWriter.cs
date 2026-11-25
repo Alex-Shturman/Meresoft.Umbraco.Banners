@@ -37,6 +37,9 @@ public sealed class BannerZoneHtmlWriter
             return view.FallbackHtml ?? string.Empty;
         }
 
+        // Everything from here runs for every zone of every page view. Keep the work per render minimal: no database,
+        // no allocation beyond the markup, and the token (one data protection call) is the only crypto. Anything that
+        // can be prepared when the snapshot is built belongs there, not here.
         var html = new StringBuilder(512);
         html.Append("<div class=\"mb-zone");
         if (!string.IsNullOrWhiteSpace(view.CssClass))

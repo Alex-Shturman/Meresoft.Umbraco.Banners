@@ -51,3 +51,13 @@ has three consequences:
 
 Tokens are checked with the site's data protection keys, so servers behind a load balancer must share
 the key ring, which Umbraco needs for back office sign-in anyway.
+
+### Cached pages
+
+In server mode a zone is written into the page, together with its view token. When the whole page is
+cached (output cache, a CDN), every visitor receives the same markup and the same token, so the token is
+replayed. The first report counts and the later ones are refused as repeats, so impressions on a cached
+page are counted once per token lifetime and per server, not once per visitor. Use client mode for
+cached pages: the browser asks for banners and a fresh token on every view. Client mode comes with the
+next release phase (the zone setting is not offered yet). Until then, do not cache pages that carry a
+banner zone if impression counts matter.
