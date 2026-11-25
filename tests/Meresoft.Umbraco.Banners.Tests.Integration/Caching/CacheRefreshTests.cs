@@ -101,11 +101,12 @@ public class CacheRefreshTests : BannersServiceTestBase
     [Test]
     public async Task IsBuilt_IsFalseUntilTheFirstBuildHasSucceeded()
     {
-        Assert.That(Accessor.IsBuilt, Is.False);
+        var fresh = ActivatorUtilities.CreateInstance<LiveSnapshotAccessor>(Services);
+        Assert.That(fresh.IsBuilt, Is.False);
 
-        await Accessor.RebuildAsync();
+        await fresh.RebuildAsync();
 
-        Assert.That(Accessor.IsBuilt, Is.True);
+        Assert.That(fresh.IsBuilt, Is.True);
     }
 
     [Test]
