@@ -1,0 +1,23 @@
+name: CI
+
+on:
+  pull_request:
+  workflow_dispatch:
+
+jobs:
+  build-and-unit-tests:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: 10.0.x
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+          cache-dependency-path: src/Meresoft.Umbraco.Banners/Client/package-lock.json
+      - name: Build
+        run: dotnet build Meresoft.Umbraco.Banners.slnx --configuration Release
+      - name: Unit tests
+        run: dotnet test tests/Meresoft.Umbraco.Banners.Tests.Unit --configuration Release --no-build
