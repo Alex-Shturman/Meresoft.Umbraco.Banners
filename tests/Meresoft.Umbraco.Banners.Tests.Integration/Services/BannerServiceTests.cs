@@ -24,8 +24,10 @@ public class BannerServiceTests : BannersServiceTestBase
         _media = NewMediaKey();
     }
 
-    private Task<int> AuditCountAsync(int bannerId) =>
-        GetRequiredService<IAuditService>().GetItemsByEntityAsync(bannerId, 0, 50).ContinueWith(t => (int)t.Result.Total);
+    // Banner and zone ids can be equal, so the entries are told apart by their entity type.
+    private async Task<int> AuditCountAsync(int bannerId) =>
+        (await GetRequiredService<IAuditService>().GetItemsByEntityAsync(bannerId, 0, 50)).Items
+            .Count(i => i.EntityType == BannersConstants.BannerEntityType);
 
     private async Task<Banner> PublishedBannerAsync()
     {

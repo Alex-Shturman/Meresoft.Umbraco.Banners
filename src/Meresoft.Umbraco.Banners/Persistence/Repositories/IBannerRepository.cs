@@ -26,6 +26,9 @@ internal interface IBannerRepository
     /// <summary>Deletes the banner, its versions and assignments. Statistic rows stay.</summary>
     void Delete(int id);
 
+    /// <summary>All published banners (versions and zone ids included), for building the live snapshot.</summary>
+    IReadOnlyList<Banner> GetAllPublished();
+
     /// <summary>A page of banners (versions included) and the total count.</summary>
     (IReadOnlyList<Banner> Items, long Total) GetPaged(BannerFilter filter);
 }

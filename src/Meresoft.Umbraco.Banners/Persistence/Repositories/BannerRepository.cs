@@ -125,6 +125,11 @@ internal sealed class BannerRepository : RepositoryBase, IBannerRepository
         Database.Execute(NewSql().Delete<BannerDto>().Where<BannerDto>(b => b.Id == id));
     }
 
+    public IReadOnlyList<Banner> GetAllPublished() =>
+        LoadMany(Database.Fetch<BannerDto>(SelectBanners().Where<BannerDto>(b => b.IsPublished)))
+            .Where(b => b.Live is not null)
+            .ToList();
+
     public (IReadOnlyList<Banner> Items, long Total) GetPaged(BannerFilter filter)
     {
         ArgumentNullException.ThrowIfNull(filter);
