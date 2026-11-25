@@ -41,6 +41,9 @@ internal interface IBannerRepository
     /// <summary>All published banners (versions and zone ids included), for building the live snapshot.</summary>
     IReadOnlyList<Banner> GetAllPublished();
 
+    /// <summary>The key and name of each of the banners (ids that do not exist are left out), in as few queries as the database allows.</summary>
+    IReadOnlyDictionary<int, (Guid Key, string Name)> GetNames(IReadOnlyCollection<int> ids);
+
     /// <summary>The highest banner id in use, or 0 when there is no banner. One cheap query.</summary>
     int GetMaxId();
 

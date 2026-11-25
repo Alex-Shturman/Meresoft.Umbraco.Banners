@@ -77,10 +77,30 @@ internal sealed class StatisticsRepository : RepositoryBase, IStatisticsReposito
             return new Dictionary<int, BannerTotals>();
         }
 
-        int[] ids = [.. bannerIds];
-        return Database.Fetch<DailyStatDto>(NewSql().Select<DailyStatDto>().From<DailyStatDto>().WhereIn<DailyStatDto>(s => s.BannerId, ids))
-            .GroupBy(d => d.BannerId)
-            .ToDictionary(g => g.Key, g => new BannerTotals(g.Sum(d => d.Impressions), g.Sum(d => d.Clicks)));
+        // Summed by the database, so a banner with a year of rows costs one result row, not 366 times its zones.
+        string table = Syntax.GetQuotedTableName(DailyStatDto.TableName);
+        var totals = new Dictionary<int, BannerTotals>();
+        foreach (int[] part in bannerIds.Distinct().Chunk(1_000))
+        {
+            foreach (TotalsRow row in Database.Fetch<TotalsRow>(
+                $"SELECT {Column("BannerId")} AS BannerId, SUM({Column("Impressions")}) AS Impressions, SUM({Column("Clicks")}) AS Clicks "
+                + $"FROM {table} WHERE {Column("BannerId")} IN (@0) GROUP BY {Column("BannerId")}",
+                part))
+            {
+                totals[row.BannerId] = new BannerTotals(row.Impressions, row.Clicks);
+            }
+        }
+
+        return totals;
+    }
+
+    private sealed class TotalsRow
+    {
+        public int BannerId { get; set; }
+
+        public long Impressions { get; set; }
+
+        public long Clicks { get; set; }
     }
 
     /// <summary>A statistics row as read from the database, with the Day value left as the driver returns it.</summary>

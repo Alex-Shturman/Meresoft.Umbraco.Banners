@@ -176,4 +176,64 @@ public class BannerStatisticsServiceTests : BannersServiceTestBase
         Assert.That(totals[_summer.Id], Is.EqualTo(new BannerTotals(150, 4)));
         Assert.That(totals.ContainsKey(_winter.Id), Is.False);
     }
+
+    // Review 8: the names come in one query, and the totals are summed by the database.
+
+    [Test]
+    public async Task TheNumberOfQueriesDoesNotGrowWithTheNumberOfBannersInTheReport()
+    {
+        Stat(March1, _summer.Id, _home.Id, 10, 1);
+        Stat(March1, _winter.Id, _home.Id, 10, 1);
+        int withTwo = CountQueries(() => Statistics.GetReportAsync(new BannerReportQuery { From = March1, To = March1 }).GetAwaiter().GetResult());
+
+        for (int i = 0; i < 4; i++)
+        {
+            BannerDraftModel draft = ImageDraft(NewMediaKey(), _home.Key);
+            draft.Name = "Extra " + i;
+            Banner extra = await NewBannerAsync(draft);
+            Stat(March1, extra.Id, _home.Id, 10, 1);
+        }
+
+        int withSix = CountQueries(() => Statistics.GetReportAsync(new BannerReportQuery { From = March1, To = March1 }).GetAwaiter().GetResult());
+
+        Assert.That(withSix, Is.EqualTo(withTwo));
+    }
+
+    [Test]
+    public async Task TheCsvAlsoNeedsNoQueryPerBanner()
+    {
+        Stat(March1, _summer.Id, _home.Id, 10, 1);
+        int withOne = CountQueries(() => Statistics.GetCsvAsync(new BannerReportQuery { From = March1, To = March1 }).GetAwaiter().GetResult());
+        Stat(March1, _winter.Id, _home.Id, 10, 1);
+        BannerDraftModel draft = ImageDraft(NewMediaKey(), _home.Key);
+        draft.Name = "Extra";
+        Stat(March1, (await NewBannerAsync(draft)).Id, _home.Id, 10, 1);
+
+        int withThree = CountQueries(() => Statistics.GetCsvAsync(new BannerReportQuery { From = March1, To = March1 }).GetAwaiter().GetResult());
+
+        Assert.That(withThree, Is.EqualTo(withOne));
+    }
+
+    [Test]
+    public void TheTotalsPerBanner_AreSummedByTheDatabase()
+    {
+        Stat(March1, _summer.Id, _home.Id, 100, 3);
+        Stat(March1.AddDays(1), _summer.Id, _home.Id, 5, 1);
+
+        using IScope scope = ScopeProvider.CreateScope(autoComplete: true);
+        scope.Database.EnableSqlCount = true;
+        IReadOnlyDictionary<int, BannerTotals> totals = GetRequiredService<Meresoft.Umbraco.Banners.Persistence.Repositories.IStatisticsRepository>().GetTotals([_summer.Id]);
+
+        Assert.That(totals[_summer.Id], Is.EqualTo(new BannerTotals(105, 4)));
+        Assert.That(((NPoco.Database)scope.Database).LastSQL, Does.Contain("SUM(").IgnoreCase.And.Contain("GROUP BY").IgnoreCase);
+    }
+
+    private int CountQueries(Action work)
+    {
+        using IScope scope = ScopeProvider.CreateScope(autoComplete: true);
+        scope.Database.EnableSqlCount = true;
+        int before = scope.Database.SqlCount;
+        work();
+        return scope.Database.SqlCount - before;
+    }
 }

@@ -163,6 +163,21 @@ internal sealed class BannerRepository : RepositoryBase, IBannerRepository
             .Where(b => b.Live is not null)
             .ToList();
 
+    public IReadOnlyDictionary<int, (Guid Key, string Name)> GetNames(IReadOnlyCollection<int> ids)
+    {
+        var names = new Dictionary<int, (Guid Key, string Name)>();
+        // SQL Server allows about 2,100 parameters in a statement; a list of ids is cut into parts well below that.
+        foreach (int[] part in ids.Distinct().Chunk(1_000))
+        {
+            foreach (BannerDto dto in Database.Fetch<BannerDto>(NewSql().Select<BannerDto>(b => b.Id, b => b.Key, b => b.Name).From<BannerDto>().WhereIn<BannerDto>(b => b.Id, part)))
+            {
+                names[dto.Id] = (dto.Key, dto.Name);
+            }
+        }
+
+        return names;
+    }
+
     public int GetMaxId() =>
         Database.ExecuteScalar<int?>($"SELECT MAX({Syntax.GetQuotedColumnName("Id")}) FROM {Syntax.GetQuotedTableName(BannerDto.TableName)}") ?? 0;
 

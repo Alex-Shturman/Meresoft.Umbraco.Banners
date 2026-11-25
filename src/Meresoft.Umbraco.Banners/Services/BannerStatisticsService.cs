@@ -85,14 +85,9 @@ internal sealed class BannerStatisticsService : IBannerStatisticsService
         IReadOnlyList<DailyStatRow> rows = unknownFilter ? [] : _statistics.GetDailyRows(query.From, query.To, zoneId, bannerId);
 
         Dictionary<int, string> zoneAliases = _zones.GetAll().ToDictionary(z => z.Id, z => z.Alias);
-        var banners = new Dictionary<int, BannerName>();
-        foreach (int id in rows.Select(r => r.BannerId).Distinct())
-        {
-            if (_banners.GetById(id) is { } banner)
-            {
-                banners[id] = new BannerName(banner.Key, banner.Name);
-            }
-        }
+        // One query for all the names the rows need, not one per banner.
+        Dictionary<int, BannerName> banners = _banners.GetNames([.. rows.Select(r => r.BannerId).Distinct()])
+            .ToDictionary(e => e.Key, e => new BannerName(e.Value.Key, e.Value.Name));
 
         return new Loaded(rows, zoneAliases, banners);
     }

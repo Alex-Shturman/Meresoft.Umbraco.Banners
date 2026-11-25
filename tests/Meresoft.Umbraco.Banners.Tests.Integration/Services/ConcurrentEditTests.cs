@@ -131,6 +131,7 @@ public class ConcurrentEditTests : BannersServiceTestBase
         public void SetPublished(int bannerId, bool isPublished) => _inner.SetPublished(bannerId, isPublished);
         public void Delete(int id) => _inner.Delete(id);
         public IReadOnlyList<Banner> GetAllPublished() => _inner.GetAllPublished();
+        public IReadOnlyDictionary<int, (Guid Key, string Name)> GetNames(IReadOnlyCollection<int> ids) => _inner.GetNames(ids);
         public int GetMaxId() => _inner.GetMaxId();
         public (IReadOnlyList<Banner> Items, long Total) GetPaged(BannerFilter filter) => _inner.GetPaged(filter);
     }
