@@ -55,11 +55,17 @@ internal sealed class BannerRepository : RepositoryBase, IBannerRepository
             throw new InvalidOperationException("The banner has no draft version to save.");
         }
 
-        BannerDto row = RequireBannerRow(banner.Id);
-        row.Name = banner.Name;
-        row.UpdateDate = UtcTimestamp.Truncate(banner.UpdateDate);
-        row.UpdatedBy = banner.UpdatedBy;
-        RequireRow(Database.Update(row), "Banner", banner.Id);
+        // Only the columns this save owns are written, so a concurrent change to another column is not overwritten.
+        DateTime updateDate = UtcTimestamp.Truncate(banner.UpdateDate);
+        Guid updatedBy = banner.UpdatedBy;
+        string name = banner.Name;
+        int id = banner.Id;
+        RequireRow(
+            Database.Execute(NewSql()
+                .Update<BannerDto>(u => u.Set(b => b.Name, name).Set(b => b.UpdateDate, updateDate).Set(b => b.UpdatedBy, updatedBy))
+                .Where<BannerDto>(b => b.Id == id)),
+            "Banner",
+            id);
 
         banner.Draft.BannerId = banner.Id;
         banner.Draft.Kind = BannerVersionKind.Draft;
@@ -69,8 +75,6 @@ internal sealed class BannerRepository : RepositoryBase, IBannerRepository
 
     public void CopyDraftOverLive(int bannerId, DateTime publishDateUtc)
     {
-        BannerDto row = RequireBannerRow(bannerId);
-
         BannerVersionDto draft = FindVersion(bannerId, BannerVersionKind.Draft)
             ?? throw new InvalidOperationException($"Banner {bannerId} has no draft version to publish.");
         List<int> zoneIds = LoadZoneIds([draft.Id]).GetValueOrDefault(draft.Id) ?? [];
@@ -89,16 +93,23 @@ internal sealed class BannerRepository : RepositoryBase, IBannerRepository
 
         ReplaceAssignments(copy.Id, zoneIds);
 
-        row.IsPublished = true;
-        row.PublishDate = UtcTimestamp.Truncate(publishDateUtc);
-        RequireRow(Database.Update(row), "Banner", bannerId);
+        DateTime publishDate = UtcTimestamp.Truncate(publishDateUtc);
+        RequireRow(
+            Database.Execute(NewSql()
+                .Update<BannerDto>(u => u.Set(b => b.IsPublished, true).Set(b => b.PublishDate, (DateTime?)publishDate))
+                .Where<BannerDto>(b => b.Id == bannerId)),
+            "Banner",
+            bannerId);
     }
 
     public void SetPublished(int bannerId, bool isPublished)
     {
-        BannerDto row = RequireBannerRow(bannerId);
-        row.IsPublished = isPublished;
-        RequireRow(Database.Update(row), "Banner", bannerId);
+        RequireRow(
+            Database.Execute(NewSql()
+                .Update<BannerDto>(u => u.Set(b => b.IsPublished, isPublished))
+                .Where<BannerDto>(b => b.Id == bannerId)),
+            "Banner",
+            bannerId);
     }
 
     public void Delete(int id)
@@ -126,10 +137,6 @@ internal sealed class BannerRepository : RepositoryBase, IBannerRepository
 
         return (LoadMany(rows), total);
     }
-
-    private BannerDto RequireBannerRow(int id) =>
-        Database.FirstOrDefault<BannerDto>(SelectBanners().Where<BannerDto>(b => b.Id == id))
-        ?? throw new InvalidOperationException($"Banner {id} does not exist.");
 
     private Sql<ISqlContext> SelectBanners() => NewSql().Select<BannerDto>().From<BannerDto>();
 

@@ -202,6 +202,70 @@ public class BannerRepositoryTests : BannersIntegrationTestBase
     }
 
     [Test]
+    public void SetPublished_And_Publish_WriteOnlyTheirOwnColumns()
+    {
+        Banner banner = NewBanner("Summer promo");
+        using (IScope scope = ScopeProvider.CreateScope())
+        {
+            Banners.Add(banner);
+            // Another editor renames the banner directly in the database.
+            scope.Database.Execute("UPDATE meresoftBannersBanner SET Name = @0 WHERE Id = @1", "Renamed elsewhere", banner.Id);
+            Banners.CopyDraftOverLive(banner.Id, Saved.AddDays(1));
+            Banners.SetPublished(banner.Id, false);
+            scope.Complete();
+        }
+
+        using (ScopeProvider.CreateScope(autoComplete: true))
+        {
+            Banner loaded = Banners.GetById(banner.Id)!;
+            Assert.Multiple(() =>
+            {
+                Assert.That(loaded.Name, Is.EqualTo("Renamed elsewhere"));
+                Assert.That(loaded.IsPublished, Is.False);
+                Assert.That(loaded.PublishDate, Is.EqualTo(Saved.AddDays(1)));
+            });
+        }
+    }
+
+    [Test]
+    public void SaveDraft_WritesOnlyNameAndUpdateColumnsOfTheBannerRow()
+    {
+        Banner banner = NewBanner("Summer promo");
+        using (IScope scope = ScopeProvider.CreateScope())
+        {
+            Banners.Add(banner);
+            Banners.CopyDraftOverLive(banner.Id, Saved.AddDays(1));
+            scope.Complete();
+        }
+
+        // The banner is loaded, then someone else unpublishes it before this save.
+        Banner stale;
+        using (ScopeProvider.CreateScope(autoComplete: true))
+        {
+            stale = Banners.GetById(banner.Id)!;
+        }
+
+        using (IScope scope = ScopeProvider.CreateScope())
+        {
+            Banners.SetPublished(banner.Id, false);
+            stale.Name = "Edited name";
+            stale.UpdateDate = Saved.AddDays(3);
+            Banners.SaveDraft(stale);
+            scope.Complete();
+        }
+
+        using (ScopeProvider.CreateScope(autoComplete: true))
+        {
+            Banner loaded = Banners.GetById(banner.Id)!;
+            Assert.Multiple(() =>
+            {
+                Assert.That(loaded.Name, Is.EqualTo("Edited name"));
+                Assert.That(loaded.IsPublished, Is.False, "the concurrent unpublish must not be overwritten");
+            });
+        }
+    }
+
+    [Test]
     public void SetPublished_OfAMissingBanner_Throws()
     {
         using IScope scope = ScopeProvider.CreateScope();
