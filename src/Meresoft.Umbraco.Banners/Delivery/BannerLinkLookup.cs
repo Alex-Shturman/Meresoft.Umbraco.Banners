@@ -69,7 +69,11 @@ internal sealed class BannerLinkLookup : IBannerLinkLookup
             }
 
             SnapshotBanner? candidate = zone.Candidates.FirstOrDefault(c => c.BannerId == bannerId);
-            return candidate is null || !LinkUrlRules.IsAbsoluteHttpUrl(candidate.LinkUrl) ? null : new ClickTarget(candidate.LinkUrl, Countable: true);
+            // An Html banner has no click address: its markup is foreign code the package cannot wrap (FR-006), so the click
+            // endpoint answers 404 for it whatever link it may hold.
+            return candidate is null || candidate.Html is not null || !LinkUrlRules.IsAbsoluteHttpUrl(candidate.LinkUrl)
+                ? null
+                : new ClickTarget(candidate.LinkUrl, Countable: true);
         }
 
         return null;
