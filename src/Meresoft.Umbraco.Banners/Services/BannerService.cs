@@ -6,6 +6,7 @@ using Meresoft.Umbraco.Banners.Services.Models;
 using Umbraco.Cms.Core;
 using Umbraco.Cms.Core.Cache;
 using Umbraco.Cms.Core.Models;
+using Umbraco.Cms.Core.Models.PublishedContent;
 using Umbraco.Cms.Core.PublishedCache;
 using Umbraco.Cms.Infrastructure.Scoping;
 
@@ -124,6 +125,7 @@ internal sealed class BannerService : IBannerService
 
         using IScope scope = _scopeProvider.CreateScope();
         FieldValidationResult validation = ApplyDraft(banner, model.Draft, new BannerVersion { Kind = BannerVersionKind.Draft }, now, userKey);
+        await AddMediaErrorsAsync(banner, banner.Draft!, validation);
         if (!validation.IsValid)
         {
             return Fail(BannerOperationStatus.InvalidData, banner, validation);
@@ -160,6 +162,7 @@ internal sealed class BannerService : IBannerService
         DateTime loadedUpdateDate = banner.UpdateDate;
         DateTime now = UtcTimestamp.Truncate(_timeProvider.GetUtcNow().UtcDateTime);
         FieldValidationResult validation = ApplyDraft(banner, model, banner.Draft, now, userKey);
+        await AddMediaErrorsAsync(banner, banner.Draft, validation);
         if (!validation.IsValid)
         {
             return Fail(BannerOperationStatus.InvalidData, banner, validation);
@@ -192,6 +195,7 @@ internal sealed class BannerService : IBannerService
         }
 
         FieldValidationResult validation = BannerVersionValidator.Validate(banner.Type, banner.Draft);
+        await AddMediaErrorsAsync(banner, banner.Draft, validation);
         if (!validation.IsValid)
         {
             return Fail(BannerOperationStatus.InvalidData, banner, validation);
@@ -379,6 +383,25 @@ internal sealed class BannerService : IBannerService
 
         draft.ZoneIds = zoneIds;
         return result;
+    }
+
+    /// <summary>An image banner needs a media item that exists and has a file; otherwise the field "mediaKey" gets an error.</summary>
+    private async Task AddMediaErrorsAsync(Banner banner, BannerVersion version, FieldValidationResult result)
+    {
+        if (banner.Type != BannerType.Image || version.MediaKey is not { } mediaKey || mediaKey == Guid.Empty)
+        {
+            return; // A missing key is already reported by the version validator.
+        }
+
+        IPublishedContent? media = await _mediaCache.GetByIdAsync(mediaKey);
+        if (media is null)
+        {
+            result.Add("mediaKey", "The selected image does not exist. Choose another image.");
+        }
+        else if (media.GetProperty("umbracoFile")?.HasValue() != true)
+        {
+            result.Add("mediaKey", "The selected media item has no file. Choose another image.");
+        }
     }
 
     /// <summary>Sets <see cref="Banner.State"/> and <see cref="Banner.Flags"/>.</summary>

@@ -70,6 +70,55 @@ public class BannerServiceTests : BannersServiceTestBase
         Assert.That(attempt.Status, Is.EqualTo(BannerOperationStatus.InvalidData));
     }
 
+    private static void AssertMediaKeyError(Attempt<Banner, BannerOperationStatus> attempt)
+    {
+        Assert.That(attempt.Status, Is.EqualTo(BannerOperationStatus.InvalidData));
+        Assert.That(((BannerValidationException)attempt.Exception!).Errors, Contains.Key("mediaKey"));
+    }
+
+    [Test]
+    public async Task Create_WithAMediaItemThatDoesNotExist_ReturnsInvalidDataOnMediaKey()
+    {
+        var attempt = await BannerService.CreateAsync(
+            new BannerCreateModel { Type = BannerType.Image, Draft = ImageDraft(Guid.NewGuid(), _zone.Key) }, User);
+
+        AssertMediaKeyError(attempt);
+    }
+
+    [Test]
+    public async Task Create_WithAMediaItemThatHasNoFile_ReturnsInvalidDataOnMediaKey()
+    {
+        Guid noFile = TestMedia.CreateImageWithoutFile(GetRequiredService<IMediaService>()).Key;
+
+        var attempt = await BannerService.CreateAsync(
+            new BannerCreateModel { Type = BannerType.Image, Draft = ImageDraft(noFile, _zone.Key) }, User);
+
+        AssertMediaKeyError(attempt);
+    }
+
+    [Test]
+    public async Task SaveDraft_WithAMediaItemThatDoesNotExist_ReturnsInvalidDataOnMediaKey()
+    {
+        Banner banner = await NewBannerAsync(ImageDraft(_media, _zone.Key));
+        BannerDraftModel change = ImageDraft(Guid.NewGuid(), _zone.Key);
+        change.UpdateDate = banner.UpdateDate;
+
+        AssertMediaKeyError(await BannerService.SaveDraftAsync(banner.Key, change, User));
+    }
+
+    [Test]
+    public async Task Publish_AfterTheMediaItemWasDeleted_ReturnsInvalidDataOnMediaKey_AndPublishesNothing()
+    {
+        var media = TestMedia.CreateImage(GetRequiredService<IMediaService>());
+        Banner banner = await NewBannerAsync(ImageDraft(media.Key, _zone.Key));
+        DeleteMedia(media);
+
+        var attempt = await BannerService.PublishAsync(banner.Key, User);
+
+        AssertMediaKeyError(attempt);
+        Assert.That((await BannerService.GetAsync(banner.Key))!.IsPublished, Is.False);
+    }
+
     [Test]
     public async Task Create_UnknownZoneKey_ReturnsInvalidData()
     {
@@ -349,7 +398,9 @@ public class BannerServiceTests : BannersServiceTestBase
     public async Task GetPaged_FlagsABannerWithoutZoneAsNotPlaced_AndAMissingImage()
     {
         Banner notPlaced = await NewBannerAsync(ImageDraft(_media));
-        Banner gone = await NewBannerAsync(ImageDraft(Guid.NewGuid(), _zone.Key));
+        var goneMedia = TestMedia.CreateImage(GetRequiredService<IMediaService>());
+        Banner gone = await NewBannerAsync(ImageDraft(goneMedia.Key, _zone.Key));
+        DeleteMedia(goneMedia);
 
         var page = await BannerService.GetPagedAsync(new BannerQuery());
 

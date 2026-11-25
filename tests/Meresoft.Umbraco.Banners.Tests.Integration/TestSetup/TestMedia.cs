@@ -17,6 +17,14 @@ internal static class TestMedia
         return media;
     }
 
+    /// <summary>Saves an image media item that has no file, and returns it.</summary>
+    public static IMedia CreateImageWithoutFile(IMediaService mediaService)
+    {
+        IMedia media = mediaService.CreateMedia("Invented image without a file", Constants.System.Root, Constants.Conventions.MediaTypes.Image);
+        mediaService.Save(media);
+        return media;
+    }
+
     /// <summary>Saves a media folder and returns it.</summary>
     public static IMedia CreateFolder(IMediaService mediaService, string name = "Invented folder")
     {

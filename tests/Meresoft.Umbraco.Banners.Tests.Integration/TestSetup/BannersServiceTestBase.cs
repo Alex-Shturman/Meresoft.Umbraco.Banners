@@ -3,6 +3,9 @@ using Meresoft.Umbraco.Banners.Services;
 using Meresoft.Umbraco.Banners.Services.Models;
 using NUnit.Framework;
 using Umbraco.Cms.Core;
+using Umbraco.Cms.Core.Cache;
+using Umbraco.Cms.Core.Models;
+using Umbraco.Cms.Core.Services.Changes;
 using Umbraco.Cms.Core.Services;
 
 namespace Meresoft.Umbraco.Banners.Tests.Integration.TestSetup;
@@ -21,6 +24,15 @@ public abstract class BannersServiceTestBase : BannersIntegrationTestBase
 
     /// <summary>Creates an image media item and returns its key.</summary>
     protected Guid NewMediaKey() => TestMedia.CreateImage(GetRequiredService<IMediaService>()).Key;
+
+    /// <summary>Deletes a media item and sends the message a real site sends for it (the test host does not bind media events).</summary>
+    protected void DeleteMedia(IMedia media)
+    {
+        GetRequiredService<IMediaService>().Delete(media);
+        GetRequiredService<DistributedCache>().RefreshByPayload(
+            MediaCacheRefresher.UniqueId,
+            [new MediaCacheRefresher.JsonPayload(media.Id, media.Key, TreeChangeTypes.Remove)]);
+    }
 
     /// <summary>Creates a zone through the service and returns it.</summary>
     protected async Task<BannerZone> NewZoneAsync(string alias, int showCount = 1, int? width = null, int? height = null)
