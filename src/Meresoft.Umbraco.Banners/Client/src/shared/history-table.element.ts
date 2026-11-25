@@ -1,6 +1,7 @@
-import { css, customElement, html, nothing, property, repeat } from "@umbraco-cms/backoffice/external/lit";
+import { css, customElement, html, nothing, property } from "@umbraco-cms/backoffice/external/lit";
 import { UmbLitElement } from "@umbraco-cms/backoffice/lit-element";
 import { UmbTextStyles } from "@umbraco-cms/backoffice/style";
+import { formatDateTime } from "./date-time.js";
 import { HistoryPager, type HistoryLoader } from "./history-pager.js";
 
 export type { HistoryLoader } from "./history-pager.js";
@@ -62,12 +63,10 @@ export class MeresoftHistoryTableElement extends UmbLitElement {
           <uui-table-head-cell>${this.localize.term("meresoftBanners_historyWho")}</uui-table-head-cell>
           <uui-table-head-cell>${this.localize.term("meresoftBanners_historyWhat")}</uui-table-head-cell>
         </uui-table-head>
-        ${repeat(
-          pager.entries,
-          (_, index) => index,
+        ${pager.entries.map(
           (entry) => html`
             <uui-table-row>
-              <uui-table-cell class="when">${new Date(entry.date).toLocaleString()}</uui-table-cell>
+              <uui-table-cell class="when">${formatDateTime(entry.date)}</uui-table-cell>
               <uui-table-cell>${entry.userName ?? this.localize.term("meresoftBanners_historyUnknownUser")}</uui-table-cell>
               <uui-table-cell>
                 <uui-tag look="secondary" color=${ACTION_COLOR[entry.action] ?? "default"}>${this.#actionLabel(entry.action)}</uui-tag>

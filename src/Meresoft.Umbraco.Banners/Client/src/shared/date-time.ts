@@ -48,3 +48,18 @@ export function localInputToUtc(local: string): string | null {
 export function resolveUtc(local: string, storedUtc: string | null | undefined): string | null {
   return local === utcToLocalInput(storedUtc) ? (storedUtc ?? null) : localInputToUtc(local);
 }
+
+/**
+ * A UTC moment (ISO text) as a readable date and time in the user's time zone, for example "Jan 15, 2027, 9:00 AM".
+ * Empty when there is no moment. `locale` is for tests; the browser's language is used otherwise.
+ */
+export function formatDateTime(utc: string | null | undefined, locale?: string): string {
+  if (!utc) {
+    return "";
+  }
+  const date = new Date(/[zZ]|[+-]\d{2}:?\d{2}$/.test(utc) ? utc : `${utc}Z`);
+  if (Number.isNaN(date.getTime())) {
+    return "";
+  }
+  return new Intl.DateTimeFormat(locale, { dateStyle: "medium", timeStyle: "short", timeZone: userTimeZone() }).format(date);
+}

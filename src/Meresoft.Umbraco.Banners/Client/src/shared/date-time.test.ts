@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { localInputToUtc, resolveUtc, utcToLocalInput } from "./date-time.js";
+import { formatDateTime, localInputToUtc, resolveUtc, utcToLocalInput } from "./date-time.js";
 
 // vitest.config.ts runs these in Europe/Berlin: UTC+1 in winter, UTC+2 in summer.
 // In 2027 the clocks go forward on 2027-03-28 (02:00 becomes 03:00, so 02:00 to 02:59 does not exist) and
@@ -92,5 +92,23 @@ describe("resolveUtc", () => {
 
   it("converts a new value when nothing was stored", () => {
     expect(resolveUtc("2027-06-01T10:00", null)).toBe("2027-06-01T08:00:00.000Z");
+  });
+});
+
+describe("formatDateTime", () => {
+  it("shows a UTC moment in the user's time zone, with the date and the time", () => {
+    // 08:00 UTC is 09:00 in Berlin in winter and 10:00 in summer.
+    expect(formatDateTime("2027-01-15T08:00:00Z", "en")).toContain("9:00");
+    expect(formatDateTime("2027-06-01T08:00:00Z", "en")).toContain("10:00");
+    expect(formatDateTime("2027-01-15T08:00:00Z", "en")).toContain("2027");
+  });
+
+  it("reads text without an offset as UTC", () => {
+    expect(formatDateTime("2027-01-15T08:00:00", "en")).toBe(formatDateTime("2027-01-15T08:00:00Z", "en"));
+  });
+
+  it("gives an empty text for something that is not a time", () => {
+    expect(formatDateTime("not a time", "en")).toBe("");
+    expect(formatDateTime(undefined, "en")).toBe("");
   });
 });
