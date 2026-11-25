@@ -24,7 +24,7 @@ import type {
 import { configureBannersClient } from "../api/client-setup.js";
 import { client, fieldErrors, keyFromLocation, navigate, send, type ApiProblem } from "../shared/api.js";
 import { resolveUtc, userTimeZone, utcToLocalInput } from "../shared/date-time.js";
-import { STATE_DISPLAY, activeFlags } from "./banner-state.js";
+import { STATE_DISPLAY, activeFlags, limitToText, parseLimit, showsClickLimit } from "./banner-state.js";
 import { canEditHtml, htmlFieldAccess, offeredBannerTypes } from "./html-permission.js";
 import "./banner-history.element.js";
 
@@ -67,6 +67,8 @@ export class MeresoftBannerEditorElement extends UmbLitElement {
   @state() private _weight = "1";
   @state() private _start = "";
   @state() private _end = "";
+  @state() private _impressionLimit = "";
+  @state() private _clickLimit = "";
   @state() private _errors: Record<string, string> = {};
   @state() private _problem = "";
   @state() private _conflict = false;
@@ -139,9 +141,11 @@ export class MeresoftBannerEditorElement extends UmbLitElement {
     this._weight = String(draft?.weight ?? 1);
     this._start = utcToLocalInput(draft?.startUtc);
     this._end = utcToLocalInput(draft?.endUtc);
+    this._impressionLimit = limitToText(draft?.impressionLimit);
+    this._clickLimit = limitToText(draft?.clickLimit);
   }
 
-  /** The edited fields on top of what the draft already holds (limits are edited elsewhere). */
+  /** The edited fields on top of what the draft already holds. */
   #body(): BannerRequestModel {
     const draft = this._banner?.draft;
     return {
@@ -161,8 +165,9 @@ export class MeresoftBannerEditorElement extends UmbLitElement {
       weight: this._weight.trim() === "" || Number.isNaN(Number(this._weight)) ? null : Number(this._weight),
       startUtc: resolveUtc(this._start, draft?.startUtc),
       endUtc: resolveUtc(this._end, draft?.endUtc),
-      impressionLimit: draft?.impressionLimit ?? null,
-      clickLimit: draft?.clickLimit ?? null,
+      impressionLimit: parseLimit(this._impressionLimit),
+      // An Html banner has no click limit (FR-006), whatever the field held.
+      clickLimit: showsClickLimit(this._type) ? parseLimit(this._clickLimit) : null,
       zoneKeys: this._zoneKeys,
       updateDate: this._banner?.updateDate ?? null,
     };
@@ -334,6 +339,10 @@ export class MeresoftBannerEditorElement extends UmbLitElement {
           ${this.#textField("weight", "meresoftBanners_bannerWeight", this._weight, (v) => (this._weight = v), "meresoftBanners_bannerWeightDescription", "number")}
           ${this.#textField("startUtc", "meresoftBanners_bannerStart", this._start, (v) => (this._start = v), "meresoftBanners_bannerScheduleDescription", "datetime-local")}
           ${this.#textField("endUtc", "meresoftBanners_bannerEnd", this._end, (v) => (this._end = v), undefined, "datetime-local")}
+          ${this.#textField("impressionLimit", "meresoftBanners_bannerImpressionLimit", this._impressionLimit, (v) => (this._impressionLimit = v), "meresoftBanners_bannerImpressionLimitDescription", "number", null)}
+          ${showsClickLimit(this._type)
+            ? this.#textField("clickLimit", "meresoftBanners_bannerClickLimit", this._clickLimit, (v) => (this._clickLimit = v), "meresoftBanners_bannerClickLimitDescription", "number", null)
+            : nothing}
           <uui-form-layout-item>
             <uui-label slot="label">${this.localize.term("meresoftBanners_bannerZones")}</uui-label>
             ${this._zones.length === 0
@@ -443,13 +452,14 @@ export class MeresoftBannerEditorElement extends UmbLitElement {
     set: (value: string) => void,
     descriptionKey?: string,
     type: "text" | "number" | "datetime-local" = "text",
+    max: string | null = "100",
   ) {
     const label = this.localize.term(labelKey);
     return html`
       <uui-form-layout-item>
         <uui-label slot="label" for=${field}>${label}</uui-label>
         ${descriptionKey ? html`<span slot="description">${this.localize.term(descriptionKey, userTimeZone())}</span>` : nothing}
-        <uui-input id=${field} type=${type} min=${type === "number" ? "1" : nothing} max=${type === "number" ? "100" : nothing} label=${label} .value=${value} @input=${(e: Event) => set((e.target as HTMLInputElement).value)}></uui-input>
+        <uui-input id=${field} type=${type} min=${type === "number" ? "1" : nothing} max=${type === "number" && max !== null ? max : nothing} label=${label} .value=${value} @input=${(e: Event) => set((e.target as HTMLInputElement).value)}></uui-input>
         ${this.#error(field)}
       </uui-form-layout-item>
     `;

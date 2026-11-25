@@ -270,7 +270,7 @@ and localization base, audit writer. No user story starts before this phase is d
 
 - [x] T115 [US5] Load totals for banners with limits in `src/Meresoft.Umbraco.Banners/Caching/LiveSnapshotBuilder.cs` (from `StatisticsRepository` totals per banner, summed over all zones and days including imported rows) and implement `src/Meresoft.Umbraco.Banners/Selection/LimitFilter.cs` (makes T113 pass)
 - [x] T116 [US5] After each successful flush, `src/Meresoft.Umbraco.Banners/Counting/BannersFlushJob.cs` reloads the totals of limited banners and swaps the snapshot locally when a banner crosses its limit; `BannerStateCalculator` uses the same totals for the flag (makes T114 pass)
-- [ ] T117 [P] [US5] Add the impression and click limit fields (click limit hidden for Html banners, FR-006) and the "Limit reached" flag to `src/Meresoft.Umbraco.Banners/Client/src/banners/banner-editor.element.ts` and `banners-list-view.element.ts`
+- [x] T117 [P] [US5] Add the impression and click limit fields (click limit hidden for Html banners, FR-006) and the "Limit reached" flag to `src/Meresoft.Umbraco.Banners/Client/src/banners/banner-editor.element.ts` and `banners-list-view.element.ts`
 
 **Checkpoint**: all six stories work independently and together.
 

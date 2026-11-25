@@ -1,4 +1,4 @@
-import type { BannerFlagsModel, BannerState } from "../api/types.gen.js";
+import type { BannerFlagsModel, BannerState, BannerType } from "../api/types.gen.js";
 
 /** Localization key and tag color of a publish state. */
 export const STATE_DISPLAY: Record<BannerState, { key: string; color: "default" | "positive" | "warning" | "danger" }> = {
@@ -23,5 +23,23 @@ export function activeFlags(flags: BannerFlagsModel): Array<{ key: string; color
   if (flags.expired) {
     result.push({ key: "meresoftBanners_flagExpired", color: "danger" });
   }
+  if (flags.limitReached) {
+    result.push({ key: "meresoftBanners_flagLimitReached", color: "danger" });
+  }
   return result;
+}
+
+/** Html banners are rendered as stored and their clicks are not counted, so only image banners have a click limit (FR-006). */
+export function showsClickLimit(type: BannerType): boolean {
+  return type !== "Html";
+}
+
+/** The number in a limit field, or null when the field is empty (no limit). */
+export function parseLimit(text: string): number | null {
+  return text.trim() === "" ? null : Number(text);
+}
+
+/** The text of a limit field for a stored limit. */
+export function limitToText(limit: number | null | undefined): string {
+  return limit == null ? "" : String(limit);
 }
