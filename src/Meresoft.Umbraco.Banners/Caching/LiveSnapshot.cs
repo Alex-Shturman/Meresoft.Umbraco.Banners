@@ -16,6 +16,14 @@ public sealed class LiveSnapshot
     public LiveSnapshot(IReadOnlyDictionary<string, SnapshotZone> zones, IReadOnlySet<int> imageMissingBannerIds, IReadOnlySet<Guid> mediaKeys)
     {
         Zones = zones;
+        foreach (SnapshotZone zone in zones.Values)
+        {
+            foreach (SnapshotBanner candidate in zone.Candidates)
+            {
+                _ = candidate.Selected; // Built here, once, so no page request builds it.
+            }
+        }
+
         ImageMissingBannerIds = imageMissingBannerIds;
         MediaKeys = mediaKeys;
     }
@@ -92,13 +100,38 @@ public sealed record SnapshotBanner
     /// <summary>Clicks after which the banner stops.</summary>
     public long? ClickLimit { get; init; }
 
-    private SelectedBanner? _selected;
+    // Holds the SelectedBanner. Record equality compares every field, so the holder says all holders are equal: the
+    // cached value is derived purely from the other properties and must not make two equal banners unequal.
+    private SelectedHolder _holder = new();
+
+    /// <summary>Copy constructor of <c>with</c>: the copy starts with an empty holder, so it never shows the original's stale value.</summary>
+    [System.Diagnostics.CodeAnalysis.SetsRequiredMembers]
+    private SnapshotBanner(SnapshotBanner original)
+    {
+        BannerId = original.BannerId;
+        ZoneId = original.ZoneId;
+        ImageUrl = original.ImageUrl;
+        Width = original.Width;
+        Height = original.Height;
+        AltText = original.AltText;
+        Title = original.Title;
+        LinkUrl = original.LinkUrl;
+        OpenInNewWindow = original.OpenInNewWindow;
+        Weight = original.Weight;
+        StartUtc = original.StartUtc;
+        EndUtc = original.EndUtc;
+        ImpressionLimit = original.ImpressionLimit;
+        ClickLimit = original.ClickLimit;
+        _holder = new SelectedHolder();
+    }
 
     /// <summary>
-    /// What the markup needs, built once on first use so a page request allocates no new object for it.
-    /// Two threads may build it at the same time; both results are equal and immutable, so either may win.
+    /// What the markup needs, derived purely from the other properties. <see cref="LiveSnapshot"/> builds it for every
+    /// candidate when the snapshot is created, so a page request allocates nothing for it; it is built on first use
+    /// for a banner that is read outside a snapshot. Two threads may build it at once; both results are equal and
+    /// immutable, so either may win.
     /// </summary>
-    internal SelectedBanner Selected => _selected ??= new SelectedBanner
+    internal SelectedBanner Selected => _holder.Value ??= new SelectedBanner
     {
         BannerId = BannerId,
         ZoneId = ZoneId,
@@ -110,4 +143,16 @@ public sealed record SnapshotBanner
         LinkUrl = LinkUrl,
         OpenInNewWindow = OpenInNewWindow,
     };
+
+    /// <summary>True once <see cref="Selected"/> has been built.</summary>
+    internal bool IsSelectedBuilt => _holder.Value is not null;
+
+    private sealed class SelectedHolder
+    {
+        public SelectedBanner? Value;
+
+        public override bool Equals(object? obj) => obj is SelectedHolder;
+
+        public override int GetHashCode() => 0;
+    }
 }
