@@ -1,6 +1,7 @@
 using System.Net;
 using System.Text.RegularExpressions;
-using Meresoft.Umbraco.Banners.Persistence.Dtos;
+using Meresoft.Umbraco.Banners.Counting;
+using Meresoft.Umbraco.Banners.Persistence.Repositories;
 using Meresoft.Umbraco.Banners.Tests.Integration.TestSetup;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Logging;
@@ -18,12 +19,6 @@ public class PrivacyTests : PublicEndpointTestBase
     private const string VisitorAddress = "203.0.113.77";
 
     private static readonly CapturingLoggerProvider Sink = new();
-
-    protected override void CustomTestSetup(IUmbracoBuilder builder)
-    {
-        base.CustomTestSetup(builder);
-        builder.Services.AddLogging(logging => logging.SetMinimumLevel(LogLevel.Trace).AddProvider(Sink));
-    }
 
     [SetUp]
     public void ClearSink() => Sink.Clear();
@@ -44,7 +39,7 @@ public class PrivacyTests : PublicEndpointTestBase
     }
 
     [Test]
-    public async Task NoLogLineOfThePackage_HoldsAnIpAddressOrAUserAgent_AndNoPublicEndpointSetsACookie()
+    public async Task NoPublicEndpointAndNoRenderedZone_SetsACookie()
     {
         PublishedBanner banner = await PublishBannerAsync("home-top");
         string token = IssueToken(banner.ZoneId, banner.BannerId);
@@ -62,35 +57,72 @@ public class PrivacyTests : PublicEndpointTestBase
         var renderer = GetRequiredService<Meresoft.Umbraco.Banners.Rendering.BannerZoneRenderer>();
         string html = renderer.Render(new Dictionary<object, object?>(), renderer.Select("home-top"), null, null);
         Assert.That(html, Does.Not.Contain("cookie").IgnoreCase);
-
-        IReadOnlyList<string> packageLines = Sink.Lines("Meresoft.Umbraco.Banners");
-        Assert.That(packageLines, Has.None.Contain(VisitorAddress));
-        Assert.That(packageLines, Has.None.Contain("unique-agent-marker-4711"));
-        Assert.That(packageLines, Has.None.Contain("abc123"));
-        Assert.That(packageLines.Where(l => Regex.IsMatch(l, @"\b\d{1,3}(\.\d{1,3}){3}\b")), Is.Empty, "no IPv4 address in any package log line");
     }
 
+    [Test]
+    public async Task ALogLineOfAFailedFlush_HoldsNoIpAddressUserAgentOrCookie_OnlyIdsAndCounts()
+    {
+        PublishedBanner banner = await PublishBannerAsync("home-top");
+        HttpResponseMessage click = await SendAsync(HttpMethod.Get, $"/_banners/c/{banner.BannerId}?z={banner.ZoneId}");
+        Assert.That(click.StatusCode, Is.EqualTo(HttpStatusCode.Redirect));
+        // The test host's own logger factory does not take extra providers (it showed no line at all), so the flusher gets
+        // a logger from a factory that feeds the capturing sink.
+        using ILoggerFactory loggers = LoggerFactory.Create(logging => logging.SetMinimumLevel(LogLevel.Trace).AddProvider(Sink));
+        var flusher = new CounterFlusher(Buffer, GetRequiredService<IScopeProvider>(), new FailingStatisticsRepository(), loggers.CreateLogger<CounterFlusher>());
+
+        flusher.Flush();
+
+        IReadOnlyList<string> lines = Sink.Lines("Meresoft.Umbraco.Banners");
+        Assert.That(lines, Is.Not.Empty);
+        Assert.That(lines.Any(l => l.Contains("failed", StringComparison.OrdinalIgnoreCase)), Is.True, "the failure was logged, so the lines below were really checked.");
+        Assert.That(lines, Has.None.Contain(VisitorAddress));
+        Assert.That(lines, Has.None.Contain("unique-agent-marker-4711"));
+        Assert.That(lines, Has.None.Contain("abc123"));
+        Assert.That(lines, Has.None.Contain("visitor="));
+        Assert.That(lines.Where(l => Regex.IsMatch(l, @"\b\d{1,3}(\.\d{1,3}){3}\b")), Is.Empty, "no IPv4 address in any package log line");
+        Assert.That(Buffer.Swap().Sum(c => c.Clicks), Is.EqualTo(1), "the counts were kept for the next run");
+    }
+
+    /// <summary>
+    /// Reflection over the schema the migration creates and over the runtime table mappings: no column for an IP address,
+    /// a user agent, a cookie, a visitor or a person. Works the same on every database (the SQL Server job of CI runs it too).
+    /// </summary>
     [Test]
     public void NoPackageTableHasAColumnForAnIpAddressAUserAgentOrAVisitor()
     {
         string[] forbidden = ["ip", "ipaddress", "useragent", "agent", "visitor", "visitorid", "cookie", "session", "member", "memberid", "email"];
-        using IScope scope = ScopeProvider.CreateScope(autoComplete: true);
+        System.Reflection.Assembly package = typeof(BannersConstants).Assembly;
+        Type[] tableTypes = package.GetTypes()
+            .Where(t => t.Namespace is { } ns
+                && (ns.EndsWith(".Persistence.Migrations.Schema.V1", StringComparison.Ordinal) || ns.EndsWith(".Persistence.Dtos", StringComparison.Ordinal))
+                && t.GetCustomAttributes(typeof(NPoco.TableNameAttribute), inherit: false).Length > 0)
+            .ToArray();
 
-        var columns = new List<(string Table, string Column)>();
-        foreach (string table in new[] { "meresoftBannersBanner", "meresoftBannersBannerVersion", "meresoftBannersZone", "meresoftBannersZoneAssignment", DailyStatDto.TableName, "meresoftBannersRequestedZone" })
-        {
-            foreach (string column in ColumnNames(scope, table))
-            {
-                columns.Add((table, column));
-            }
-        }
+        var columns = tableTypes
+            .SelectMany(t => t.GetProperties().Select(p => (Table: t.Name, Column: p.GetCustomAttributes(typeof(NPoco.ColumnAttribute), false).Cast<NPoco.ColumnAttribute>().FirstOrDefault()?.Name ?? p.Name)))
+            .ToList();
 
-        Assert.That(columns.Count, Is.GreaterThan(20), "the schema was read");
+        Assert.That(tableTypes, Has.Length.GreaterThanOrEqualTo(12), "six schema types and six runtime types were found");
+        Assert.That(columns.Count, Is.GreaterThan(40), "the columns were read");
         Assert.That(columns.Where(c => forbidden.Contains(c.Column.ToLowerInvariant())), Is.Empty);
     }
 
-    private static IEnumerable<string> ColumnNames(IScope scope, string table) =>
-        scope.Database.Fetch<string>($"SELECT name FROM pragma_table_info('{table}')");
+    private sealed class FailingWriteException : System.Data.Common.DbException
+    {
+        public FailingWriteException() : base("simulated write failure")
+        {
+        }
+    }
+
+    private sealed class FailingStatisticsRepository : IStatisticsRepository
+    {
+        public void AddDelta(CounterEntry delta) => throw new FailingWriteException();
+
+        public IReadOnlyList<DailyStatRow> GetDailyRows(DateOnly from, DateOnly to, int? zoneId, int? bannerId) => [];
+
+        public IReadOnlyDictionary<int, Meresoft.Umbraco.Banners.Domain.BannerTotals> GetTotals(IReadOnlyCollection<int> bannerIds) =>
+            new Dictionary<int, Meresoft.Umbraco.Banners.Domain.BannerTotals>();
+    }
 
     private sealed class CapturingLoggerProvider : ILoggerProvider
     {
