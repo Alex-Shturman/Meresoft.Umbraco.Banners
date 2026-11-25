@@ -101,7 +101,7 @@ test("scenario 3: a saved draft does not show on the site", async ({ request }) 
   expect(home).not.toContain("mb-banner");
 });
 
-test("scenario 4: publishing shows the banner on the home page within 5 seconds, linking to the stored URL", async ({ request }) => {
+test("scenario 4: publishing shows the banner on the home page within 5 seconds, whose link redirects to the stored URL", async ({ request }) => {
   await page.getByRole("button", { name: "Publish" }).click();
   await expect(page.getByText("Published", { exact: true })).toBeVisible();
 
@@ -110,7 +110,13 @@ test("scenario 4: publishing shows the banner on the home page within 5 seconds,
     .toBeTruthy();
 
   const html = await (await request.get("/")).text();
-  expect(html).toContain(`href="${STORED_URL}"`);
+  // Since US3 the link goes through the click address, which redirects to the stored URL.
+  const href = /<a href="(\/_banners\/c\/\d+\?z=\d+)"/.exec(html)?.[1];
+  expect(href).toBeTruthy();
+  // A bot agent, so this check leaves the click counts of the other browser tests alone.
+  const click = await request.get(href!, { maxRedirects: 0, headers: { "User-Agent": "curl/8.4.0" } });
+  expect(click.status()).toBe(302);
+  expect(click.headers()["location"]).toBe(STORED_URL);
   expect(html).toContain('alt="Invented summer promo"');
   expect(html).toMatch(/<img src="\/media\/sample\/banner\.png/);
   expect(html).not.toContain("localhost:5100/media");

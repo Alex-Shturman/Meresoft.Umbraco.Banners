@@ -7,6 +7,8 @@ export default defineConfig({
   testDir: ".",
   testMatch: "**/*.spec.ts",
   fullyParallel: false,
+  // The specs share one sample site and its banners database, so they run one after the other.
+  workers: 1,
   forbidOnly: !!process.env.CI,
   retries: process.env.CI ? 1 : 0,
   reporter: process.env.CI ? [["github"], ["html", { open: "never" }]] : "list",
