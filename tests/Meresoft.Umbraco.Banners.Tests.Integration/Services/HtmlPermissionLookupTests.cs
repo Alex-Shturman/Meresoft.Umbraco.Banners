@@ -51,7 +51,8 @@ public class HtmlPermissionLookupTests : BannersServiceTestBase
         GetRequiredService<IPublishedMediaCache>(),
         GetRequiredService<BannerStateCalculator>(),
         GetRequiredService<TimeProvider>(),
-        checker);
+        checker,
+        GetRequiredService<IStatisticsRepository>());
 
     [SetUp]
     public async Task Prepare()

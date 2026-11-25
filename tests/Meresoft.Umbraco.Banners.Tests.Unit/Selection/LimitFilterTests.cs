@@ -86,6 +86,17 @@ public class LimitFilterTests
     }
 
     [Test]
+    public void AnHtmlBanner_IsFilteredByItsImpressionLimit_AndHasNoClickLimitToReach()
+    {
+        SnapshotBanner Html(int id, long? impressionLimit) => Banner(id, impressionLimit) with { ImageUrl = string.Empty, AltText = string.Empty, LinkUrl = string.Empty, Html = "<p>Invented</p>" };
+
+        // Clicks of an Html banner are never counted, so a large click total cannot exist for it; impressions decide.
+        Assert.That(Kept([Html(1, 3)], Totals((1, 3, 0))), Is.Empty);
+        Assert.That(Kept([Html(1, 3)], Totals((1, 2, 0))), Is.EqualTo(new[] { 1 }));
+        Assert.That(Kept([Html(1, null)], Totals((1, 999, 0))), Is.EqualTo(new[] { 1 }));
+    }
+
+    [Test]
     public void ASnapshotWithNothingOverALimit_IsReturnedAsIs()
     {
         LiveSnapshot snapshot = Snapshot(new SnapshotZone(1, "a", 1, ZoneRenderMode.Server, null, null, [Banner(7, impressionLimit: 3)]));

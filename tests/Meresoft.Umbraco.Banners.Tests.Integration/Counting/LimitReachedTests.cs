@@ -153,6 +153,46 @@ public class LimitReachedTests : BannersServiceTestBase
         Assert.That((await FlagsAsync(_banner)).HasFlag(BannerFlags.LimitReached), Is.False);
     }
 
+    private BannerDraftModel HtmlDraft(long? impressionLimit, long? clickLimit) => new()
+    {
+        Name = "Html offer",
+        Html = "<p>Invented html offer</p>",
+        Weight = 1,
+        ImpressionLimit = impressionLimit,
+        ClickLimit = clickLimit,
+        ZoneKeys = [_top.Key],
+    };
+
+    [Test]
+    public async Task AnHtmlBannerWithAClickLimit_IsRejected_BecauseItsClicksAreNotCounted()
+    {
+        var attempt = await BannerService.CreateAsync(new BannerCreateModel { Type = BannerType.Html, Draft = HtmlDraft(null, clickLimit: 5) }, User);
+
+        Assert.That(attempt.Success, Is.False);
+        Assert.That(attempt.Status, Is.EqualTo(BannerOperationStatus.InvalidData));
+    }
+
+    [Test]
+    public async Task AnHtmlBannerWithAnImpressionLimit_LeavesTheSnapshotAtTheLimit_LikeAnImageBanner()
+    {
+        var created = await BannerService.CreateAsync(new BannerCreateModel { Type = BannerType.Html, Draft = HtmlDraft(impressionLimit: 2, clickLimit: null) }, User);
+        Assert.That(created.Success, Is.True, created.Status.ToString());
+        Assert.That((await BannerService.PublishAsync(created.Result!.Key, User)).Success, Is.True);
+        await Snapshot.RebuildAsync();
+        int id = created.Result.Id;
+        Assert.That(Shows(Snapshot.Current, "limit-top", id), Is.True);
+
+        Buffer.AddImpression(Day, id, _top.Id);
+        await FlushAsync();
+        Assert.That(Shows(Snapshot.Current, "limit-top", id), Is.True, "one view of two");
+
+        Buffer.AddImpression(Day, id, _side.Id);
+        await FlushAsync();
+
+        Assert.That(Shows(Snapshot.Current, "limit-top", id), Is.False);
+        Assert.That((await FlagsAsync(created.Result)).HasFlag(BannerFlags.LimitReached), Is.True);
+    }
+
     /// <summary>One page request per call: the real selector picks, and every served banner counts one view, as the page script would.</summary>
     private int ServeRequests(int requests)
     {
