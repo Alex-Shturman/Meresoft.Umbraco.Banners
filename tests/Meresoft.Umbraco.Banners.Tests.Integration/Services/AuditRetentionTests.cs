@@ -1,5 +1,6 @@
 using Meresoft.Umbraco.Banners.Tests.Integration.TestSetup;
 using NUnit.Framework;
+using Umbraco.Cms.Core.Configuration.Models;
 using Umbraco.Cms.Core.Services;
 using Umbraco.Cms.Infrastructure.Scoping;
 
@@ -45,4 +46,8 @@ public class AuditRetentionTests : BannersServiceTestBase
 
         Assert.That(RemainingHeaders(), Is.EqualTo(new[] { "New", "Save", "Publish", "Unpublish", "Copy", "Delete" }), "only the open and system rows are cleaned");
     }
+
+    [Test]
+    public void TheDefaultMaxLogAge_IsOneDay_AsTheReadmeSays() =>
+        Assert.That(new LoggingSettings().MaxLogAge, Is.EqualTo(TimeSpan.FromDays(1)));
 }
