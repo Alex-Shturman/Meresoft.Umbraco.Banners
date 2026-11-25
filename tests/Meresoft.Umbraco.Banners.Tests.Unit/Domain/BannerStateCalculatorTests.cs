@@ -72,6 +72,34 @@ public class BannerStateCalculatorTests
     }
 
     [Test]
+    public void State_TruncationBoundary_SameInstantIsPublished_OneStepLaterIsPublishedWithChanges()
+    {
+        // Timestamps are stored at 10 ms resolution (UtcTimestamp). Compare after truncation, as the repository stores them.
+        DateTime published = UtcTimestamp.Truncate(new DateTime(2027, 5, 10, 12, 0, 0, 5, DateTimeKind.Utc));
+        DateTime sameInstant = UtcTimestamp.Truncate(published.AddMilliseconds(4));
+        DateTime oneStepLater = UtcTimestamp.Truncate(published.AddMilliseconds(10));
+
+        Banner unchanged = Banner(
+            Version(BannerVersionKind.Draft, sameInstant, 1),
+            Version(BannerVersionKind.Live, published, 1),
+            true,
+            published);
+        Banner changed = Banner(
+            Version(BannerVersionKind.Draft, oneStepLater, 1),
+            Version(BannerVersionKind.Live, published, 1),
+            true,
+            published);
+
+        Assert.Multiple(() =>
+        {
+            Assert.That(sameInstant, Is.EqualTo(published));
+            Assert.That(_calculator.GetState(unchanged), Is.EqualTo(BannerState.Published));
+            Assert.That(oneStepLater, Is.EqualTo(published.AddMilliseconds(10)));
+            Assert.That(_calculator.GetState(changed), Is.EqualTo(BannerState.PublishedWithChanges));
+        });
+    }
+
+    [Test]
     public void State_PublishedWithChanges_WhenDraftSavedAfterPublish()
     {
         DateTime published = Now.UtcDateTime;
