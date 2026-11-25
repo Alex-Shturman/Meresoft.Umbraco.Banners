@@ -28,6 +28,7 @@ Every write records an audit entry (FR-018).
 | POST `/zones` | alias, name, description?, showCount, imageWidth?, imageHeight?, renderMode | 201 + Location; 400 invalid; 409 alias taken. Removes a matching requested zone. |
 | PUT `/zones/{key}` | same fields + updateDate | 200; 400; 404; 409 |
 | DELETE `/zones/{key}` | | 204; 409 `type: zone-in-use` with the assigned banner keys (FR-007) |
+| GET `/zones/{key}/history` | `skip`, `take` | 200: audit entries (user name, action, date), 404 (FR-018) |
 | GET `/requested-zones` | | 200 list: alias, firstSeen, lastSeen (FR-003) |
 | DELETE `/requested-zones/{alias}` | | 204 (dismiss) |
 

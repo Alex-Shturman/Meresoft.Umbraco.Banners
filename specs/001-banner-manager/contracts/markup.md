@@ -37,7 +37,7 @@ Same behaviour as the tag helper without fallback content.
 ## Rendered HTML (server mode, one image banner)
 
 ```html
-<div class="mb-zone my-ads" data-mbz="search-top" data-mbz-token="CfDJ8...">
+<div class="mb-zone my-ads" data-mbz="search-top" data-mb-base="/_banners" data-mbz-token="CfDJ8...">
   <div class="mb-banner" data-mbb="12">
     <a href="/_banners/c/12?z=3" rel="sponsored noopener" target="_blank">
       <img src="/media/abc/banner.png?width=728&amp;height=90" alt="Invented boat show 2027"
@@ -52,12 +52,15 @@ Same behaviour as the tag helper without fallback content.
 - `title` attribute on the link only when the banner has a title.
 - Html banners render `<div class="mb-banner mb-html" data-mbb="15">{stored html}</div>` (FR-006).
 - The `<script>` tag is written once per page, by the first zone.
+- `data-mb-base` holds the configured `Meresoft:Banners:PublicPath` (default `/_banners`) on every
+  zone element; the package script reads its endpoint base from it, because the script itself is
+  served from the fixed static path `/meresoft-banners/banners.js`.
 - No active banner and no fallback: nothing at all is written (no empty element, no script).
 
 ## Rendered HTML (client mode)
 
 ```html
-<div class="mb-zone" data-mbz="search-top" data-mbz-mode="client">
+<div class="mb-zone" data-mbz="search-top" data-mb-base="/_banners" data-mbz-mode="client">
   <!-- fallback content, if any -->
 </div>
 <script src="/meresoft-banners/banners.js" defer></script>

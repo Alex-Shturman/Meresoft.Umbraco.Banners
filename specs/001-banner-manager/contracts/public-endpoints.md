@@ -77,7 +77,8 @@ Query: none (the zone settings decide how many banners and the image size).
 - Served as a static web asset of the package: `/meresoft-banners/banners.js`
   (research R10), under 5 KB minified, no third-party code (FR-010).
 - Included once per page by the first zone rendered (tag helper or view component), with `defer`.
-- Finds every `[data-mbz]` zone element:
+- Finds every `[data-mbz]` zone element and takes the endpoint base path from its `data-mb-base`
+  attribute (contracts/markup.md):
   - Server mode: reads `data-mbz-token` and the `[data-mbb]` banner elements inside.
   - Client mode: calls the delivery endpoint, renders the banners into the placeholder (replacing
     fallback content only if at least one banner came back), then treats them as above.

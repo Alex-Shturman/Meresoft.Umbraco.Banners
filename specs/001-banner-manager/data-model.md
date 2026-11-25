@@ -58,11 +58,11 @@ Each banner has at most two versions: one Draft and one Live (FR-004a).
 | Weight | int | 1 to 100, default 1 |
 | StartUtc, EndUtc | datetime, null | when both are set, End > Start |
 | ImpressionLimit | bigint, null | >= 1 |
-| ClickLimit | bigint, null | >= 1 |
+| ClickLimit | bigint, null | >= 1; must be null for Html banners (their clicks are not counted, FR-006) |
 | SavedDate | datetime | |
 | SavedBy | guid | |
 
-### Zone assignment (`meresoftBannersBannerZone`)
+### Zone assignment (`meresoftBannersZoneAssignment`)
 
 | Column | Type | Rules |
 |---|---|---|

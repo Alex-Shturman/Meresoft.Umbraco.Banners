@@ -46,7 +46,7 @@ millions of shows so far); back office: 4 views (banners, banner editor, zones, 
 
 ## Constitution Check
 
-*Gate before Phase 0 and re-checked after Phase 1. Constitution v1.0.1.*
+*Gate before Phase 0 and re-checked after Phase 1. Constitution v1.0.2.*
 
 | Principle | Status | How the plan meets it |
 |---|---|---|

@@ -48,7 +48,7 @@ open the page: the banner image shows and links to the banner URL.
    **Then** nothing is rendered and the zone is listed in the back office as "placed but not set
    up", so the editor can create it in one step.
 4. **Given** an editor publishes a change to a banner, **When** the next visitor opens the page,
-   **Then** the change shows within a few seconds, without a site restart.
+   **Then** the change shows within 5 seconds, without a site restart.
 5. **Given** a published banner and an editor who changes it and only saves (does not publish),
    **When** a visitor opens the page, **Then** the previously published version still shows, and
    the back office marks the banner "unpublished changes".
@@ -164,7 +164,8 @@ client does not depend on it.
 
 Only back office users with the package's permission see the Banners section. A separate permission
 allows editing HTML banners (see FR-006). Changes are visible in the back office history: who
-created, changed, published, unpublished or deleted a banner or zone, and when.
+created, changed, published, unpublished or deleted a banner or zone, and when, shown as a history
+view on each banner and each zone.
 
 **Why this priority**: banners link off-site and can carry ad network code; agencies need control.
 
@@ -194,17 +195,22 @@ management API.
 - Impression reports are sent from the browser, so they can be faked: a report is accepted only
   with a short-lived, single-use view token issued when the zone was rendered for that page view
   (tokens are held in memory, carry no visitor data and are not stored); invalid, expired or
-  repeated reports are ignored. A server mode zone on a page served from a cache would replay an
+  repeated reports are ignored. Single use is enforced per server: on a site with several servers a
+  deliberately replayed report can count at most once more per server within the token lifetime
+  (10 minutes by default); this bound is accepted and stated in the docs. A server mode zone on a page served from a cache would replay an
   old token, so impressions on cached pages are counted only in client mode (stated in the docs).
 - A banner with no zone assignment is never shown; the back office marks it "not placed".
 - Clock and time zones: start and end times are entered and shown in the back office user's time
   zone and stored in UTC; statistics days are UTC days, stated in the report.
 - The site runs on several servers: each server counts in memory and adds its counts to the shared
-  daily rows; no counts are lost or doubled by having more servers.
-- The package is uninstalled: its tables stay until the developer runs a documented removal step;
-  the site keeps working with zones rendering nothing.
-- Very high traffic (millions of impressions a month, as on the first client site): counting adds no
-  database write to the page request and at most one batched write per server per minute.
+  daily rows; normal traffic is not lost or doubled by having more servers (for deliberately
+  replayed reports see the view token bound above).
+- The package is uninstalled: its tables stay until the developer runs a documented removal step.
+  Before removing the package the developer removes the zone markup (tag helpers, view component
+  calls) and the `@addTagHelper` line from the views, otherwise the views no longer compile; the
+  README lists these steps.
+- Very high traffic (millions of impressions a month, as on the first client site): counting
+  follows FR-012 (no database write in the page request, batched writes in the background).
 - A banner link is not a valid http or https address: saving is refused with a clear message.
 - An image is very large: the zone renders it through the Umbraco image pipeline with the size the
   zone defines, so the page does not load the original file.
@@ -240,8 +246,9 @@ management API.
   `rel="sponsored noopener"` on the link, and the image size set by the zone.
 - **FR-006**: The package MUST support an HTML banner type (for ad network code or custom markup),
   editable only by users with the separate HTML permission. HTML banners are rendered as stored;
-  their clicks are not counted (the package cannot wrap foreign code); their impressions are
-  counted by the visibility of the box the package wraps around them.
+  their clicks are not counted (the package cannot wrap foreign code), so a click limit does not
+  apply to them and cannot be set; their impressions are counted by the visibility of the box the
+  package wraps around them.
 - **FR-007**: Deleting a banner MUST keep its past statistics, shown in reports as "(deleted
   banner)"; deleting a zone requires that no banner is assigned to it any more (removing a banner
   from a zone keeps the statistics it collected there).
@@ -265,8 +272,9 @@ management API.
   script reports it to a public impression endpoint that accepts only valid view tokens (see Edge
   Cases). Banners that are rendered but never seen count nothing; each click through the click address
   MUST count one click and redirect (302) to the banner's stored link only.
-- **FR-012**: Counts MUST be kept in memory and written to the database in batches at least once a
-  minute and on clean shutdown, as daily totals per banner and zone; page requests MUST NOT write to
+- **FR-012**: Counts MUST be kept in memory and written to the database in batches, at most one
+  batched write per server per flush interval (configurable, 5 seconds to 1 minute, default 1
+  minute), and on clean shutdown, as daily totals per banner and zone; page requests MUST NOT write to
   the database.
 - **FR-013**: Requests from known bots and crawlers MUST NOT be counted. The bot list ships with the
   package and can be extended in configuration.
@@ -322,7 +330,8 @@ management API.
 - **SC-003**: Rendering a page with banner zones adds less than 2 ms per zone at the 95th
   percentile on the server, and adds no database query to the request.
 - **SC-004**: At 100 page views per second with 4 zones each, impressions are counted with less
-  than 0.1% loss in normal operation, with at most one batched database write per server per minute.
+  than 0.1% loss in normal operation, with at most one batched database write per server per flush
+  interval (FR-012).
 - **SC-005**: Report figures match the true number of non-bot views and clicks in a controlled test
   (exact after the batch is written).
 - **SC-006**: The package installs and passes its tests on SQL Server and SQLite on Umbraco 17.
@@ -345,8 +354,10 @@ management API.
   later release).
 - Statistics are kept indefinitely (daily rows are small); a retention setting may come later.
 - Impressions mean viewable impressions. Visitors without scripts are not counted, so numbers are
-  lower than "times sent with a page"; history imported from systems that counted sends (such as
-  the old Kentico module) is not directly comparable, and the report marks imported days.
+  lower than "times sent with a page"; history imported from another system is comparable only
+  when that system used a similar viewability rule (the first client's site already counts a show
+  after one second on screen, so its history is close; a system that counted sends is not), and
+  the report marks imported days.
 - A small overshoot of limits caused by batching (up to one minute of views) is acceptable.
 - The click address lives under a fixed path of the package that the developer can change in
   configuration.
