@@ -1,2 +1,0 @@
-    /// A reload only ever removes banners. Totals that go down (a Replace import of statistics, T119) do not bring a
-    /// banner back; that needs a full <see cref="RebuildAsync"/>.
