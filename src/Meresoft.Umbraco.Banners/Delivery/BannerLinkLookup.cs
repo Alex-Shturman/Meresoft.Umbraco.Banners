@@ -50,7 +50,7 @@ internal sealed class BannerLinkLookup : IBannerLinkLookup
             }
 
             SnapshotBanner? candidate = zone.Candidates.FirstOrDefault(c => c.BannerId == bannerId);
-            return candidate is null || string.IsNullOrWhiteSpace(candidate.LinkUrl) ? null : new ClickTarget(candidate.LinkUrl, Countable: true);
+            return candidate is null || !LinkUrlRules.IsAbsoluteHttpUrl(candidate.LinkUrl) ? null : new ClickTarget(candidate.LinkUrl, Countable: true);
         }
 
         return null;
@@ -79,9 +79,7 @@ internal sealed class BannerLinkLookup : IBannerLinkLookup
     {
         using IScope scope = _scopeProvider.CreateScope(autoComplete: true);
         Banner? banner = _banners.GetById(bannerId);
-        if (banner is not { Type: BannerType.Image, Live.LinkUrl: { } url }
-            || !Uri.TryCreate(url, UriKind.Absolute, out Uri? uri)
-            || uri.Scheme is not ("http" or "https"))
+        if (banner is not { Type: BannerType.Image, Live.LinkUrl: { } url } || !LinkUrlRules.IsAbsoluteHttpUrl(url))
         {
             return null;
         }

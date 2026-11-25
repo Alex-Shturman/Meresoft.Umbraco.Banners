@@ -4,7 +4,6 @@ namespace Meresoft.Umbraco.Banners.Domain;
 public static class BannerVersionValidator
 {
     private const int MaxNameLength = 255;
-    private const int MaxLinkLength = 2048;
 
     /// <summary>Validates the content of a version for the given banner type.</summary>
     public static FieldValidationResult Validate(BannerType type, BannerVersion version)
@@ -99,9 +98,5 @@ public static class BannerVersionValidator
     /// <summary>The type of a banner is fixed after creation.</summary>
     public static bool IsTypeChangeAllowed(BannerType existing, BannerType requested) => existing == requested;
 
-    private static bool IsAbsoluteHttpUrl(string url) =>
-        url.Length <= MaxLinkLength
-        && Uri.TryCreate(url, UriKind.Absolute, out Uri? uri)
-        && (uri.Scheme == Uri.UriSchemeHttp || uri.Scheme == Uri.UriSchemeHttps)
-        && !string.IsNullOrEmpty(uri.Host);
+    private static bool IsAbsoluteHttpUrl(string url) => LinkUrlRules.IsAbsoluteHttpUrl(url);
 }
