@@ -56,6 +56,8 @@ jobs:
           ACCEPT_EULA: "Y"
           # Throwaway password for a container that exists only during this job. Set the repository
           # secret MB_CI_SQL_PASSWORD to override it; no real secret is stored in the repository.
+          # The workflow `env` context is not available in `services.*.env`, so the fallback cannot be
+          # shared: it must match the one in MB_TEST_SQLSERVER in the test step below.
           MSSQL_SA_PASSWORD: ${{ secrets.MB_CI_SQL_PASSWORD || 'Ci-Only-Invented-1234!' }}
         ports:
           - 1433:1433
@@ -79,5 +81,6 @@ jobs:
       # the banner list query paths. The test setup reads the master connection string from MB_TEST_SQLSERVER.
       - name: Integration tests (SQL Server)
         env:
+          # The password fallback here must match MSSQL_SA_PASSWORD of the sqlserver service above.
           MB_TEST_SQLSERVER: Server=localhost,1433;User Id=sa;Password=${{ secrets.MB_CI_SQL_PASSWORD || 'Ci-Only-Invented-1234!' }};TrustServerCertificate=True;Encrypt=False
         run: dotnet test tests/Meresoft.Umbraco.Banners.Tests.Integration --configuration Release
