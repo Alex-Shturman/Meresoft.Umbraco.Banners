@@ -24,6 +24,8 @@ using Microsoft.Extensions.DependencyInjection.Extensions;
 using Microsoft.Extensions.Options;
 using OpenIddict.Validation.AspNetCore;
 using Umbraco.Cms.Core.DependencyInjection;
+using Umbraco.Cms.Core.Services;
+using Umbraco.Cms.Infrastructure.Scoping;
 using Umbraco.Cms.Core.Notifications;
 using Umbraco.Extensions;
 
@@ -100,7 +102,13 @@ public static class BannersBuilderExtensions
         builder.Services.AddTransient<BannerAuditWriter>();
         builder.Services.AddSingleton<IAuthorizationHandler, SectionAccessHandler>();
         builder.Services.AddSingleton<HtmlPermissionChecker>();
-        builder.Services.AddSingleton<BannerHistoryReader>();
+        builder.Services.AddSingleton<IAuditHistoryRepository, AuditHistoryRepository>();
+        // The reader's constructor is internal because the repository type is, so it is built here, not by the container.
+        builder.Services.AddSingleton(provider => new BannerHistoryReader(
+            provider.GetRequiredService<IAuditHistoryRepository>(),
+            provider.GetRequiredService<IScopeProvider>(),
+            provider.GetRequiredService<IUserService>(),
+            provider.GetRequiredService<IUserIdKeyResolver>()));
         builder.Services.AddAuthorizationBuilder().AddPolicy(BannersConstants.SectionAccessPolicy, policy =>
         {
             policy.AuthenticationSchemes.Add(OpenIddictValidationAspNetCoreDefaults.AuthenticationScheme);

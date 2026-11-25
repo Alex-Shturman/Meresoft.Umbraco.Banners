@@ -28,11 +28,11 @@ public class GetBannerHistoryController : BannersManagementApiControllerBase
     [ProducesResponseType<ProblemDetails>(StatusCodes.Status404NotFound)]
     public async Task<IActionResult> GetHistory(Guid key, int skip = 0, int take = 50)
     {
-        if (skip < 0 || take is < 1 or > MaxTake)
+        if (skip is < 0 or > BannerHistoryReader.MaxSkip || take is < 1 or > MaxTake)
         {
             return OperationStatusResults.ToProblem(
                 BannerOperationStatus.InvalidData,
-                new Dictionary<string, string> { [take is < 1 or > MaxTake ? "take" : "skip"] = $"Skip must be 0 or more and take 1 to {MaxTake}." });
+                new Dictionary<string, string> { [take is < 1 or > MaxTake ? "take" : "skip"] = $"Skip must be 0 to {BannerHistoryReader.MaxSkip} and take 1 to {MaxTake}." });
         }
 
         Banner? banner = await _banners.GetAsync(key);

@@ -3,6 +3,7 @@ using System.Text.Json;
 using Meresoft.Umbraco.Banners.Services;
 using Meresoft.Umbraco.Banners.Tests.Integration.TestSetup;
 using NUnit.Framework;
+using Umbraco.Cms.Core;
 using Umbraco.Cms.Core.Models;
 using Umbraco.Cms.Core.Models.Membership;
 using Umbraco.Cms.Core.Services;
@@ -156,5 +157,78 @@ public class AuditTests : BannersApiTestBase
 
         Assert.That((await GetAsync($"/banners/{key}/history")).StatusCode, Is.EqualTo(HttpStatusCode.Forbidden));
         Assert.That((await GetAsync($"/zones/{_zoneKey}/history")).StatusCode, Is.EqualTo(HttpStatusCode.Forbidden));
+    }
+
+    /// <summary>Writes audit rows straight to Umbraco's audit service, as other parts of Umbraco do for content with the same id.</summary>
+    private async Task AddAuditRowsAsync(int count, int entityId, string entityType, AuditType type = AuditType.Save)
+    {
+        IAuditService audit = GetRequiredService<IAuditService>();
+        for (int i = 0; i < count; i++)
+        {
+            await audit.AddAsync(type, Constants.Security.SuperUserKey, entityId, entityType, "invented row", null);
+        }
+    }
+
+    [Test]
+    public async Task History_IgnoresManyRowsOfAnotherEntityTypeWithTheSameId()
+    {
+        Guid key = await CreateBannerAsync(_media, _zoneKey);
+        int id = await BannerIdAsync(key);
+        await AddAuditRowsAsync(250, id, "Document");
+
+        JsonElement history = await HistoryAsync("banners", key);
+
+        Assert.Multiple(() =>
+        {
+            Assert.That(history.GetProperty("total").GetInt32(), Is.EqualTo(1), "only the banner's own row");
+            Assert.That(Actions(history), Is.EqualTo(new[] { "new" }));
+        });
+    }
+
+    [Test]
+    public async Task History_PagesStablyThroughMoreRowsThanOneChunk_WithOtherRowsBetween()
+    {
+        Guid key = await CreateBannerAsync(_media, _zoneKey);
+        int id = await BannerIdAsync(key);
+        await AddAuditRowsAsync(130, id, BannersConstants.BannerEntityType, AuditType.Publish);
+        await AddAuditRowsAsync(130, id, "Media");
+        await AddAuditRowsAsync(130, id, BannersConstants.BannerEntityType, AuditType.Unpublish);
+
+        var seen = new List<string>();
+        long total = 0;
+        for (int skip = 0; ; skip += 100)
+        {
+            JsonElement page = await HistoryAsync("banners", key, $"?skip={skip}&take=100");
+            total = page.GetProperty("total").GetInt64();
+            string[] actions = Actions(page);
+            seen.AddRange(actions);
+            if (actions.Length < 100)
+            {
+                break;
+            }
+        }
+
+        Assert.Multiple(() =>
+        {
+            Assert.That(total, Is.EqualTo(261), "1 new + 130 + 130, the Media rows are not counted");
+            Assert.That(seen, Has.Count.EqualTo(261), "no row skipped or repeated across pages");
+            Assert.That(seen.Count(a => a == "publish"), Is.EqualTo(130));
+            Assert.That(seen.Count(a => a == "unpublish"), Is.EqualTo(130));
+            Assert.That(seen.Count(a => a == "new"), Is.EqualTo(1));
+        });
+    }
+
+    [Test]
+    public async Task History_RejectsAnOutOfRangeSkipOrTake_AndAllowsAPageBeyondTheEnd()
+    {
+        Guid key = await CreateBannerAsync(_media, _zoneKey);
+
+        Assert.Multiple(async () =>
+        {
+            Assert.That((await GetAsync($"/banners/{key}/history?skip=10001")).StatusCode, Is.EqualTo(HttpStatusCode.BadRequest));
+            Assert.That((await GetAsync($"/banners/{key}/history?take=0")).StatusCode, Is.EqualTo(HttpStatusCode.BadRequest));
+            Assert.That((await GetAsync($"/banners/{key}/history?take=101")).StatusCode, Is.EqualTo(HttpStatusCode.BadRequest));
+            Assert.That((await GetAsync($"/banners/{key}/history?skip=500")).StatusCode, Is.EqualTo(HttpStatusCode.OK), "past the end is an empty page");
+        });
     }
 }
