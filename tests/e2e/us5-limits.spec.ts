@@ -155,3 +155,14 @@ test("US5 scenario 2: raising the limit and publishing shows the banner again", 
   await expect.poll(() => homeShowsBanner(request), { timeout: 15_000, intervals: [250] }).toBeTruthy();
   await expect(admin.getByText("Limit reached")).toHaveCount(0);
 });
+
+test("FR-006: choosing the HTML type hides the click limit and keeps the impression limit", async () => {
+  await openBannersView(admin, "banners");
+  await admin.getByRole("button", { name: "Create banner" }).click();
+  await expect(admin.getByLabel("Click limit")).toBeVisible();
+
+  await admin.locator("uui-radio", { hasText: "HTML" }).click();
+
+  await expect(admin.getByLabel("Impression limit")).toBeVisible();
+  await expect(admin.getByLabel("Click limit")).toHaveCount(0);
+});
