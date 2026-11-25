@@ -46,7 +46,7 @@ public class ZoneRenderingTests : BannersServiceTestBase
     private static ViewContext NewViewContext(DefaultHttpContext http) =>
         new() { HttpContext = http };
 
-    private async Task<string> RenderTagHelperAsync(DefaultHttpContext http, string alias, string? cssClass = null, string? fallback = null)
+    private async Task<string> RenderTagHelperAsync(DefaultHttpContext http, string alias, string? cssClass = null, string? fallback = null, Action? childContentExecuted = null)
     {
         BannerZoneTagHelper helper = ActivatorUtilities.CreateInstance<BannerZoneTagHelper>(Services);
         helper.ViewContext = NewViewContext(http);
@@ -59,6 +59,7 @@ public class ZoneRenderingTests : BannersServiceTestBase
             [],
             (_, _) =>
             {
+                childContentExecuted?.Invoke();
                 var content = new DefaultTagHelperContent();
                 if (fallback is not null)
                 {
@@ -87,6 +88,31 @@ public class ZoneRenderingTests : BannersServiceTestBase
         Assert.That(html, Does.Contain("href=\"https://example.org/show\""));
         Assert.That(html, Does.Contain("alt=\"Invented summer promo\""));
         Assert.That(html, Does.Contain("/media/invented/banner.png"));
+    }
+
+    [Test]
+    public async Task TagHelper_DoesNotRunItsChildContent_WhenABannerIsShown()
+    {
+        await PublishBannerInZoneAsync();
+        int executions = 0;
+
+        string html = await RenderTagHelperAsync(new DefaultHttpContext(), "home-top", fallback: "<p>Fallback</p>", childContentExecuted: () => executions++);
+
+        Assert.That(html, Does.Contain($"data-mbb=\"{_banner.Id}\""));
+        Assert.That(executions, Is.EqualTo(0));
+    }
+
+    [Test]
+    public async Task TagHelper_RunsItsChildContent_WhenThereIsNoBanner_OrNoZone()
+    {
+        await NewZoneAsync("empty-zone");
+        await GetRequiredService<ILiveSnapshotAccessor>().RebuildAsync();
+        int executions = 0;
+
+        await RenderTagHelperAsync(new DefaultHttpContext(), "empty-zone", fallback: "<p>Fallback</p>", childContentExecuted: () => executions++);
+        await RenderTagHelperAsync(new DefaultHttpContext(), "no-such-zone", fallback: "<p>Fallback</p>", childContentExecuted: () => executions++);
+
+        Assert.That(executions, Is.EqualTo(2));
     }
 
     [Test]

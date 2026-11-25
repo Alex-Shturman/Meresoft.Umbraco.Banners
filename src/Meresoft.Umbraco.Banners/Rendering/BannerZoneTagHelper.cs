@@ -32,8 +32,17 @@ public sealed class BannerZoneTagHelper : TagHelper
     /// <inheritdoc />
     public override async Task ProcessAsync(TagHelperContext context, TagHelperOutput output)
     {
-        TagHelperContent child = await output.GetChildContentAsync();
-        string html = _renderer.Render(ViewContext.HttpContext.Items!, Alias, CssClass, child.GetContent());
+        ZoneSelection selection = _renderer.Select(Alias);
+
+        // The child content is the fallback: it is only run (it may be expensive Razor) when no banner is shown.
+        string? fallback = null;
+        if (selection.Banners.Count == 0)
+        {
+            TagHelperContent child = await output.GetChildContentAsync();
+            fallback = child.GetContent();
+        }
+
+        string html = _renderer.Render(ViewContext.HttpContext.Items!, selection, CssClass, fallback);
 
         output.TagName = null;
         output.Content.SetHtmlContent(html);

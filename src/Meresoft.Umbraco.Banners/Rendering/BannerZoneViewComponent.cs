@@ -23,6 +23,6 @@ public sealed class BannerZoneViewComponent : ViewComponent
     public IViewComponentResult Invoke(string alias, string? cssClass = null)
     {
         IDictionary<object, object?> items = _httpContextAccessor.HttpContext?.Items ?? new Dictionary<object, object?>();
-        return new HtmlContentViewComponentResult(new HtmlString(_renderer.Render(items, alias, cssClass, null)));
+        return new HtmlContentViewComponentResult(new HtmlString(_renderer.Render(items, _renderer.Select(alias), cssClass, null)));
     }
 }

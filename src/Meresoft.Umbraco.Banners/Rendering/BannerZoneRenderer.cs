@@ -22,22 +22,44 @@ public sealed class BannerZoneRenderer
         _writer = writer;
     }
 
-    /// <summary>Renders a zone; empty when there is nothing to show and no fallback.</summary>
-    public string Render(IDictionary<object, object?> requestItems, string? alias, string? cssClass, string? fallbackHtml)
+    /// <summary>
+    /// First half of a render: normalises the alias once and chooses the banners. A zone that does not exist yet
+    /// is noted as requested. Reads memory only.
+    /// </summary>
+    public ZoneSelection Select(string? alias)
     {
         string normalised = AliasNormalizer.Normalize(alias);
-        string? fallback = string.IsNullOrWhiteSpace(fallbackHtml) ? null : fallbackHtml;
         if (normalised.Length == 0)
         {
-            return fallback ?? string.Empty;
+            return new ZoneSelection(normalised, []);
         }
 
         if (!_snapshot.Current.Zones.ContainsKey(normalised))
         {
             _recorder.Record(normalised);
+            return new ZoneSelection(normalised, []);
+        }
+
+        return new ZoneSelection(normalised, _selector.Select(normalised));
+    }
+
+    /// <summary>
+    /// Second half of a render: the markup of the selected banners, or the fallback (or nothing) when there are none.
+    /// The caller needs the fallback only when <see cref="ZoneSelection.Banners"/> is empty.
+    /// </summary>
+    public string Render(IDictionary<object, object?> requestItems, ZoneSelection selection, string? cssClass, string? fallbackHtml)
+    {
+        string? fallback = string.IsNullOrWhiteSpace(fallbackHtml) ? null : fallbackHtml;
+        if (selection.Banners.Count == 0)
+        {
             return fallback ?? string.Empty;
         }
 
-        return _writer.Render(new BannerZoneView(normalised, cssClass, _selector.Select(normalised), fallback), requestItems);
+        return _writer.Render(new BannerZoneView(selection.Alias, cssClass, selection.Banners, fallback), requestItems);
     }
 }
+
+/// <summary>The outcome of the selection half of a render.</summary>
+/// <param name="Alias">The normalised alias.</param>
+/// <param name="Banners">The chosen banners; empty when the zone is unknown, empty, or has no active banner.</param>
+public sealed record ZoneSelection(string Alias, IReadOnlyList<SelectedBanner> Banners);

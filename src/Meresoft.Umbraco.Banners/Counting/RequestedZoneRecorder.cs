@@ -18,10 +18,9 @@ public sealed class RequestedZoneRecorder
     /// <summary>Creates the recorder.</summary>
     public RequestedZoneRecorder(TimeProvider timeProvider) => _timeProvider = timeProvider;
 
-    /// <summary>Notes that a template asked for the alias now. Invalid aliases are ignored.</summary>
-    public void Record(string alias)
+    /// <summary>Notes that a template asked for the alias now. The alias must already be normalised; invalid aliases are ignored.</summary>
+    public void Record(string normalised)
     {
-        string normalised = AliasNormalizer.Normalize(alias);
         if (!ZoneValidator.IsValidAlias(normalised))
         {
             return;

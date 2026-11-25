@@ -1,5 +1,4 @@
 using Meresoft.Umbraco.Banners.Caching;
-using Meresoft.Umbraco.Banners.Domain;
 
 namespace Meresoft.Umbraco.Banners.Selection;
 
@@ -12,34 +11,39 @@ internal sealed class BannerSelector : IBannerSelector
 
     public IReadOnlyList<SelectedBanner> Select(string zoneAlias)
     {
-        string alias = AliasNormalizer.Normalize(zoneAlias);
-        if (!_snapshot.Current.Zones.TryGetValue(alias, out SnapshotZone? zone) || zone.Candidates.Count == 0)
+        if (!_snapshot.Current.Zones.TryGetValue(zoneAlias, out SnapshotZone? zone) || zone.Candidates.Count == 0)
         {
             return [];
         }
 
-        // Uniform random choice of different candidates (weights and schedules come with US2).
         int count = Math.Min(zone.ShowCount, zone.Candidates.Count);
-        SnapshotBanner[] pool = [.. zone.Candidates];
-        Random.Shared.Shuffle(pool);
-        var chosen = new SelectedBanner[count];
-        for (int i = 0; i < count; i++)
+        return Pick(zone.Candidates, count).Select(ToSelected).ToArray();
+    }
+
+    // Uniform random choice of different candidates. US2 replaces this method with the weighted sampler.
+    private static IEnumerable<SnapshotBanner> Pick(IReadOnlyList<SnapshotBanner> candidates, int count)
+    {
+        if (count == 1)
         {
-            SnapshotBanner banner = pool[i];
-            chosen[i] = new SelectedBanner
-            {
-                BannerId = banner.BannerId,
-                ZoneId = banner.ZoneId,
-                ImageUrl = banner.ImageUrl,
-                Width = banner.Width,
-                Height = banner.Height,
-                AltText = banner.AltText,
-                Title = banner.Title,
-                LinkUrl = banner.LinkUrl,
-                OpenInNewWindow = banner.OpenInNewWindow,
-            };
+            // The common case allocates no copy and shuffles nothing.
+            return [candidates[Random.Shared.Next(candidates.Count)]];
         }
 
-        return chosen;
+        SnapshotBanner[] pool = [.. candidates];
+        Random.Shared.Shuffle(pool);
+        return pool.Take(count);
     }
+
+    private static SelectedBanner ToSelected(SnapshotBanner banner) => new()
+    {
+        BannerId = banner.BannerId,
+        ZoneId = banner.ZoneId,
+        ImageUrl = banner.ImageUrl,
+        Width = banner.Width,
+        Height = banner.Height,
+        AltText = banner.AltText,
+        Title = banner.Title,
+        LinkUrl = banner.LinkUrl,
+        OpenInNewWindow = banner.OpenInNewWindow,
+    };
 }
