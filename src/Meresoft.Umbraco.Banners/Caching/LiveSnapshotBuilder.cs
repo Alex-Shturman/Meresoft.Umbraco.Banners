@@ -39,10 +39,10 @@ internal sealed class LiveSnapshotBuilder
         ArgumentNullException.ThrowIfNull(zones);
         ArgumentNullException.ThrowIfNull(banners);
 
-        // Html banners join the snapshot with their own task (US6); only image banners are candidates here.
-        Banner[] shown = banners
-            .Where(b => b is { IsPublished: true, Live: not null, Type: BannerType.Image })
-            .ToArray();
+        Banner[] published = banners.Where(b => b is { IsPublished: true, Live: not null }).ToArray();
+
+        // Only image banners need a media item; Html banners carry their markup and are never "image missing".
+        Banner[] shown = published.Where(b => b.Type == BannerType.Image).ToArray();
 
         var missing = new HashSet<int>();
         var baseUrls = new Dictionary<Guid, string?>();
@@ -65,9 +65,27 @@ internal sealed class LiveSnapshotBuilder
         foreach (BannerZone zone in zones)
         {
             var candidates = new List<SnapshotBanner>();
-            foreach (Banner banner in shown.Where(b => b.Live!.ZoneIds.Contains(zone.Id) && !missing.Contains(b.Id)))
+            foreach (Banner banner in published.Where(b => b.Live!.ZoneIds.Contains(zone.Id) && !missing.Contains(b.Id)))
             {
                 BannerVersion live = banner.Live!;
+                if (banner.Type == BannerType.Html)
+                {
+                    candidates.Add(new SnapshotBanner
+                    {
+                        BannerId = banner.Id,
+                        ZoneId = zone.Id,
+                        ImageUrl = string.Empty,
+                        AltText = string.Empty,
+                        LinkUrl = string.Empty,
+                        Html = live.Html ?? string.Empty,
+                        Weight = live.Weight,
+                        StartUtc = live.StartUtc,
+                        EndUtc = live.EndUtc,
+                        ImpressionLimit = live.ImpressionLimit,
+                    });
+                    continue;
+                }
+
                 string imageUrl = baseUrls[live.MediaKey ?? Guid.Empty]!;
                 if (zone.ImageWidth is not null || zone.ImageHeight is not null)
                 {

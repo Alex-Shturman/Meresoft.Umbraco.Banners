@@ -29,4 +29,7 @@ public sealed record SelectedBanner
 
     /// <summary>Open the link in a new window.</summary>
     public bool OpenInNewWindow { get; init; }
+
+    /// <summary>Stored markup of an Html banner, written as it is; null for an image banner.</summary>
+    public string? Html { get; init; }
 }

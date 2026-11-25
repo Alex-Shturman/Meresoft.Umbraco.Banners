@@ -69,6 +69,14 @@ public sealed class BannerZoneHtmlWriter
 
     private void AppendBanner(StringBuilder html, SelectedBanner banner)
     {
+        if (banner.Html is not null)
+        {
+            // Html banners are written as stored, in the box the package script measures; the package cannot wrap
+            // foreign code in a click redirect (FR-006). Only editors with the HTML permission can store this markup.
+            html.Append("<div class=\"mb-banner mb-html\" data-mbb=\"").Append(banner.BannerId).Append("\">").Append(banner.Html).Append("</div>");
+            return;
+        }
+
         html.Append("<div class=\"mb-banner\" data-mbb=\"").Append(banner.BannerId).Append("\">");
         // The link goes through the click endpoint, which counts the click and redirects to the stored address.
         html.Append("<a href=\"").Append(Encode($"{_basePath}/c/{banner.BannerId}?z={banner.ZoneId}")).Append("\" rel=\"sponsored noopener\"");

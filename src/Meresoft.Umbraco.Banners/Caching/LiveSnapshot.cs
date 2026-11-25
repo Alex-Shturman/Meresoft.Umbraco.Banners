@@ -85,6 +85,9 @@ public sealed record SnapshotBanner
     /// <summary>Open the link in a new window.</summary>
     public bool OpenInNewWindow { get; init; }
 
+    /// <summary>Stored markup of an Html banner; null for an image banner (the image members are then empty).</summary>
+    public string? Html { get; init; }
+
     /// <summary>Relative chance of being chosen.</summary>
     public int Weight { get; init; } = 1;
 
@@ -119,6 +122,7 @@ public sealed record SnapshotBanner
         Title = original.Title;
         LinkUrl = original.LinkUrl;
         OpenInNewWindow = original.OpenInNewWindow;
+        Html = original.Html;
         Weight = original.Weight;
         StartUtc = original.StartUtc;
         EndUtc = original.EndUtc;
@@ -144,6 +148,7 @@ public sealed record SnapshotBanner
         Title = Title,
         LinkUrl = LinkUrl,
         OpenInNewWindow = OpenInNewWindow,
+        Html = Html,
     };
 
     /// <summary>True once <see cref="Selected"/> has been built.</summary>
