@@ -64,6 +64,13 @@ public abstract class BannersApiTestBase : ManagementApiTest<SectionProbeControl
         }
     }
 
+    /// <summary>Publishes a banner the way the back office does: with the update date it loaded.</summary>
+    protected async Task<HttpResponseMessage> PublishAsync(Guid key)
+    {
+        JsonElement banner = await ReadAsync(await GetAsync("/banners/" + key));
+        return await PostAsync($"/banners/{key}/publish", new { updateDate = banner.GetProperty("updateDate").GetDateTime() });
+    }
+
     protected IScopeProvider ScopeProvider => GetRequiredService<IScopeProvider>();
 
     protected Task<HttpResponseMessage> PostAsync(string path, object? body = null) =>

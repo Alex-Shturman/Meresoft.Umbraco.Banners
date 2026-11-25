@@ -135,7 +135,7 @@ public class BannersApiTests : BannersApiTestBase
     {
         Guid key = await CreateBannerAsync(_media, _zoneKey);
 
-        HttpResponseMessage response = await PostAsync($"/banners/{key}/publish", new { updateDate = (DateTime?)null });
+        HttpResponseMessage response = await PublishAsync(key);
 
         Assert.That(response.StatusCode, Is.EqualTo(HttpStatusCode.OK), await response.Content.ReadAsStringAsync());
         JsonElement banner = await GetBannerAsync(key);
@@ -149,16 +149,28 @@ public class BannersApiTests : BannersApiTestBase
     {
         Guid key = await CreateBannerAsync(_media);
 
-        HttpResponseMessage response = await PostAsync($"/banners/{key}/publish", new { updateDate = (DateTime?)null });
+        HttpResponseMessage response = await PublishAsync(key);
 
         Assert.That(response.StatusCode, Is.EqualTo(HttpStatusCode.BadRequest));
         Assert.That((await ReadAsync(response)).GetProperty("type").GetString(), Is.EqualTo("no-zone-assigned"));
     }
 
     [Test]
+    public async Task Publish_WithoutUpdateDate_Returns400_SoTheStaleCheckCannotBeSkipped()
+    {
+        Guid key = await CreateBannerAsync(_media, _zoneKey);
+
+        HttpResponseMessage response = await PostAsync($"/banners/{key}/publish", new { updateDate = (DateTime?)null });
+
+        Assert.That(response.StatusCode, Is.EqualTo(HttpStatusCode.BadRequest));
+        Assert.That((await ReadAsync(response)).GetProperty("errors").EnumerateArray().Any(e => e.TryGetProperty("$.updateDate", out _)), Is.True);
+        Assert.That((await GetBannerAsync(key)).GetProperty("state").GetString(), Is.EqualTo("Draft"));
+    }
+
+    [Test]
     public async Task Publish_Unknown_Returns404()
     {
-        Assert.That((await PostAsync($"/banners/{Guid.NewGuid()}/publish", new { updateDate = (DateTime?)null })).StatusCode, Is.EqualTo(HttpStatusCode.NotFound));
+        Assert.That((await PostAsync($"/banners/{Guid.NewGuid()}/publish", new { updateDate = DateTime.UtcNow })).StatusCode, Is.EqualTo(HttpStatusCode.NotFound));
     }
 
     [Test]
@@ -175,7 +187,7 @@ public class BannersApiTests : BannersApiTestBase
     public async Task Unpublish_Returns200_AndTheStateIsUnpublished()
     {
         Guid key = await CreateBannerAsync(_media, _zoneKey);
-        await PostAsync($"/banners/{key}/publish", new { updateDate = (DateTime?)null });
+        await PublishAsync(key);
 
         HttpResponseMessage response = await PostAsync($"/banners/{key}/unpublish");
 
@@ -231,7 +243,7 @@ public class BannersApiTests : BannersApiTestBase
         Guid a = await CreateBannerAsync(_media, _zoneKey);
         Guid b = await CreateBannerAsync(_media, otherZone);
         Guid c = await CreateBannerAsync(_media, _zoneKey);
-        await PostAsync($"/banners/{c}/publish", new { updateDate = (DateTime?)null });
+        await PublishAsync(c);
 
         JsonElement all = await ReadAsync(await GetAsync("/banners"));
         JsonElement inSidebar = await ReadAsync(await GetAsync($"/banners?zone={otherZone}"));
@@ -274,7 +286,7 @@ public class BannersApiTests : BannersApiTestBase
     public async Task ZoneList_CountsTheActiveBanners_AfterPublish()
     {
         Guid key = await CreateBannerAsync(_media, _zoneKey);
-        await PostAsync($"/banners/{key}/publish", new { updateDate = (DateTime?)null });
+        await PublishAsync(key);
 
         JsonElement zone = default;
         DateTime stop = DateTime.UtcNow.AddSeconds(5);
