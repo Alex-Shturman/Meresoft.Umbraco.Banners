@@ -71,6 +71,22 @@ public class WriteContentionTests : BannersServiceTestBase
                 await Timed("save", () => BannerService.SaveDraftAsync(banner.Key, draft, User));
                 await Timed("publish", () => BannerService.PublishAsync(banner.Key, User));
                 await Timed("unpublish", () => BannerService.UnpublishAsync(banner.Key, User));
+
+                // Copy and delete write too: a banner with its versions and assignments, then its removal.
+                var copy = await Timed("copy", () => BannerService.CopyAsync(banner.Key, "Copy " + i, User));
+                if (copy.Success)
+                {
+                    await Timed("delete banner", () => BannerService.DeleteAsync(copy.Result!.Key, User));
+                }
+            }
+        });
+
+        Task zoneUpdates = Task.Run(async () =>
+        {
+            for (int i = 0; !stop.IsCancellationRequested; i++)
+            {
+                // No update date: the edit is not guarded, so every round writes.
+                await Timed("update zone", () => ZoneService.UpdateAsync(zone.Key, new BannerZoneModel { Alias = "home-top", Name = "Home " + i, ShowCount = 1 }, User));
             }
         });
 
@@ -86,11 +102,16 @@ public class WriteContentionTests : BannersServiceTestBase
             }
         });
 
-        Task all = Task.WhenAll(flushing, editing, zones);
+        Task all = Task.WhenAll(flushing, editing, zones, zoneUpdates);
         await all.WaitAsync(RunTime + TimeSpan.FromSeconds(40));
 
         (string Operation, TimeSpan Took) slowest = _operations.MaxBy(o => o.Took);
         Assert.That(_operations, Has.Count.GreaterThan(30), "the loops really ran");
+        foreach (string operation in new[] { "flush job", "save", "publish", "unpublish", "copy", "delete banner", "update zone", "create zone", "delete zone" })
+        {
+            Assert.That(_operations.Any(o => o.Operation == operation), Is.True, $"'{operation}' ran at least once");
+        }
+
         Assert.That(slowest.Took, Is.LessThan(StallLimit), $"the slowest operation was '{slowest.Operation}'");
     }
 
