@@ -6,7 +6,7 @@ export async function loginAsAdmin(page: Page): Promise<void> {
   const { email, password } = getAdminCredentials();
   await page.goto("/umbraco");
   await page.getByLabel("Email").fill(email);
-  await page.getByLabel("Password").fill(password);
+  await page.locator("input[type=password]").fill(password);
   await page.getByRole("button", { name: "Login" }).click();
   await expect(page).toHaveURL(/\/umbraco\/section\//, { timeout: 60_000 });
 }

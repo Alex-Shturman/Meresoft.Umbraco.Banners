@@ -22,12 +22,23 @@ test.afterAll(async () => {
   await page.close();
 });
 
+/** A notification toast with the text (the text is also in a visually hidden live region). */
+function toast(text: string) {
+  return page.getByRole("alert").filter({ hasText: text });
+}
+
 /** Reloads the list until the text is visible: the flush job writes requested zones in the background. */
 async function expectEventually(view: string, text: string | RegExp, timeoutMs = 120_000): Promise<void> {
   const stop = Date.now() + timeoutMs;
   for (;;) {
     await openBannersView(page, view);
-    if (await page.getByText(text).first().isVisible().catch(() => false)) {
+    const shown = await page
+      .getByText(text)
+      .first()
+      .waitFor({ state: "visible", timeout: 5_000 })
+      .then(() => true)
+      .catch(() => false);
+    if (shown) {
       return;
     }
     if (Date.now() > stop) {
@@ -38,6 +49,7 @@ async function expectEventually(view: string, text: string | RegExp, timeoutMs =
 }
 
 test("scenario 1: the section is visible and the template's zone is listed as placed but not set up", async ({ request }) => {
+  test.setTimeout(180_000); // the flush job writes requested zones 30 s after start, then every 5 s
   // The home page asks for the zone; the flush job records it.
   const home = await request.get("/");
   expect(home.ok()).toBeTruthy();
@@ -60,7 +72,7 @@ test("scenario 2: creating the zone from the requested list removes the entry", 
   await page.getByLabel("Image height").fill("90");
   await page.getByRole("button", { name: "Save" }).click();
 
-  await expect(page.getByText("Zone saved")).toBeVisible();
+  await expect(toast("Zone saved")).toBeVisible();
   await openBannersView(page, "zones");
   await expect(page.getByRole("row", { name: /home-top/ })).toBeVisible();
   await expect(page.getByText("Placed but not set up")).toHaveCount(0);
@@ -71,15 +83,19 @@ test("scenario 3: a saved draft does not show on the site", async ({ request }) 
   await page.getByRole("button", { name: "Create banner" }).click();
 
   await page.getByLabel("Name", { exact: true }).fill("Summer promo");
-  await page.getByRole("button", { name: "Choose image" }).click();
-  await page.getByText(IMAGE_NAME).first().click();
-  await page.getByRole("button", { name: "Submit" }).click();
+  await page.getByRole("button", { name: "Choose", exact: true }).click();
+  const picker = page.locator("umb-backoffice-modal-container");
+  await picker.locator("uui-card-media").filter({ hasText: IMAGE_NAME.slice(0, 15) }).first().click();
+  await picker.getByRole("button", { name: "Choose", exact: true }).click();
+  await expect(page.getByRole("link", { name: IMAGE_NAME })).toBeVisible(); // the image is now in the editor
+  // The picker takes about 300 ms to slide away; text typed during that time is lost by the back office.
+  await page.waitForTimeout(600);
   await page.getByLabel("Link").fill(STORED_URL);
   await page.getByLabel("Alternative text").fill("Invented summer promo");
-  await page.getByLabel("Home page, top").check();
+  await page.locator("uui-checkbox", { hasText: "Home page, top" }).click();
   await page.getByRole("button", { name: "Save" }).click();
 
-  await expect(page.getByText("Banner saved")).toBeVisible();
+  await expect(toast("Banner saved")).toBeVisible();
   await expect(page.getByText("Draft", { exact: true })).toBeVisible();
   const home = await (await request.get("/")).text();
   expect(home).not.toContain("mb-banner");
@@ -112,7 +128,7 @@ test("scenario 14: deleting a zone with assigned banners is refused with the ban
   await openBannersView(page, "zones");
   await page.getByRole("row", { name: /home-top/ }).getByRole("link").first().click();
   await page.getByRole("button", { name: "Delete" }).click();
-  await page.getByRole("button", { name: "Confirm" }).click();
+  await page.locator("umb-backoffice-modal-container").getByRole("button", { name: "Delete" }).click();
 
   await expect(page.getByText("Banners are still assigned to this zone")).toBeVisible();
   await expect(page.getByText("Summer promo")).toBeVisible();

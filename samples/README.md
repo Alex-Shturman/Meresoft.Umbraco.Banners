@@ -34,3 +34,11 @@ committed.
 - `appsettings.Development.json` and `appsettings.Local.json` in samples are ignored by git; use them
   for any machine specific setting.
 - The SQLite database, logs and media under `umbraco/` and `wwwroot/media/` are ignored by git.
+
+## Browser tests
+
+`tests/e2e` expects a sample site on `http://localhost:5100` with an empty banners database: delete
+`umbraco/Data` before the start, because the tests create the zone `home-top` and a banner. Set
+`MB_SAMPLE_ADMIN_EMAIL` and `MB_SAMPLE_ADMIN_PASSWORD` to the unattended administrator, then run
+`npx playwright test` in `tests/e2e`. The sample flushes requested zones every 5 seconds
+(`Meresoft:Banners:FlushInterval` in `appsettings.json`), and the job starts 30 seconds after the site.
