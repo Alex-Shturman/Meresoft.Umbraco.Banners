@@ -27,6 +27,7 @@ internal sealed class BannerService : IBannerService
     private readonly BannerStateCalculator _stateCalculator;
     private readonly TimeProvider _timeProvider;
     private readonly HtmlPermissionChecker _htmlPermission;
+    private readonly IStatisticsRepository _statistics;
 
     public BannerService(
         IScopeProvider scopeProvider,
@@ -36,7 +37,8 @@ internal sealed class BannerService : IBannerService
         IPublishedMediaCache mediaCache,
         BannerStateCalculator stateCalculator,
         TimeProvider timeProvider,
-        HtmlPermissionChecker htmlPermission)
+        HtmlPermissionChecker htmlPermission,
+        IStatisticsRepository statistics)
     {
         _scopeProvider = scopeProvider;
         _banners = banners;
@@ -46,6 +48,7 @@ internal sealed class BannerService : IBannerService
         _stateCalculator = stateCalculator;
         _timeProvider = timeProvider;
         _htmlPermission = htmlPermission;
+        _statistics = statistics;
     }
 
     public async Task<Banner?> GetAsync(Guid key)
@@ -507,6 +510,7 @@ internal sealed class BannerService : IBannerService
     private async Task PopulateAsync(IReadOnlyList<Banner> banners)
     {
         var mediaExists = new Dictionary<Guid, bool>();
+        IReadOnlyDictionary<int, BannerTotals> totals = LoadTotalsOfLimitedBanners(banners);
         foreach (Banner banner in banners)
         {
             BannerVersion? inUse = banner.Live ?? banner.Draft;
@@ -526,8 +530,25 @@ internal sealed class BannerService : IBannerService
 
             banner.State = _stateCalculator.GetState(banner);
 
-            // Totals for the limit flag are added with the statistics (limits story); zero until then.
-            banner.Flags = _stateCalculator.GetFlags(banner, new BannerRuntimeInfo(exists, 0, 0));
+            totals.TryGetValue(banner.Id, out BannerTotals total);
+            banner.Flags = _stateCalculator.GetFlags(banner, new BannerRuntimeInfo(exists, total.Impressions, total.Clicks));
+        }
+    }
+
+    /// <summary>The totals of the banners that have a limit, read in a short scope of its own (imported rows included).</summary>
+    private IReadOnlyDictionary<int, BannerTotals> LoadTotalsOfLimitedBanners(IReadOnlyList<Banner> banners)
+    {
+        int[] limited = [.. banners
+            .Where(b => (b.Live ?? b.Draft) is { } version && (version.ImpressionLimit is not null || version.ClickLimit is not null))
+            .Select(b => b.Id)];
+        if (limited.Length == 0)
+        {
+            return new Dictionary<int, BannerTotals>();
+        }
+
+        using (_scopeProvider.CreateScope(autoComplete: true))
+        {
+            return _statistics.GetTotals(limited);
         }
     }
 }

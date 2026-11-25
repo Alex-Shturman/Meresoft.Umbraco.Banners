@@ -1,4 +1,5 @@
 using System.Data.Common;
+using Meresoft.Umbraco.Banners.Caching;
 using Meresoft.Umbraco.Banners.Configuration;
 using Meresoft.Umbraco.Banners.Domain;
 using Meresoft.Umbraco.Banners.Persistence;
@@ -22,6 +23,7 @@ internal sealed class BannersFlushJob : RecurringBackgroundJobBase
 
     private readonly RequestedZoneRecorder _recorder;
     private readonly CounterFlusher _counters;
+    private readonly ILiveSnapshotAccessor _snapshot;
     private readonly IScopeProvider _scopeProvider;
     private readonly IRequestedZoneRepository _requestedZones;
     private readonly IZoneRepository _zones;
@@ -31,6 +33,7 @@ internal sealed class BannersFlushJob : RecurringBackgroundJobBase
         IOptions<BannersOptions> options,
         RequestedZoneRecorder recorder,
         CounterFlusher counters,
+        ILiveSnapshotAccessor snapshot,
         IScopeProvider scopeProvider,
         IRequestedZoneRepository requestedZones,
         IZoneRepository zones,
@@ -39,6 +42,7 @@ internal sealed class BannersFlushJob : RecurringBackgroundJobBase
     {
         _recorder = recorder;
         _counters = counters;
+        _snapshot = snapshot;
         _scopeProvider = scopeProvider;
         _requestedZones = requestedZones;
         _zones = zones;
@@ -51,14 +55,25 @@ internal sealed class BannersFlushJob : RecurringBackgroundJobBase
     /// <inheritdoc />
     public override ServerRole[] ServerRoles => Enum.GetValues<ServerRole>();
 
-    public override Task RunJobAsync(CancellationToken cancellationToken)
+    public override async Task RunJobAsync(CancellationToken cancellationToken)
     {
         _counters.Flush();
+
+        // The totals now include this flush (and the other servers' flushes): banners over their limit leave the
+        // snapshot here, so the overshoot is at most the views of one interval (US5). The flush scopes are closed.
+        try
+        {
+            await _snapshot.ReloadLimitsAsync();
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "Reloading the banner limits failed; they are checked again after the next flush.");
+        }
 
         IReadOnlyList<RequestedZone> requested = _recorder.Drain();
         if (requested.Count == 0)
         {
-            return Task.CompletedTask;
+            return;
         }
 
         // One scope per alias: a failure on one alias (for example two servers inserting the same new alias
@@ -87,8 +102,6 @@ internal sealed class BannersFlushJob : RecurringBackgroundJobBase
                 _logger.LogError(ex, "Writing requested banner zone {Alias} failed; it is asked for again on the next page request.", item.Alias);
             }
         }
-
-        return Task.CompletedTask;
     }
 
     private void WriteOne(RequestedZone item)
