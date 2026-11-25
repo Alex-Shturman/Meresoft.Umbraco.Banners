@@ -124,17 +124,24 @@ internal sealed class BannerService : IBannerService
             UpdatedBy = userKey,
         };
 
-        using IScope scope = _scopeProvider.CreateScope();
-        FieldValidationResult validation = ApplyDraft(banner, model.Draft, new BannerVersion { Kind = BannerVersionKind.Draft }, now, userKey);
-        await AddMediaErrorsAsync(banner, banner.Draft!, validation);
-        if (!validation.IsValid)
-        {
-            return Fail(BannerOperationStatus.InvalidData, banner, validation);
-        }
+        // Awaits on other services (the media cache) happen before the scope opens, so the scope holds the write lock only
+        // for the database work. The same goes for everything after the scope: it is completed and disposed first.
+        string? mediaProblem = await MediaProblemAsync(model.Type, model.Draft.MediaKey);
 
-        _banners.Add(banner);
-        await _audit.WriteBannerAsync(BannerAuditAction.New, userKey, banner.Id);
-        scope.Complete();
+        using (IScope scope = _scopeProvider.CreateScope())
+        {
+            scope.EagerWriteLock(BannersConstants.WriteLockId);
+            FieldValidationResult validation = ApplyDraft(banner, model.Draft, new BannerVersion { Kind = BannerVersionKind.Draft }, now, userKey);
+            AddMediaProblem(validation, mediaProblem);
+            if (!validation.IsValid)
+            {
+                return Fail(BannerOperationStatus.InvalidData, banner, validation);
+            }
+
+            _banners.Add(banner);
+            await _audit.WriteBannerAsync(BannerAuditAction.New, userKey, banner.Id);
+            scope.Complete();
+        }
 
         return await SucceedAsync(banner.Key);
     }
@@ -143,168 +150,191 @@ internal sealed class BannerService : IBannerService
     {
         ArgumentNullException.ThrowIfNull(model);
 
-        using IScope scope = _scopeProvider.CreateScope();
-        Banner? banner = _banners.GetByKey(key);
-        if (banner?.Draft is null)
-        {
-            return Attempt.FailWithStatus<Banner, BannerOperationStatus>(BannerOperationStatus.NotFound, null!);
-        }
+        // The media check awaits another service, so it runs before the scope. The banner type is fixed after creation.
+        BannerType? storedType = PeekType(key);
+        string? mediaProblem = storedType is { } type ? await MediaProblemAsync(type, model.MediaKey) : null;
 
-        if (model.Type is { } type && !BannerVersionValidator.IsTypeChangeAllowed(banner.Type, type))
+        using (IScope scope = _scopeProvider.CreateScope())
         {
-            return Attempt.FailWithStatus(BannerOperationStatus.TypeChangeNotAllowed, banner);
-        }
+            scope.EagerWriteLock(BannersConstants.WriteLockId);
+            Banner? banner = _banners.GetByKey(key);
+            if (banner?.Draft is null)
+            {
+                return Attempt.FailWithStatus<Banner, BannerOperationStatus>(BannerOperationStatus.NotFound, null!);
+            }
 
-        if (IsStale(model.UpdateDate, banner))
-        {
-            return Attempt.FailWithStatus(BannerOperationStatus.ChangedByAnotherUser, banner);
-        }
+            if (model.Type is { } requested && !BannerVersionValidator.IsTypeChangeAllowed(banner.Type, requested))
+            {
+                return Attempt.FailWithStatus(BannerOperationStatus.TypeChangeNotAllowed, banner);
+            }
 
-        DateTime loadedUpdateDate = banner.UpdateDate;
-        DateTime now = UtcTimestamp.Truncate(_timeProvider.GetUtcNow().UtcDateTime);
-        FieldValidationResult validation = ApplyDraft(banner, model, banner.Draft, now, userKey);
-        await AddMediaErrorsAsync(banner, banner.Draft, validation);
-        if (!validation.IsValid)
-        {
-            return Fail(BannerOperationStatus.InvalidData, banner, validation);
-        }
+            if (IsStale(model.UpdateDate, banner))
+            {
+                return Attempt.FailWithStatus(BannerOperationStatus.ChangedByAnotherUser, banner);
+            }
 
-        // The write is guarded by the update date read above, so a save by someone else in between is not overwritten.
-        if (!_banners.SaveDraft(banner, loadedUpdateDate))
-        {
-            return Attempt.FailWithStatus(BannerOperationStatus.ChangedByAnotherUser, banner);
-        }
+            DateTime loadedUpdateDate = banner.UpdateDate;
+            DateTime now = UtcTimestamp.Truncate(_timeProvider.GetUtcNow().UtcDateTime);
+            FieldValidationResult validation = ApplyDraft(banner, model, banner.Draft, now, userKey);
+            AddMediaProblem(validation, mediaProblem);
+            if (!validation.IsValid)
+            {
+                return Fail(BannerOperationStatus.InvalidData, banner, validation);
+            }
 
-        await _audit.WriteBannerAsync(BannerAuditAction.Save, userKey, banner.Id);
-        scope.Complete();
+            // The write is guarded by the update date read above, so a save by someone else in between is not overwritten.
+            if (!_banners.SaveDraft(banner, loadedUpdateDate))
+            {
+                return Attempt.FailWithStatus(BannerOperationStatus.ChangedByAnotherUser, banner);
+            }
+
+            await _audit.WriteBannerAsync(BannerAuditAction.Save, userKey, banner.Id);
+            scope.Complete();
+        }
 
         return await SucceedAsync(key);
     }
 
     public async Task<Attempt<Banner, BannerOperationStatus>> PublishAsync(Guid key, Guid userKey, DateTime? expectedUpdateDate = null)
     {
-        using IScope scope = _scopeProvider.CreateScope();
-        Banner? banner = _banners.GetByKey(key);
-        if (banner?.Draft is null)
-        {
-            return Attempt.FailWithStatus<Banner, BannerOperationStatus>(BannerOperationStatus.NotFound, null!);
-        }
+        // The image of the draft is checked before the scope (it awaits the media cache); the scope then makes sure the
+        // draft still has that image.
+        (BannerType Type, Guid? MediaKey)? peeked = PeekDraft(key);
+        string? mediaProblem = peeked is { } p ? await MediaProblemAsync(p.Type, p.MediaKey) : null;
 
-        if (IsStale(expectedUpdateDate, banner))
+        using (IScope scope = _scopeProvider.CreateScope())
         {
-            return Attempt.FailWithStatus(BannerOperationStatus.ChangedByAnotherUser, banner);
-        }
+            scope.EagerWriteLock(BannersConstants.WriteLockId);
+            Banner? banner = _banners.GetByKey(key);
+            if (banner?.Draft is null)
+            {
+                return Attempt.FailWithStatus<Banner, BannerOperationStatus>(BannerOperationStatus.NotFound, null!);
+            }
 
-        FieldValidationResult validation = BannerVersionValidator.Validate(banner.Type, banner.Draft);
-        await AddMediaErrorsAsync(banner, banner.Draft, validation);
-        if (!validation.IsValid)
-        {
-            return Fail(BannerOperationStatus.InvalidData, banner, validation);
-        }
+            if (IsStale(expectedUpdateDate, banner) || banner.Draft.MediaKey != peeked?.MediaKey)
+            {
+                return Attempt.FailWithStatus(BannerOperationStatus.ChangedByAnotherUser, banner);
+            }
 
-        if (banner.Draft.ZoneIds.Count == 0)
-        {
-            return Attempt.FailWithStatus(BannerOperationStatus.NoZoneAssigned, banner);
-        }
+            FieldValidationResult validation = BannerVersionValidator.Validate(banner.Type, banner.Draft);
+            AddMediaProblem(validation, mediaProblem);
+            if (!validation.IsValid)
+            {
+                return Fail(BannerOperationStatus.InvalidData, banner, validation);
+            }
 
-        // Guarded by the update date read above: a save by someone else in between makes this publish fail.
-        if (!_banners.CopyDraftOverLive(banner.Id, _timeProvider.GetUtcNow().UtcDateTime, banner.UpdateDate))
-        {
-            return Attempt.FailWithStatus(BannerOperationStatus.ChangedByAnotherUser, banner);
-        }
+            if (banner.Draft.ZoneIds.Count == 0)
+            {
+                return Attempt.FailWithStatus(BannerOperationStatus.NoZoneAssigned, banner);
+            }
 
-        await _audit.WriteBannerAsync(BannerAuditAction.Publish, userKey, banner.Id);
-        scope.Notifications.Publish(new BannersChangedNotification(new BannersCacheRefresherPayload { BannerId = banner.Id }));
-        scope.Complete();
+            // Guarded by the update date read above: a save by someone else in between makes this publish fail.
+            if (!_banners.CopyDraftOverLive(banner.Id, _timeProvider.GetUtcNow().UtcDateTime, banner.UpdateDate))
+            {
+                return Attempt.FailWithStatus(BannerOperationStatus.ChangedByAnotherUser, banner);
+            }
+
+            await _audit.WriteBannerAsync(BannerAuditAction.Publish, userKey, banner.Id);
+            scope.Notifications.Publish(new BannersChangedNotification(new BannersCacheRefresherPayload { BannerId = banner.Id }));
+            scope.Complete();
+        }
 
         return await SucceedAsync(key);
     }
 
     public async Task<Attempt<Banner, BannerOperationStatus>> UnpublishAsync(Guid key, Guid userKey)
     {
-        using IScope scope = _scopeProvider.CreateScope();
-        Banner? banner = _banners.GetByKey(key);
-        if (banner is null)
+        using (IScope scope = _scopeProvider.CreateScope())
         {
-            return Attempt.FailWithStatus<Banner, BannerOperationStatus>(BannerOperationStatus.NotFound, null!);
-        }
-
-        if (banner.IsPublished)
-        {
-            try
+            scope.EagerWriteLock(BannersConstants.WriteLockId);
+            Banner? banner = _banners.GetByKey(key);
+            if (banner is null)
             {
-                _banners.SetPublished(banner.Id, false);
-            }
-            catch (InvalidOperationException)
-            {
-                return Attempt.FailWithStatus(BannerOperationStatus.NotFound, banner);
+                return Attempt.FailWithStatus<Banner, BannerOperationStatus>(BannerOperationStatus.NotFound, null!);
             }
 
-            await _audit.WriteBannerAsync(BannerAuditAction.Unpublish, userKey, banner.Id);
-            scope.Notifications.Publish(new BannersChangedNotification(new BannersCacheRefresherPayload { BannerId = banner.Id }));
+            if (banner.IsPublished)
+            {
+                try
+                {
+                    _banners.SetPublished(banner.Id, false);
+                }
+                catch (InvalidOperationException)
+                {
+                    return Attempt.FailWithStatus(BannerOperationStatus.NotFound, banner);
+                }
+
+                await _audit.WriteBannerAsync(BannerAuditAction.Unpublish, userKey, banner.Id);
+                scope.Notifications.Publish(new BannersChangedNotification(new BannersCacheRefresherPayload { BannerId = banner.Id }));
+            }
+
+            scope.Complete();
         }
 
-        scope.Complete();
         return await SucceedAsync(key);
     }
 
     public async Task<Attempt<Banner, BannerOperationStatus>> CopyAsync(Guid key, string? newName, Guid userKey)
     {
-        using IScope scope = _scopeProvider.CreateScope();
-        Banner? source = _banners.GetByKey(key);
-        if (source?.Draft is null)
+        Banner copy;
+        using (IScope scope = _scopeProvider.CreateScope())
         {
-            return Attempt.FailWithStatus<Banner, BannerOperationStatus>(BannerOperationStatus.NotFound, null!);
-        }
-
-        if (source.Type == BannerType.Html)
-        {
-            return HtmlNotAvailable();
-        }
-
-        string name = string.IsNullOrWhiteSpace(newName)
-            ? (source.Name.Length > MaxNameLength - CopySuffix.Length ? source.Name[..(MaxNameLength - CopySuffix.Length)] : source.Name) + CopySuffix
-            : newName.Trim();
-        FieldValidationResult nameCheck = BannerVersionValidator.ValidateName(name);
-        if (!nameCheck.IsValid)
-        {
-            return Fail(BannerOperationStatus.InvalidData, source, nameCheck);
-        }
-
-        DateTime now = UtcTimestamp.Truncate(_timeProvider.GetUtcNow().UtcDateTime);
-        BannerVersion d = source.Draft;
-        var copy = new Banner
-        {
-            Key = Guid.NewGuid(),
-            Name = name,
-            Type = source.Type,
-            CreateDate = now,
-            UpdateDate = now,
-            CreatedBy = userKey,
-            UpdatedBy = userKey,
-            Draft = new BannerVersion
+            scope.EagerWriteLock(BannersConstants.WriteLockId);
+            Banner? source = _banners.GetByKey(key);
+            if (source?.Draft is null)
             {
-                Kind = BannerVersionKind.Draft,
-                MediaKey = d.MediaKey,
-                Html = d.Html,
-                LinkUrl = d.LinkUrl,
-                OpenInNewWindow = d.OpenInNewWindow,
-                AltText = d.AltText,
-                Title = d.Title,
-                Weight = d.Weight,
-                StartUtc = d.StartUtc,
-                EndUtc = d.EndUtc,
-                ImpressionLimit = d.ImpressionLimit,
-                ClickLimit = d.ClickLimit,
-                SavedDate = now,
-                SavedBy = userKey,
-                ZoneIds = [.. d.ZoneIds],
-            },
-        };
+                return Attempt.FailWithStatus<Banner, BannerOperationStatus>(BannerOperationStatus.NotFound, null!);
+            }
 
-        _banners.Add(copy);
-        await _audit.WriteBannerAsync(BannerAuditAction.Copy, userKey, copy.Id);
-        scope.Complete();
+            if (source.Type == BannerType.Html)
+            {
+                return HtmlNotAvailable();
+            }
+
+            string name = string.IsNullOrWhiteSpace(newName)
+                ? (source.Name.Length > MaxNameLength - CopySuffix.Length ? source.Name[..(MaxNameLength - CopySuffix.Length)] : source.Name) + CopySuffix
+                : newName.Trim();
+            FieldValidationResult nameCheck = BannerVersionValidator.ValidateName(name);
+            if (!nameCheck.IsValid)
+            {
+                return Fail(BannerOperationStatus.InvalidData, source, nameCheck);
+            }
+
+            DateTime now = UtcTimestamp.Truncate(_timeProvider.GetUtcNow().UtcDateTime);
+            BannerVersion d = source.Draft;
+            copy = new Banner
+            {
+                Key = Guid.NewGuid(),
+                Name = name,
+                Type = source.Type,
+                CreateDate = now,
+                UpdateDate = now,
+                CreatedBy = userKey,
+                UpdatedBy = userKey,
+                Draft = new BannerVersion
+                {
+                    Kind = BannerVersionKind.Draft,
+                    MediaKey = d.MediaKey,
+                    Html = d.Html,
+                    LinkUrl = d.LinkUrl,
+                    OpenInNewWindow = d.OpenInNewWindow,
+                    AltText = d.AltText,
+                    Title = d.Title,
+                    Weight = d.Weight,
+                    StartUtc = d.StartUtc,
+                    EndUtc = d.EndUtc,
+                    ImpressionLimit = d.ImpressionLimit,
+                    ClickLimit = d.ClickLimit,
+                    SavedDate = now,
+                    SavedBy = userKey,
+                    ZoneIds = [.. d.ZoneIds],
+                },
+            };
+
+            _banners.Add(copy);
+            await _audit.WriteBannerAsync(BannerAuditAction.Copy, userKey, copy.Id);
+            scope.Complete();
+        }
 
         return await SucceedAsync(copy.Key);
     }
@@ -312,6 +342,7 @@ internal sealed class BannerService : IBannerService
     public async Task<BannerOperationStatus> DeleteAsync(Guid key, Guid userKey)
     {
         using IScope scope = _scopeProvider.CreateScope();
+        scope.EagerWriteLock(BannersConstants.WriteLockId);
         Banner? banner = _banners.GetByKey(key);
         if (banner is null)
         {
@@ -402,22 +433,50 @@ internal sealed class BannerService : IBannerService
         return result;
     }
 
-    /// <summary>An image banner needs a media item that exists and has a file; otherwise the field "mediaKey" gets an error.</summary>
-    private async Task AddMediaErrorsAsync(Banner banner, BannerVersion version, FieldValidationResult result)
+    /// <summary>
+    /// An image banner needs a media item that exists and has a file; otherwise the field "mediaKey" gets this message.
+    /// Awaits the media cache, so callers run it before they open a scope.
+    /// </summary>
+    private async Task<string?> MediaProblemAsync(BannerType type, Guid? mediaKey)
     {
-        if (banner.Type != BannerType.Image || version.MediaKey is not { } mediaKey || mediaKey == Guid.Empty)
+        if (type != BannerType.Image || mediaKey is not { } key || key == Guid.Empty)
         {
-            return; // A missing key is already reported by the version validator.
+            return null; // A missing key is already reported by the version validator.
         }
 
-        IPublishedContent? media = await _mediaCache.GetByIdAsync(mediaKey);
+        IPublishedContent? media = await _mediaCache.GetByIdAsync(key);
         if (media is null)
         {
-            result.Add("mediaKey", "The selected image does not exist. Choose another image.");
+            return "The selected image does not exist. Choose another image.";
         }
-        else if (media.GetProperty("umbracoFile")?.HasValue() != true)
+
+        return media.GetProperty("umbracoFile")?.HasValue() != true ? "The selected media item has no file. Choose another image." : null;
+    }
+
+    private static void AddMediaProblem(FieldValidationResult result, string? problem)
+    {
+        if (problem is not null)
         {
-            result.Add("mediaKey", "The selected media item has no file. Choose another image.");
+            result.Add("mediaKey", problem);
+        }
+    }
+
+    /// <summary>The type of a banner, read in a short scope of its own; null when the banner does not exist.</summary>
+    private BannerType? PeekType(Guid key)
+    {
+        using (_scopeProvider.CreateScope(autoComplete: true))
+        {
+            return _banners.GetByKey(key)?.Type;
+        }
+    }
+
+    /// <summary>The type and the draft's image of a banner, read in a short scope of its own; null when there is no such banner.</summary>
+    private (BannerType Type, Guid? MediaKey)? PeekDraft(Guid key)
+    {
+        using (_scopeProvider.CreateScope(autoComplete: true))
+        {
+            Banner? banner = _banners.GetByKey(key);
+            return banner?.Draft is null ? null : (banner.Type, banner.Draft.MediaKey);
         }
     }
 

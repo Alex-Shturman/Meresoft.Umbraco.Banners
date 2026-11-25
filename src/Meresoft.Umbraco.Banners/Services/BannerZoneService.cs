@@ -67,6 +67,7 @@ internal sealed class BannerZoneService : IBannerZoneService
     public Task DismissRequestedZoneAsync(string alias)
     {
         using IScope scope = _scopeProvider.CreateScope();
+        scope.EagerWriteLock(BannersConstants.WriteLockId);
         _requestedZones.Delete(AliasNormalizer.Normalize(alias));
         scope.Complete();
         return Task.CompletedTask;
@@ -89,6 +90,7 @@ internal sealed class BannerZoneService : IBannerZoneService
         DbException? failure = null;
         using (IScope scope = _scopeProvider.CreateScope())
         {
+            scope.EagerWriteLock(BannersConstants.WriteLockId);
             if (_zones.GetByAlias(zone.Alias) is not null)
             {
                 return Attempt.FailWithStatus(BannerOperationStatus.DuplicateAlias, zone);
@@ -119,6 +121,7 @@ internal sealed class BannerZoneService : IBannerZoneService
         DbException? failure = null;
         using (IScope scope = _scopeProvider.CreateScope())
         {
+            scope.EagerWriteLock(BannersConstants.WriteLockId);
             try
             {
                 return await UpdateInScopeAsync(scope, key, model, userKey);
@@ -196,6 +199,7 @@ internal sealed class BannerZoneService : IBannerZoneService
     public async Task<BannerOperationStatus> DeleteAsync(Guid key, Guid userKey)
     {
         using IScope scope = _scopeProvider.CreateScope();
+        scope.EagerWriteLock(BannersConstants.WriteLockId);
         BannerZone? zone = _zones.GetByKey(key);
         if (zone is null)
         {

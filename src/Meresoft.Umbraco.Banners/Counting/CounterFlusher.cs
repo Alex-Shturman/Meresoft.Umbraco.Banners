@@ -83,6 +83,7 @@ internal sealed class CounterFlusher
     private void WriteOne(CounterEntry entry)
     {
         using IScope scope = _scopeProvider.CreateScope();
+        scope.EagerWriteLock(BannersConstants.WriteLockId);
         _statistics.AddDelta(entry);
         scope.Complete();
     }

@@ -21,6 +21,12 @@ public class ConcurrentEditTests : BannersServiceTestBase
     /// <summary>Runs once, right after the next banner or zone read, as if another editor saved then.</summary>
     private static Action? _afterRead;
 
+    /// <summary>
+    /// Banner reads to let pass before the hook can run. Save and publish first look at the banner in a short read scope of their own
+    /// (to check the image before the write scope opens), so the competing save is placed after the read inside the write scope.
+    /// </summary>
+    private static int _readsToSkip;
+
     protected override void CustomTestSetup(IUmbracoBuilder builder)
     {
         base.CustomTestSetup(builder);
@@ -29,7 +35,11 @@ public class ConcurrentEditTests : BannersServiceTestBase
     }
 
     [TearDown]
-    public void ClearHook() => _afterRead = null;
+    public void ClearHook()
+    {
+        _afterRead = null;
+        _readsToSkip = 0;
+    }
 
     [Test]
     public async Task SaveDraft_WhenAnotherEditorSavesBetweenReadAndWrite_ReturnsChangedByAnotherUser_AndWritesNothing()
@@ -38,6 +48,7 @@ public class ConcurrentEditTests : BannersServiceTestBase
         Banner banner = await NewBannerAsync(ImageDraft(NewMediaKey(), zone.Key));
         Clock.Advance(TimeSpan.FromMinutes(1));
         var bannerRepository = GetRequiredService<IBannerRepository>();
+        _readsToSkip = 1;
         _afterRead = () =>
         {
             _afterRead = null;
@@ -67,6 +78,7 @@ public class ConcurrentEditTests : BannersServiceTestBase
         Banner banner = await NewBannerAsync(ImageDraft(NewMediaKey(), zone.Key));
         Clock.Advance(TimeSpan.FromMinutes(1));
         var bannerRepository = GetRequiredService<IBannerRepository>();
+        _readsToSkip = 1;
         _afterRead = () =>
         {
             _afterRead = null;
@@ -116,6 +128,12 @@ public class ConcurrentEditTests : BannersServiceTestBase
         public Banner? GetByKey(Guid key)
         {
             Banner? banner = _inner.GetByKey(key);
+            if (_readsToSkip > 0)
+            {
+                _readsToSkip--;
+                return banner;
+            }
+
             Action? hook = _afterRead;
             _afterRead = null;
             hook?.Invoke();

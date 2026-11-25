@@ -106,6 +106,7 @@ internal sealed class BannersFlushJob : RecurringBackgroundJobBase
         }
 
         using IScope scope = _scopeProvider.CreateScope();
+        scope.EagerWriteLock(BannersConstants.WriteLockId);
         _requestedZones.Upsert(item.Alias, item.FirstSeen, item.LastSeen);
         scope.Complete();
     }
