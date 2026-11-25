@@ -17,6 +17,12 @@ const SERVER_HTML_BANNER = "Long html offer";
 const HTML_BOX = (id: string) => `<p id="${id}">Invented html offer</p><script>document.getElementById("${id}").textContent = "script ran";</script>`;
 
 let admin: Page;
+/** Every line the package script posted to the seen endpoint, over all visitors of this run. */
+const reported: string[] = [];
+/** How often the lines of one banner were reported, by banner id. */
+const reportedFor = (id: string) => reported.filter((line) => line.endsWith(` ${id}`)).length;
+/** The banner ids, read from the rendered pages. */
+const ids = { image: "", clientHtml: "", serverHtml: "" };
 
 test.beforeAll(async ({ browser }) => {
   admin = await browser.newPage();
@@ -58,7 +64,9 @@ async function visitor(browser: Browser, javaScriptEnabled = true): Promise<{ co
   const own: string[] = [];
   const errors: string[] = [];
   await context.route("**/_banners/seen", async (route) => {
-    own.push(...(route.request().postData() ?? "").split("\n").filter((line) => line.length > 0));
+    const lines = (route.request().postData() ?? "").split("\n").filter((line) => line.length > 0);
+    own.push(...lines);
+    reported.push(...lines);
     await route.continue();
   });
   const page = await context.newPage();
@@ -155,15 +163,19 @@ test("scenario 1: two visitors on the same cached page each get a banner, and ea
       }
     });
     await page.goto("/cached");
-    const link = page.locator('[data-mbz="cached-top"] [data-mbb] a');
-    await expect(link).toBeVisible();
-    expect(await link.getAttribute("href")).toMatch(/^\/_banners\/c\/\d+\?z=\d+$/);
+    const banner = page.locator('[data-mbz="cached-top"] [data-mbb]');
+    await expect(banner.locator("a")).toBeVisible();
+    expect(await banner.locator("a").getAttribute("href")).toMatch(/^\/_banners\/c\/\d+\?z=\d+$/);
+    ids.image = (await banner.getAttribute("data-mbb")) ?? "";
+    ids.clientHtml = (await page.locator('[data-mbz="cached-html"] [data-mbb]').getAttribute("data-mbb")) ?? "";
   }
 
-  await expect.poll(() => first.own.length, { timeout: 8_000 }).toBe(1);
-  await expect.poll(() => second.own.length, { timeout: 8_000 }).toBe(1);
+  // The page holds two zones, so a visitor reports the image banner and the Html banner, each once.
+  await expect.poll(() => first.own.filter((l) => l.endsWith(` ${ids.image}`)).length, { timeout: 8_000 }).toBe(1);
+  await expect.poll(() => second.own.filter((l) => l.endsWith(` ${ids.image}`)).length, { timeout: 8_000 }).toBe(1);
   expect(tokens.size, "every visitor got a token of their own").toBe(2);
-  expect(first.own[0].split(" ")[0]).not.toBe(second.own[0].split(" ")[0]);
+  const tokenOf = (own: string[]) => own.find((l) => l.endsWith(` ${ids.image}`))!.split(" ")[0];
+  expect(tokenOf(first.own)).not.toBe(tokenOf(second.own));
   await first.context.close();
   await second.context.close();
 });
@@ -195,9 +207,9 @@ test("an Html banner in client mode counts one impression when it is 50% visible
   await page.goto("/cached");
   await expect(page.locator('[data-mbz="cached-html"] #client-html')).toHaveText("script ran");
 
-  await expect.poll(() => own.length, { timeout: 8_000 }).toBe(1);
+  await expect.poll(() => own.filter((l) => l.endsWith(` ${ids.clientHtml}`)).length, { timeout: 8_000 }).toBe(1);
   await page.waitForTimeout(2_500);
-  expect(own).toHaveLength(1);
+  expect(own.filter((l) => l.endsWith(` ${ids.clientHtml}`))).toHaveLength(1);
   await context.close();
 });
 
@@ -205,6 +217,7 @@ test("an Html banner in server mode counts one impression when it is 50% visible
   const { context, page, own } = await visitor(browser);
   await page.goto("/long");
   await expect(page.locator('[data-mbz="long-html"] #server-html')).toHaveText("script ran");
+  ids.serverHtml = (await page.locator('[data-mbz="long-html"] [data-mbb]').getAttribute("data-mbb")) ?? "";
 
   await expect.poll(() => own.length, { timeout: 8_000 }).toBe(1);
   await page.waitForTimeout(2_500);
@@ -217,10 +230,12 @@ test("the report shows the impressions that were counted", async () => {
   await openBannersView(admin, "reports");
   await admin.getByRole("button", { name: "Today" }).click();
   const expected: Array<[string, string]> = [
-    [IMAGE_BANNER, "cached-top 2 0"],
-    [CLIENT_HTML_BANNER, "cached-html 1 0"],
-    [SERVER_HTML_BANNER, "long-html 1 0"],
+    [IMAGE_BANNER, `cached-top ${reportedFor(ids.image)} 0`],
+    [CLIENT_HTML_BANNER, `cached-html ${reportedFor(ids.clientHtml)} 0`],
+    [SERVER_HTML_BANNER, `long-html ${reportedFor(ids.serverHtml)} 0`],
   ];
+  expect(reportedFor(ids.image), "the two visitors of scenario 1").toBeGreaterThanOrEqual(2);
+  expect(reportedFor(ids.serverHtml)).toBe(1);
   const stop = Date.now() + 90_000;
   for (const [banner, text] of expected) {
     const row = admin.getByRole("row", { name: new RegExp(banner) });
