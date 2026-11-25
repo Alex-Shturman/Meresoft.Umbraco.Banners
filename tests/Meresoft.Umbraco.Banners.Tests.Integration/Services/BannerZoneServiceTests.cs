@@ -26,7 +26,8 @@ public class BannerZoneServiceTests : BannersServiceTestBase
     };
 
     private async Task<int> AuditCountAsync(int zoneId) =>
-        (int)(await GetRequiredService<IAuditService>().GetItemsByEntityAsync(zoneId, 0, 50)).Total;
+        (await GetRequiredService<IAuditService>().GetItemsByEntityAsync(zoneId, 0, 50)).Items
+            .Count(i => i.EntityType == BannersConstants.ZoneEntityType);
 
     [Test]
     public async Task Create_StoresTheZoneWithANormalisedAlias_AndWritesAnAuditEntry()
@@ -35,15 +36,17 @@ public class BannerZoneServiceTests : BannersServiceTestBase
 
         Assert.That(attempt.Success, Is.True);
         BannerZone zone = attempt.Result!;
-        await Assert.MultipleAsync(async () =>
+        BannerZone? byAlias = await ZoneService.GetByAliasAsync("search-top");
+        int audit = await AuditCountAsync(zone.Id);
+        Assert.Multiple(() =>
         {
             Assert.That(zone.Id, Is.GreaterThan(0));
             Assert.That(zone.Key, Is.Not.EqualTo(Guid.Empty));
             Assert.That(zone.Alias, Is.EqualTo("search-top"));
             Assert.That(zone.ShowCount, Is.EqualTo(2));
             Assert.That(zone.CreateDate, Is.EqualTo(Clock.GetUtcNow().UtcDateTime));
-            Assert.That((await ZoneService.GetByAliasAsync("search-top"))!.Key, Is.EqualTo(zone.Key));
-            Assert.That(await AuditCountAsync(zone.Id), Is.EqualTo(1));
+            Assert.That(byAlias!.Key, Is.EqualTo(zone.Key));
+            Assert.That(audit, Is.EqualTo(1));
         });
     }
 
@@ -97,14 +100,16 @@ public class BannerZoneServiceTests : BannersServiceTestBase
 
         Assert.That(attempt.Success, Is.True);
         BannerZone updated = attempt.Result!;
-        await Assert.MultipleAsync(async () =>
+        BannerZone? oldAlias = await ZoneService.GetByAliasAsync("old-alias");
+        int audit = await AuditCountAsync(zone.Id);
+        Assert.Multiple(() =>
         {
             Assert.That(updated.Alias, Is.EqualTo("new-alias"));
             Assert.That(updated.Name, Is.EqualTo("Renamed"));
             Assert.That(updated.ShowCount, Is.EqualTo(4));
             Assert.That(updated.UpdateDate, Is.GreaterThan(zone.UpdateDate));
-            Assert.That(await ZoneService.GetByAliasAsync("old-alias"), Is.Null);
-            Assert.That(await AuditCountAsync(zone.Id), Is.EqualTo(2));
+            Assert.That(oldAlias, Is.Null);
+            Assert.That(audit, Is.EqualTo(2));
         });
     }
 
