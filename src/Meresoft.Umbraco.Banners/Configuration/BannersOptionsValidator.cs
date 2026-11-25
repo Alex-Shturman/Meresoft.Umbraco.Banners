@@ -1,3 +1,4 @@
+using System.Text.RegularExpressions;
 using Microsoft.Extensions.Options;
 
 namespace Meresoft.Umbraco.Banners.Configuration;
@@ -5,6 +6,7 @@ namespace Meresoft.Umbraco.Banners.Configuration;
 /// <summary>Checks <see cref="BannersOptions"/> at start; every message names the failing key.</summary>
 public sealed class BannersOptionsValidator : IValidateOptions<BannersOptions>
 {
+    private static readonly TimeSpan RegexTimeout = TimeSpan.FromSeconds(1);
     private static readonly TimeSpan MinFlush = TimeSpan.FromSeconds(5);
     private static readonly TimeSpan MaxFlush = TimeSpan.FromMinutes(1);
     private static readonly TimeSpan MinOneMinute = TimeSpan.FromMinutes(1);
@@ -35,13 +37,39 @@ public sealed class BannersOptionsValidator : IValidateOptions<BannersOptions>
             failures.Add(Message("CacheSafetyReloadInterval", "must be 0 (disabled) or between 1 and 60 minutes"));
         }
 
-        string[]? patterns = options.Bots?.AdditionalUserAgentPatterns;
-        if (patterns is null || patterns.Any(string.IsNullOrWhiteSpace))
-        {
-            failures.Add(Message("Bots:AdditionalUserAgentPatterns", "must be a list of non-empty text values"));
-        }
+        ValidateBotPatterns(options.Bots?.AdditionalUserAgentPatterns, failures);
 
         return failures.Count == 0 ? ValidateOptionsResult.Success : ValidateOptionsResult.Fail(failures);
+    }
+
+    private static void ValidateBotPatterns(string[]? patterns, List<string> failures)
+    {
+        const string key = "Bots:AdditionalUserAgentPatterns";
+        if (patterns is null)
+        {
+            failures.Add(Message(key, "must be a list of non-empty text values"));
+            return;
+        }
+
+        for (int i = 0; i < patterns.Length; i++)
+        {
+            string pattern = patterns[i];
+            if (string.IsNullOrWhiteSpace(pattern))
+            {
+                failures.Add(Message($"{key}:{i}", "must not be empty"));
+                continue;
+            }
+
+            // A pattern that cannot be compiled must stop the site at start, not fail on a visitor's request.
+            try
+            {
+                _ = new Regex(pattern, RegexOptions.CultureInvariant | RegexOptions.IgnoreCase, RegexTimeout);
+            }
+            catch (ArgumentException)
+            {
+                failures.Add(Message($"{key}:{i}", "must be a valid pattern"));
+            }
+        }
     }
 
     private static void ValidatePublicPath(string? path, List<string> failures)

@@ -174,6 +174,17 @@ public class BannersOptionsValidatorTests
         Assert.That(result.FailureMessage, Does.Contain("Meresoft:Banners:Bots:AdditionalUserAgentPatterns"));
     }
 
+    [TestCase("(unclosed")]
+    [TestCase("[a-")]
+    [TestCase("*leading")]
+    public void BotPatterns_ThatDoNotCompileAsRegex_FailAndNameTheIndex(string bad)
+    {
+        ValidateOptionsResult result = Validate(o => o.Bots.AdditionalUserAgentPatterns = ["ok-agent", bad]);
+
+        Assert.That(result.Failed, Is.True);
+        Assert.That(result.FailureMessage, Does.Contain("Meresoft:Banners:Bots:AdditionalUserAgentPatterns:1"));
+    }
+
     [Test]
     public void BotPatterns_Valid()
     {
