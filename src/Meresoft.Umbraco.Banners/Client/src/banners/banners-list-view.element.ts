@@ -1,7 +1,7 @@
 import { css, customElement, html, nothing, repeat, state } from "@umbraco-cms/backoffice/external/lit";
 import { UmbLitElement } from "@umbraco-cms/backoffice/lit-element";
 import { UmbTextStyles } from "@umbraco-cms/backoffice/style";
-import { getUmbracoManagementApiV1MeresoftBannersBanners, getUmbracoManagementApiV1MeresoftBannersZones } from "../api/sdk.gen.js";
+import { listBanners, listZones } from "../api/sdk.gen.js";
 import type { BannerPageModel, BannerState, BannerType, ZoneResponseModel } from "../api/types.gen.js";
 import { configureBannersClient } from "../api/client-setup.js";
 import { client, navigate, send } from "../shared/api.js";
@@ -29,7 +29,7 @@ export class MeresoftBannersListViewElement extends UmbLitElement {
   }
 
   async #loadAll() {
-    const zones = await send<ZoneResponseModel[]>(getUmbracoManagementApiV1MeresoftBannersZones());
+    const zones = await send<ZoneResponseModel[]>(listZones());
     this._zones = zones.data ?? [];
     await this.#load();
   }
@@ -37,7 +37,7 @@ export class MeresoftBannersListViewElement extends UmbLitElement {
   async #load() {
     this._loading = true;
     const result = await send<BannerPageModel>(
-      getUmbracoManagementApiV1MeresoftBannersBanners({
+      listBanners({
         query: {
           zone: this._zoneFilter || undefined,
           state: (this._stateFilter || undefined) as BannerState | undefined,

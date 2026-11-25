@@ -46,6 +46,27 @@ public class OpenApiDocumentTests : UmbracoTestServerTestBase
         Assert.That(document.RootElement.GetProperty("info").GetProperty("title").GetString(), Does.Contain("Banners"));
     }
 
+    [Test]
+    public async Task Operations_HaveShortExplicitIds()
+    {
+        using JsonDocument document = await ReadDocumentAsync();
+
+        string?[] ids = document.RootElement.GetProperty("paths").EnumerateObject()
+            .Where(path => !path.Name.Contains("section-probe"))
+            .SelectMany(path => path.Value.EnumerateObject())
+            .Select(operation => operation.Value.TryGetProperty("operationId", out JsonElement id) ? id.GetString() : null)
+            .ToArray();
+
+        Assert.That(
+            ids,
+            Is.EquivalentTo(new[]
+            {
+                "listZones", "getZone", "createZone", "updateZone", "deleteZone",
+                "listRequestedZones", "dismissRequestedZone",
+                "listBanners", "getBanner", "createBanner", "updateBanner", "publishBanner", "unpublishBanner", "copyBanner", "deleteBanner",
+            }));
+    }
+
     private async Task<JsonDocument> ReadDocumentAsync()
     {
         HttpResponseMessage response = await Client.GetAsync(DocumentUrl);

@@ -5,14 +5,14 @@ import { umbConfirmModal } from "@umbraco-cms/backoffice/modal";
 import { UMB_NOTIFICATION_CONTEXT } from "@umbraco-cms/backoffice/notification";
 import { UmbInputMediaElement } from "@umbraco-cms/backoffice/media";
 import {
-  deleteUmbracoManagementApiV1MeresoftBannersBannersByKey,
-  getUmbracoManagementApiV1MeresoftBannersBannersByKey,
-  getUmbracoManagementApiV1MeresoftBannersZones,
-  postUmbracoManagementApiV1MeresoftBannersBanners,
-  postUmbracoManagementApiV1MeresoftBannersBannersByKeyCopy,
-  postUmbracoManagementApiV1MeresoftBannersBannersByKeyPublish,
-  postUmbracoManagementApiV1MeresoftBannersBannersByKeyUnpublish,
-  putUmbracoManagementApiV1MeresoftBannersBannersByKey,
+  deleteBanner,
+  getBanner,
+  listZones,
+  createBanner,
+  copyBanner,
+  publishBanner,
+  unpublishBanner,
+  updateBanner,
 } from "../api/sdk.gen.js";
 import type {
   BannerRequestModel,
@@ -80,7 +80,7 @@ export class MeresoftBannerEditorElement extends UmbLitElement {
     this._errors = {};
     this._problem = "";
 
-    const zones = await send<ZoneResponseModel[]>(getUmbracoManagementApiV1MeresoftBannersZones());
+    const zones = await send<ZoneResponseModel[]>(listZones());
     this._zones = zones.data ?? [];
 
     if (!this.#bannerKey) {
@@ -91,7 +91,7 @@ export class MeresoftBannerEditorElement extends UmbLitElement {
     }
 
     const result = await send<BannerResponseModel>(
-      getUmbracoManagementApiV1MeresoftBannersBannersByKey({ path: { key: this.#bannerKey } }),
+      getBanner({ path: { key: this.#bannerKey } }),
     );
     if (result.data) {
       this.#show(result.data);
@@ -158,7 +158,7 @@ export class MeresoftBannerEditorElement extends UmbLitElement {
     this._conflict = false;
 
     if (!this.#bannerKey) {
-      const created = await send(postUmbracoManagementApiV1MeresoftBannersBanners({ body: this.#body() }));
+      const created = await send(createBanner({ body: this.#body() }));
       if (created.status === 201) {
         if (showToast) {
           this.#toast("meresoftBanners_bannerSaved");
@@ -171,7 +171,7 @@ export class MeresoftBannerEditorElement extends UmbLitElement {
     }
 
     const saved = await send<BannerResponseModel>(
-      putUmbracoManagementApiV1MeresoftBannersBannersByKey({ path: { key: this.#bannerKey }, body: this.#body() }),
+      updateBanner({ path: { key: this.#bannerKey }, body: this.#body() }),
     );
     if (saved.data) {
       this.#show(saved.data);
@@ -190,7 +190,7 @@ export class MeresoftBannerEditorElement extends UmbLitElement {
       return;
     }
     const published = await send<BannerResponseModel>(
-      postUmbracoManagementApiV1MeresoftBannersBannersByKeyPublish({
+      publishBanner({
         path: { key: this.#bannerKey },
         body: { updateDate: this._banner.updateDate },
       }),
@@ -211,7 +211,7 @@ export class MeresoftBannerEditorElement extends UmbLitElement {
       return;
     }
     const result = await send<BannerResponseModel>(
-      postUmbracoManagementApiV1MeresoftBannersBannersByKeyUnpublish({ path: { key: this.#bannerKey } }),
+      unpublishBanner({ path: { key: this.#bannerKey } }),
     );
     if (result.data) {
       this.#show(result.data);
@@ -226,7 +226,7 @@ export class MeresoftBannerEditorElement extends UmbLitElement {
       return;
     }
     const result = await send(
-      postUmbracoManagementApiV1MeresoftBannersBannersByKeyCopy({ path: { key: this.#bannerKey }, body: {} }),
+      copyBanner({ path: { key: this.#bannerKey }, body: {} }),
     );
     if (result.status === 201) {
       this.#toast("meresoftBanners_bannerCopied");
@@ -250,7 +250,7 @@ export class MeresoftBannerEditorElement extends UmbLitElement {
     } catch {
       return; // The editor cancelled the dialog.
     }
-    const result = await send(deleteUmbracoManagementApiV1MeresoftBannersBannersByKey({ path: { key: this.#bannerKey } }));
+    const result = await send(deleteBanner({ path: { key: this.#bannerKey } }));
     if (result.status === 204) {
       this.#toast("meresoftBanners_bannerDeleted");
       navigate(BANNERS_PATH);

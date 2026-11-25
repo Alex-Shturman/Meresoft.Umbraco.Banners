@@ -1,3 +1,4 @@
+using Microsoft.AspNetCore.Mvc.Controllers;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Options;
 using Microsoft.OpenApi;
@@ -25,6 +26,7 @@ public sealed class BannersSwaggerConfiguration : IConfigureOptions<SwaggerGenOp
             });
 
         options.OperationFilter<BannersBackOfficeSecurityFilter>();
+        options.OperationFilter<BannersOperationIdFilter>();
     }
 
     /// <summary>Declares the back office bearer security of the package operations.</summary>
@@ -32,5 +34,24 @@ public sealed class BannersSwaggerConfiguration : IConfigureOptions<SwaggerGenOp
     {
         /// <inheritdoc />
         protected override string ApiName => BannersConstants.ApiName;
+    }
+
+    /// <summary>
+    /// Gives each package operation a short id taken from its controller name (<c>ListZonesController</c> becomes
+    /// <c>listZones</c>), so the generated back office client has readable function names. Other documents are not touched.
+    /// </summary>
+    public sealed class BannersOperationIdFilter : IOperationFilter
+    {
+        /// <inheritdoc />
+        public void Apply(OpenApiOperation operation, OperationFilterContext context)
+        {
+            if (context.ApiDescription.ActionDescriptor is ControllerActionDescriptor action
+                && context.ApiDescription.GroupName == BannersConstants.ApiGroupName
+                && action.ControllerTypeInfo.Assembly == typeof(BannersConstants).Assembly)
+            {
+                string name = action.ControllerName;
+                operation.OperationId = char.ToLowerInvariant(name[0]) + name[1..];
+            }
+        }
     }
 }

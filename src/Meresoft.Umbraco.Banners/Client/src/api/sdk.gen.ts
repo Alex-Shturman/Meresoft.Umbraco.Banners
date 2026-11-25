@@ -2,7 +2,7 @@
 
 import type { Client, ClientMeta, Options as Options2, RequestResult, TDataShape } from './client';
 import { client } from './client.gen';
-import type { DeleteUmbracoManagementApiV1MeresoftBannersBannersByKeyData, DeleteUmbracoManagementApiV1MeresoftBannersBannersByKeyErrors, DeleteUmbracoManagementApiV1MeresoftBannersBannersByKeyResponses, DeleteUmbracoManagementApiV1MeresoftBannersRequestedZonesByAliasData, DeleteUmbracoManagementApiV1MeresoftBannersRequestedZonesByAliasErrors, DeleteUmbracoManagementApiV1MeresoftBannersRequestedZonesByAliasResponses, DeleteUmbracoManagementApiV1MeresoftBannersZonesByKeyData, DeleteUmbracoManagementApiV1MeresoftBannersZonesByKeyErrors, DeleteUmbracoManagementApiV1MeresoftBannersZonesByKeyResponses, GetUmbracoManagementApiV1MeresoftBannersBannersByKeyData, GetUmbracoManagementApiV1MeresoftBannersBannersByKeyErrors, GetUmbracoManagementApiV1MeresoftBannersBannersByKeyResponses, GetUmbracoManagementApiV1MeresoftBannersBannersData, GetUmbracoManagementApiV1MeresoftBannersBannersErrors, GetUmbracoManagementApiV1MeresoftBannersBannersResponses, GetUmbracoManagementApiV1MeresoftBannersRequestedZonesData, GetUmbracoManagementApiV1MeresoftBannersRequestedZonesErrors, GetUmbracoManagementApiV1MeresoftBannersRequestedZonesResponses, GetUmbracoManagementApiV1MeresoftBannersZonesByKeyData, GetUmbracoManagementApiV1MeresoftBannersZonesByKeyErrors, GetUmbracoManagementApiV1MeresoftBannersZonesByKeyResponses, GetUmbracoManagementApiV1MeresoftBannersZonesData, GetUmbracoManagementApiV1MeresoftBannersZonesErrors, GetUmbracoManagementApiV1MeresoftBannersZonesResponses, PostUmbracoManagementApiV1MeresoftBannersBannersByKeyCopyData, PostUmbracoManagementApiV1MeresoftBannersBannersByKeyCopyErrors, PostUmbracoManagementApiV1MeresoftBannersBannersByKeyCopyResponses, PostUmbracoManagementApiV1MeresoftBannersBannersByKeyPublishData, PostUmbracoManagementApiV1MeresoftBannersBannersByKeyPublishErrors, PostUmbracoManagementApiV1MeresoftBannersBannersByKeyPublishResponses, PostUmbracoManagementApiV1MeresoftBannersBannersByKeyUnpublishData, PostUmbracoManagementApiV1MeresoftBannersBannersByKeyUnpublishErrors, PostUmbracoManagementApiV1MeresoftBannersBannersByKeyUnpublishResponses, PostUmbracoManagementApiV1MeresoftBannersBannersData, PostUmbracoManagementApiV1MeresoftBannersBannersErrors, PostUmbracoManagementApiV1MeresoftBannersBannersResponses, PostUmbracoManagementApiV1MeresoftBannersZonesData, PostUmbracoManagementApiV1MeresoftBannersZonesErrors, PostUmbracoManagementApiV1MeresoftBannersZonesResponses, PutUmbracoManagementApiV1MeresoftBannersBannersByKeyData, PutUmbracoManagementApiV1MeresoftBannersBannersByKeyErrors, PutUmbracoManagementApiV1MeresoftBannersBannersByKeyResponses, PutUmbracoManagementApiV1MeresoftBannersZonesByKeyData, PutUmbracoManagementApiV1MeresoftBannersZonesByKeyErrors, PutUmbracoManagementApiV1MeresoftBannersZonesByKeyResponses } from './types.gen';
+import type { CopyBannerData, CopyBannerErrors, CopyBannerResponses, CreateBannerData, CreateBannerErrors, CreateBannerResponses, CreateZoneData, CreateZoneErrors, CreateZoneResponses, DeleteBannerData, DeleteBannerErrors, DeleteBannerResponses, DeleteZoneData, DeleteZoneErrors, DeleteZoneResponses, DismissRequestedZoneData, DismissRequestedZoneErrors, DismissRequestedZoneResponses, GetBannerData, GetBannerErrors, GetBannerResponses, GetZoneData, GetZoneErrors, GetZoneResponses, ListBannersData, ListBannersErrors, ListBannersResponses, ListRequestedZonesData, ListRequestedZonesErrors, ListRequestedZonesResponses, ListZonesData, ListZonesErrors, ListZonesResponses, PublishBannerData, PublishBannerErrors, PublishBannerResponses, UnpublishBannerData, UnpublishBannerErrors, UnpublishBannerResponses, UpdateBannerData, UpdateBannerErrors, UpdateBannerResponses, UpdateZoneData, UpdateZoneErrors, UpdateZoneResponses } from './types.gen';
 
 export type Options<TData extends TDataShape = TDataShape, ThrowOnError extends boolean = boolean, TResponse = unknown> = Options2<TData, ThrowOnError, TResponse> & {
     /**
@@ -18,13 +18,13 @@ export type Options<TData extends TDataShape = TDataShape, ThrowOnError extends 
     meta?: keyof ClientMeta extends never ? Record<string, unknown> : ClientMeta;
 };
 
-export const getUmbracoManagementApiV1MeresoftBannersBanners = <ThrowOnError extends boolean = false>(options?: Options<GetUmbracoManagementApiV1MeresoftBannersBannersData, ThrowOnError>): RequestResult<GetUmbracoManagementApiV1MeresoftBannersBannersResponses, GetUmbracoManagementApiV1MeresoftBannersBannersErrors, ThrowOnError> => (options?.client ?? client).get<GetUmbracoManagementApiV1MeresoftBannersBannersResponses, GetUmbracoManagementApiV1MeresoftBannersBannersErrors, ThrowOnError>({
+export const listBanners = <ThrowOnError extends boolean = false>(options?: Options<ListBannersData, ThrowOnError>): RequestResult<ListBannersResponses, ListBannersErrors, ThrowOnError> => (options?.client ?? client).get<ListBannersResponses, ListBannersErrors, ThrowOnError>({
     security: [{ scheme: 'bearer', type: 'http' }],
     url: '/umbraco/management/api/v1/meresoft-banners/banners',
     ...options
 });
 
-export const postUmbracoManagementApiV1MeresoftBannersBanners = <ThrowOnError extends boolean = false>(options?: Options<PostUmbracoManagementApiV1MeresoftBannersBannersData, ThrowOnError>): RequestResult<PostUmbracoManagementApiV1MeresoftBannersBannersResponses, PostUmbracoManagementApiV1MeresoftBannersBannersErrors, ThrowOnError> => (options?.client ?? client).post<PostUmbracoManagementApiV1MeresoftBannersBannersResponses, PostUmbracoManagementApiV1MeresoftBannersBannersErrors, ThrowOnError>({
+export const createBanner = <ThrowOnError extends boolean = false>(options?: Options<CreateBannerData, ThrowOnError>): RequestResult<CreateBannerResponses, CreateBannerErrors, ThrowOnError> => (options?.client ?? client).post<CreateBannerResponses, CreateBannerErrors, ThrowOnError>({
     security: [{ scheme: 'bearer', type: 'http' }],
     url: '/umbraco/management/api/v1/meresoft-banners/banners',
     ...options,
@@ -34,19 +34,19 @@ export const postUmbracoManagementApiV1MeresoftBannersBanners = <ThrowOnError ex
     }
 });
 
-export const deleteUmbracoManagementApiV1MeresoftBannersBannersByKey = <ThrowOnError extends boolean = false>(options: Options<DeleteUmbracoManagementApiV1MeresoftBannersBannersByKeyData, ThrowOnError>): RequestResult<DeleteUmbracoManagementApiV1MeresoftBannersBannersByKeyResponses, DeleteUmbracoManagementApiV1MeresoftBannersBannersByKeyErrors, ThrowOnError> => (options.client ?? client).delete<DeleteUmbracoManagementApiV1MeresoftBannersBannersByKeyResponses, DeleteUmbracoManagementApiV1MeresoftBannersBannersByKeyErrors, ThrowOnError>({
+export const deleteBanner = <ThrowOnError extends boolean = false>(options: Options<DeleteBannerData, ThrowOnError>): RequestResult<DeleteBannerResponses, DeleteBannerErrors, ThrowOnError> => (options.client ?? client).delete<DeleteBannerResponses, DeleteBannerErrors, ThrowOnError>({
     security: [{ scheme: 'bearer', type: 'http' }],
     url: '/umbraco/management/api/v1/meresoft-banners/banners/{key}',
     ...options
 });
 
-export const getUmbracoManagementApiV1MeresoftBannersBannersByKey = <ThrowOnError extends boolean = false>(options: Options<GetUmbracoManagementApiV1MeresoftBannersBannersByKeyData, ThrowOnError>): RequestResult<GetUmbracoManagementApiV1MeresoftBannersBannersByKeyResponses, GetUmbracoManagementApiV1MeresoftBannersBannersByKeyErrors, ThrowOnError> => (options.client ?? client).get<GetUmbracoManagementApiV1MeresoftBannersBannersByKeyResponses, GetUmbracoManagementApiV1MeresoftBannersBannersByKeyErrors, ThrowOnError>({
+export const getBanner = <ThrowOnError extends boolean = false>(options: Options<GetBannerData, ThrowOnError>): RequestResult<GetBannerResponses, GetBannerErrors, ThrowOnError> => (options.client ?? client).get<GetBannerResponses, GetBannerErrors, ThrowOnError>({
     security: [{ scheme: 'bearer', type: 'http' }],
     url: '/umbraco/management/api/v1/meresoft-banners/banners/{key}',
     ...options
 });
 
-export const putUmbracoManagementApiV1MeresoftBannersBannersByKey = <ThrowOnError extends boolean = false>(options: Options<PutUmbracoManagementApiV1MeresoftBannersBannersByKeyData, ThrowOnError>): RequestResult<PutUmbracoManagementApiV1MeresoftBannersBannersByKeyResponses, PutUmbracoManagementApiV1MeresoftBannersBannersByKeyErrors, ThrowOnError> => (options.client ?? client).put<PutUmbracoManagementApiV1MeresoftBannersBannersByKeyResponses, PutUmbracoManagementApiV1MeresoftBannersBannersByKeyErrors, ThrowOnError>({
+export const updateBanner = <ThrowOnError extends boolean = false>(options: Options<UpdateBannerData, ThrowOnError>): RequestResult<UpdateBannerResponses, UpdateBannerErrors, ThrowOnError> => (options.client ?? client).put<UpdateBannerResponses, UpdateBannerErrors, ThrowOnError>({
     security: [{ scheme: 'bearer', type: 'http' }],
     url: '/umbraco/management/api/v1/meresoft-banners/banners/{key}',
     ...options,
@@ -56,7 +56,7 @@ export const putUmbracoManagementApiV1MeresoftBannersBannersByKey = <ThrowOnErro
     }
 });
 
-export const postUmbracoManagementApiV1MeresoftBannersBannersByKeyCopy = <ThrowOnError extends boolean = false>(options: Options<PostUmbracoManagementApiV1MeresoftBannersBannersByKeyCopyData, ThrowOnError>): RequestResult<PostUmbracoManagementApiV1MeresoftBannersBannersByKeyCopyResponses, PostUmbracoManagementApiV1MeresoftBannersBannersByKeyCopyErrors, ThrowOnError> => (options.client ?? client).post<PostUmbracoManagementApiV1MeresoftBannersBannersByKeyCopyResponses, PostUmbracoManagementApiV1MeresoftBannersBannersByKeyCopyErrors, ThrowOnError>({
+export const copyBanner = <ThrowOnError extends boolean = false>(options: Options<CopyBannerData, ThrowOnError>): RequestResult<CopyBannerResponses, CopyBannerErrors, ThrowOnError> => (options.client ?? client).post<CopyBannerResponses, CopyBannerErrors, ThrowOnError>({
     security: [{ scheme: 'bearer', type: 'http' }],
     url: '/umbraco/management/api/v1/meresoft-banners/banners/{key}/copy',
     ...options,
@@ -66,7 +66,7 @@ export const postUmbracoManagementApiV1MeresoftBannersBannersByKeyCopy = <ThrowO
     }
 });
 
-export const postUmbracoManagementApiV1MeresoftBannersBannersByKeyPublish = <ThrowOnError extends boolean = false>(options: Options<PostUmbracoManagementApiV1MeresoftBannersBannersByKeyPublishData, ThrowOnError>): RequestResult<PostUmbracoManagementApiV1MeresoftBannersBannersByKeyPublishResponses, PostUmbracoManagementApiV1MeresoftBannersBannersByKeyPublishErrors, ThrowOnError> => (options.client ?? client).post<PostUmbracoManagementApiV1MeresoftBannersBannersByKeyPublishResponses, PostUmbracoManagementApiV1MeresoftBannersBannersByKeyPublishErrors, ThrowOnError>({
+export const publishBanner = <ThrowOnError extends boolean = false>(options: Options<PublishBannerData, ThrowOnError>): RequestResult<PublishBannerResponses, PublishBannerErrors, ThrowOnError> => (options.client ?? client).post<PublishBannerResponses, PublishBannerErrors, ThrowOnError>({
     security: [{ scheme: 'bearer', type: 'http' }],
     url: '/umbraco/management/api/v1/meresoft-banners/banners/{key}/publish',
     ...options,
@@ -76,31 +76,31 @@ export const postUmbracoManagementApiV1MeresoftBannersBannersByKeyPublish = <Thr
     }
 });
 
-export const postUmbracoManagementApiV1MeresoftBannersBannersByKeyUnpublish = <ThrowOnError extends boolean = false>(options: Options<PostUmbracoManagementApiV1MeresoftBannersBannersByKeyUnpublishData, ThrowOnError>): RequestResult<PostUmbracoManagementApiV1MeresoftBannersBannersByKeyUnpublishResponses, PostUmbracoManagementApiV1MeresoftBannersBannersByKeyUnpublishErrors, ThrowOnError> => (options.client ?? client).post<PostUmbracoManagementApiV1MeresoftBannersBannersByKeyUnpublishResponses, PostUmbracoManagementApiV1MeresoftBannersBannersByKeyUnpublishErrors, ThrowOnError>({
+export const unpublishBanner = <ThrowOnError extends boolean = false>(options: Options<UnpublishBannerData, ThrowOnError>): RequestResult<UnpublishBannerResponses, UnpublishBannerErrors, ThrowOnError> => (options.client ?? client).post<UnpublishBannerResponses, UnpublishBannerErrors, ThrowOnError>({
     security: [{ scheme: 'bearer', type: 'http' }],
     url: '/umbraco/management/api/v1/meresoft-banners/banners/{key}/unpublish',
     ...options
 });
 
-export const getUmbracoManagementApiV1MeresoftBannersRequestedZones = <ThrowOnError extends boolean = false>(options?: Options<GetUmbracoManagementApiV1MeresoftBannersRequestedZonesData, ThrowOnError>): RequestResult<GetUmbracoManagementApiV1MeresoftBannersRequestedZonesResponses, GetUmbracoManagementApiV1MeresoftBannersRequestedZonesErrors, ThrowOnError> => (options?.client ?? client).get<GetUmbracoManagementApiV1MeresoftBannersRequestedZonesResponses, GetUmbracoManagementApiV1MeresoftBannersRequestedZonesErrors, ThrowOnError>({
+export const listRequestedZones = <ThrowOnError extends boolean = false>(options?: Options<ListRequestedZonesData, ThrowOnError>): RequestResult<ListRequestedZonesResponses, ListRequestedZonesErrors, ThrowOnError> => (options?.client ?? client).get<ListRequestedZonesResponses, ListRequestedZonesErrors, ThrowOnError>({
     security: [{ scheme: 'bearer', type: 'http' }],
     url: '/umbraco/management/api/v1/meresoft-banners/requested-zones',
     ...options
 });
 
-export const deleteUmbracoManagementApiV1MeresoftBannersRequestedZonesByAlias = <ThrowOnError extends boolean = false>(options: Options<DeleteUmbracoManagementApiV1MeresoftBannersRequestedZonesByAliasData, ThrowOnError>): RequestResult<DeleteUmbracoManagementApiV1MeresoftBannersRequestedZonesByAliasResponses, DeleteUmbracoManagementApiV1MeresoftBannersRequestedZonesByAliasErrors, ThrowOnError> => (options.client ?? client).delete<DeleteUmbracoManagementApiV1MeresoftBannersRequestedZonesByAliasResponses, DeleteUmbracoManagementApiV1MeresoftBannersRequestedZonesByAliasErrors, ThrowOnError>({
+export const dismissRequestedZone = <ThrowOnError extends boolean = false>(options: Options<DismissRequestedZoneData, ThrowOnError>): RequestResult<DismissRequestedZoneResponses, DismissRequestedZoneErrors, ThrowOnError> => (options.client ?? client).delete<DismissRequestedZoneResponses, DismissRequestedZoneErrors, ThrowOnError>({
     security: [{ scheme: 'bearer', type: 'http' }],
     url: '/umbraco/management/api/v1/meresoft-banners/requested-zones/{alias}',
     ...options
 });
 
-export const getUmbracoManagementApiV1MeresoftBannersZones = <ThrowOnError extends boolean = false>(options?: Options<GetUmbracoManagementApiV1MeresoftBannersZonesData, ThrowOnError>): RequestResult<GetUmbracoManagementApiV1MeresoftBannersZonesResponses, GetUmbracoManagementApiV1MeresoftBannersZonesErrors, ThrowOnError> => (options?.client ?? client).get<GetUmbracoManagementApiV1MeresoftBannersZonesResponses, GetUmbracoManagementApiV1MeresoftBannersZonesErrors, ThrowOnError>({
+export const listZones = <ThrowOnError extends boolean = false>(options?: Options<ListZonesData, ThrowOnError>): RequestResult<ListZonesResponses, ListZonesErrors, ThrowOnError> => (options?.client ?? client).get<ListZonesResponses, ListZonesErrors, ThrowOnError>({
     security: [{ scheme: 'bearer', type: 'http' }],
     url: '/umbraco/management/api/v1/meresoft-banners/zones',
     ...options
 });
 
-export const postUmbracoManagementApiV1MeresoftBannersZones = <ThrowOnError extends boolean = false>(options?: Options<PostUmbracoManagementApiV1MeresoftBannersZonesData, ThrowOnError>): RequestResult<PostUmbracoManagementApiV1MeresoftBannersZonesResponses, PostUmbracoManagementApiV1MeresoftBannersZonesErrors, ThrowOnError> => (options?.client ?? client).post<PostUmbracoManagementApiV1MeresoftBannersZonesResponses, PostUmbracoManagementApiV1MeresoftBannersZonesErrors, ThrowOnError>({
+export const createZone = <ThrowOnError extends boolean = false>(options?: Options<CreateZoneData, ThrowOnError>): RequestResult<CreateZoneResponses, CreateZoneErrors, ThrowOnError> => (options?.client ?? client).post<CreateZoneResponses, CreateZoneErrors, ThrowOnError>({
     security: [{ scheme: 'bearer', type: 'http' }],
     url: '/umbraco/management/api/v1/meresoft-banners/zones',
     ...options,
@@ -110,19 +110,19 @@ export const postUmbracoManagementApiV1MeresoftBannersZones = <ThrowOnError exte
     }
 });
 
-export const deleteUmbracoManagementApiV1MeresoftBannersZonesByKey = <ThrowOnError extends boolean = false>(options: Options<DeleteUmbracoManagementApiV1MeresoftBannersZonesByKeyData, ThrowOnError>): RequestResult<DeleteUmbracoManagementApiV1MeresoftBannersZonesByKeyResponses, DeleteUmbracoManagementApiV1MeresoftBannersZonesByKeyErrors, ThrowOnError> => (options.client ?? client).delete<DeleteUmbracoManagementApiV1MeresoftBannersZonesByKeyResponses, DeleteUmbracoManagementApiV1MeresoftBannersZonesByKeyErrors, ThrowOnError>({
+export const deleteZone = <ThrowOnError extends boolean = false>(options: Options<DeleteZoneData, ThrowOnError>): RequestResult<DeleteZoneResponses, DeleteZoneErrors, ThrowOnError> => (options.client ?? client).delete<DeleteZoneResponses, DeleteZoneErrors, ThrowOnError>({
     security: [{ scheme: 'bearer', type: 'http' }],
     url: '/umbraco/management/api/v1/meresoft-banners/zones/{key}',
     ...options
 });
 
-export const getUmbracoManagementApiV1MeresoftBannersZonesByKey = <ThrowOnError extends boolean = false>(options: Options<GetUmbracoManagementApiV1MeresoftBannersZonesByKeyData, ThrowOnError>): RequestResult<GetUmbracoManagementApiV1MeresoftBannersZonesByKeyResponses, GetUmbracoManagementApiV1MeresoftBannersZonesByKeyErrors, ThrowOnError> => (options.client ?? client).get<GetUmbracoManagementApiV1MeresoftBannersZonesByKeyResponses, GetUmbracoManagementApiV1MeresoftBannersZonesByKeyErrors, ThrowOnError>({
+export const getZone = <ThrowOnError extends boolean = false>(options: Options<GetZoneData, ThrowOnError>): RequestResult<GetZoneResponses, GetZoneErrors, ThrowOnError> => (options.client ?? client).get<GetZoneResponses, GetZoneErrors, ThrowOnError>({
     security: [{ scheme: 'bearer', type: 'http' }],
     url: '/umbraco/management/api/v1/meresoft-banners/zones/{key}',
     ...options
 });
 
-export const putUmbracoManagementApiV1MeresoftBannersZonesByKey = <ThrowOnError extends boolean = false>(options: Options<PutUmbracoManagementApiV1MeresoftBannersZonesByKeyData, ThrowOnError>): RequestResult<PutUmbracoManagementApiV1MeresoftBannersZonesByKeyResponses, PutUmbracoManagementApiV1MeresoftBannersZonesByKeyErrors, ThrowOnError> => (options.client ?? client).put<PutUmbracoManagementApiV1MeresoftBannersZonesByKeyResponses, PutUmbracoManagementApiV1MeresoftBannersZonesByKeyErrors, ThrowOnError>({
+export const updateZone = <ThrowOnError extends boolean = false>(options: Options<UpdateZoneData, ThrowOnError>): RequestResult<UpdateZoneResponses, UpdateZoneErrors, ThrowOnError> => (options.client ?? client).put<UpdateZoneResponses, UpdateZoneErrors, ThrowOnError>({
     security: [{ scheme: 'bearer', type: 'http' }],
     url: '/umbraco/management/api/v1/meresoft-banners/zones/{key}',
     ...options,

@@ -4,11 +4,11 @@ import { UmbTextStyles } from "@umbraco-cms/backoffice/style";
 import { umbConfirmModal } from "@umbraco-cms/backoffice/modal";
 import { UMB_NOTIFICATION_CONTEXT } from "@umbraco-cms/backoffice/notification";
 import {
-  deleteUmbracoManagementApiV1MeresoftBannersZonesByKey,
-  getUmbracoManagementApiV1MeresoftBannersBanners,
-  getUmbracoManagementApiV1MeresoftBannersZonesByKey,
-  postUmbracoManagementApiV1MeresoftBannersZones,
-  putUmbracoManagementApiV1MeresoftBannersZonesByKey,
+  deleteZone,
+  listBanners,
+  getZone,
+  createZone,
+  updateZone,
 } from "../api/sdk.gen.js";
 import type { BannerPageModel, ZoneRenderMode, ZoneRequestModel, ZoneResponseModel } from "../api/types.gen.js";
 import { configureBannersClient } from "../api/client-setup.js";
@@ -79,7 +79,7 @@ export class MeresoftZoneEditorElement extends UmbLitElement {
     }
 
     const result = await send<ZoneResponseModel>(
-      getUmbracoManagementApiV1MeresoftBannersZonesByKey({ path: { key: this.#zoneKey } }),
+      getZone({ path: { key: this.#zoneKey } }),
     );
     if (result.data) {
       this.#apply(result.data);
@@ -131,7 +131,7 @@ export class MeresoftZoneEditorElement extends UmbLitElement {
     this._conflict = false;
 
     if (!this.#zoneKey) {
-      const created = await send(postUmbracoManagementApiV1MeresoftBannersZones({ body: this.#body() }));
+      const created = await send(createZone({ body: this.#body() }));
       if (created.status === 201) {
         this.#toast("meresoftBanners_zoneSaved");
         navigate(`${ZONES_PATH}/edit/${keyFromLocation(created.location)}`);
@@ -145,7 +145,7 @@ export class MeresoftZoneEditorElement extends UmbLitElement {
     }
 
     const updated = await send<ZoneResponseModel>(
-      putUmbracoManagementApiV1MeresoftBannersZonesByKey({ path: { key: this.#zoneKey }, body: this.#body() }),
+      updateZone({ path: { key: this.#zoneKey }, body: this.#body() }),
     );
     if (updated.data) {
       this.#apply(updated.data);
@@ -174,7 +174,7 @@ export class MeresoftZoneEditorElement extends UmbLitElement {
       return; // The editor cancelled the dialog.
     }
 
-    const result = await send(deleteUmbracoManagementApiV1MeresoftBannersZonesByKey({ path: { key: this.#zoneKey } }));
+    const result = await send(deleteZone({ path: { key: this.#zoneKey } }));
     if (result.status === 204) {
       this.#toast("meresoftBanners_zoneDeleted");
       navigate(ZONES_PATH);
@@ -190,7 +190,7 @@ export class MeresoftZoneEditorElement extends UmbLitElement {
   /** Names of the banners that keep the zone from being deleted. */
   async #showBlockingBanners() {
     const page = await send<BannerPageModel>(
-      getUmbracoManagementApiV1MeresoftBannersBanners({ query: { zone: this.#zoneKey, take: 100 } }),
+      listBanners({ query: { zone: this.#zoneKey, take: 100 } }),
     );
     this._blockingBanners = (page.data?.items ?? []).map((b) => ({ key: b.key, name: b.name }));
   }

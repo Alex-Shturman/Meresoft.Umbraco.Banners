@@ -2,9 +2,9 @@ import { css, customElement, html, nothing, repeat, state } from "@umbraco-cms/b
 import { UmbLitElement } from "@umbraco-cms/backoffice/lit-element";
 import { UmbTextStyles } from "@umbraco-cms/backoffice/style";
 import {
-  getUmbracoManagementApiV1MeresoftBannersRequestedZones,
-  getUmbracoManagementApiV1MeresoftBannersZones,
-  deleteUmbracoManagementApiV1MeresoftBannersRequestedZonesByAlias,
+  listRequestedZones,
+  listZones,
+  dismissRequestedZone,
 } from "../api/sdk.gen.js";
 import type { RequestedZoneResponseModel, ZoneResponseModel } from "../api/types.gen.js";
 import { configureBannersClient } from "../api/client-setup.js";
@@ -26,8 +26,8 @@ export class MeresoftZonesListViewElement extends UmbLitElement {
   async #load() {
     this._loading = true;
     const [zones, requested] = await Promise.all([
-      send<ZoneResponseModel[]>(getUmbracoManagementApiV1MeresoftBannersZones()),
-      send<RequestedZoneResponseModel[]>(getUmbracoManagementApiV1MeresoftBannersRequestedZones()),
+      send<ZoneResponseModel[]>(listZones()),
+      send<RequestedZoneResponseModel[]>(listRequestedZones()),
     ]);
     this._failed = zones.data === undefined || requested.data === undefined;
     this._zones = zones.data ?? [];
@@ -36,7 +36,7 @@ export class MeresoftZonesListViewElement extends UmbLitElement {
   }
 
   async #dismiss(alias: string) {
-    await send(deleteUmbracoManagementApiV1MeresoftBannersRequestedZonesByAlias({ path: { alias } }));
+    await send(dismissRequestedZone({ path: { alias } }));
     await this.#load();
   }
 

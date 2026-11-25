@@ -128,7 +128,7 @@ export type ZoneResponseModel = {
     activeBannerCount: number;
 };
 
-export type GetUmbracoManagementApiV1MeresoftBannersBannersData = {
+export type ListBannersData = {
     body?: never;
     path?: never;
     query?: {
@@ -141,7 +141,7 @@ export type GetUmbracoManagementApiV1MeresoftBannersBannersData = {
     url: '/umbraco/management/api/v1/meresoft-banners/banners';
 };
 
-export type GetUmbracoManagementApiV1MeresoftBannersBannersErrors = {
+export type ListBannersErrors = {
     /**
      * Bad Request
      */
@@ -156,25 +156,25 @@ export type GetUmbracoManagementApiV1MeresoftBannersBannersErrors = {
     403: unknown;
 };
 
-export type GetUmbracoManagementApiV1MeresoftBannersBannersError = GetUmbracoManagementApiV1MeresoftBannersBannersErrors[keyof GetUmbracoManagementApiV1MeresoftBannersBannersErrors];
+export type ListBannersError = ListBannersErrors[keyof ListBannersErrors];
 
-export type GetUmbracoManagementApiV1MeresoftBannersBannersResponses = {
+export type ListBannersResponses = {
     /**
      * OK
      */
     200: BannerPageModel;
 };
 
-export type GetUmbracoManagementApiV1MeresoftBannersBannersResponse = GetUmbracoManagementApiV1MeresoftBannersBannersResponses[keyof GetUmbracoManagementApiV1MeresoftBannersBannersResponses];
+export type ListBannersResponse = ListBannersResponses[keyof ListBannersResponses];
 
-export type PostUmbracoManagementApiV1MeresoftBannersBannersData = {
+export type CreateBannerData = {
     body?: BannerRequestModel;
     path?: never;
     query?: never;
     url: '/umbraco/management/api/v1/meresoft-banners/banners';
 };
 
-export type PostUmbracoManagementApiV1MeresoftBannersBannersErrors = {
+export type CreateBannerErrors = {
     /**
      * Bad Request
      */
@@ -189,16 +189,16 @@ export type PostUmbracoManagementApiV1MeresoftBannersBannersErrors = {
     403: unknown;
 };
 
-export type PostUmbracoManagementApiV1MeresoftBannersBannersError = PostUmbracoManagementApiV1MeresoftBannersBannersErrors[keyof PostUmbracoManagementApiV1MeresoftBannersBannersErrors];
+export type CreateBannerError = CreateBannerErrors[keyof CreateBannerErrors];
 
-export type PostUmbracoManagementApiV1MeresoftBannersBannersResponses = {
+export type CreateBannerResponses = {
     /**
      * Created
      */
     201: unknown;
 };
 
-export type DeleteUmbracoManagementApiV1MeresoftBannersBannersByKeyData = {
+export type DeleteBannerData = {
     body?: never;
     path: {
         key: string;
@@ -207,7 +207,7 @@ export type DeleteUmbracoManagementApiV1MeresoftBannersBannersByKeyData = {
     url: '/umbraco/management/api/v1/meresoft-banners/banners/{key}';
 };
 
-export type DeleteUmbracoManagementApiV1MeresoftBannersBannersByKeyErrors = {
+export type DeleteBannerErrors = {
     /**
      * The resource is protected and requires an authentication token
      */
@@ -222,18 +222,18 @@ export type DeleteUmbracoManagementApiV1MeresoftBannersBannersByKeyErrors = {
     404: ProblemDetails;
 };
 
-export type DeleteUmbracoManagementApiV1MeresoftBannersBannersByKeyError = DeleteUmbracoManagementApiV1MeresoftBannersBannersByKeyErrors[keyof DeleteUmbracoManagementApiV1MeresoftBannersBannersByKeyErrors];
+export type DeleteBannerError = DeleteBannerErrors[keyof DeleteBannerErrors];
 
-export type DeleteUmbracoManagementApiV1MeresoftBannersBannersByKeyResponses = {
+export type DeleteBannerResponses = {
     /**
      * No Content
      */
     204: void;
 };
 
-export type DeleteUmbracoManagementApiV1MeresoftBannersBannersByKeyResponse = DeleteUmbracoManagementApiV1MeresoftBannersBannersByKeyResponses[keyof DeleteUmbracoManagementApiV1MeresoftBannersBannersByKeyResponses];
+export type DeleteBannerResponse = DeleteBannerResponses[keyof DeleteBannerResponses];
 
-export type GetUmbracoManagementApiV1MeresoftBannersBannersByKeyData = {
+export type GetBannerData = {
     body?: never;
     path: {
         key: string;
@@ -242,7 +242,7 @@ export type GetUmbracoManagementApiV1MeresoftBannersBannersByKeyData = {
     url: '/umbraco/management/api/v1/meresoft-banners/banners/{key}';
 };
 
-export type GetUmbracoManagementApiV1MeresoftBannersBannersByKeyErrors = {
+export type GetBannerErrors = {
     /**
      * The resource is protected and requires an authentication token
      */
@@ -257,18 +257,18 @@ export type GetUmbracoManagementApiV1MeresoftBannersBannersByKeyErrors = {
     404: ProblemDetails;
 };
 
-export type GetUmbracoManagementApiV1MeresoftBannersBannersByKeyError = GetUmbracoManagementApiV1MeresoftBannersBannersByKeyErrors[keyof GetUmbracoManagementApiV1MeresoftBannersBannersByKeyErrors];
+export type GetBannerError = GetBannerErrors[keyof GetBannerErrors];
 
-export type GetUmbracoManagementApiV1MeresoftBannersBannersByKeyResponses = {
+export type GetBannerResponses = {
     /**
      * OK
      */
     200: BannerResponseModel;
 };
 
-export type GetUmbracoManagementApiV1MeresoftBannersBannersByKeyResponse = GetUmbracoManagementApiV1MeresoftBannersBannersByKeyResponses[keyof GetUmbracoManagementApiV1MeresoftBannersBannersByKeyResponses];
+export type GetBannerResponse = GetBannerResponses[keyof GetBannerResponses];
 
-export type PutUmbracoManagementApiV1MeresoftBannersBannersByKeyData = {
+export type UpdateBannerData = {
     body?: BannerRequestModel;
     path: {
         key: string;
@@ -277,7 +277,7 @@ export type PutUmbracoManagementApiV1MeresoftBannersBannersByKeyData = {
     url: '/umbraco/management/api/v1/meresoft-banners/banners/{key}';
 };
 
-export type PutUmbracoManagementApiV1MeresoftBannersBannersByKeyErrors = {
+export type UpdateBannerErrors = {
     /**
      * Bad Request
      */
@@ -300,18 +300,18 @@ export type PutUmbracoManagementApiV1MeresoftBannersBannersByKeyErrors = {
     409: ProblemDetails;
 };
 
-export type PutUmbracoManagementApiV1MeresoftBannersBannersByKeyError = PutUmbracoManagementApiV1MeresoftBannersBannersByKeyErrors[keyof PutUmbracoManagementApiV1MeresoftBannersBannersByKeyErrors];
+export type UpdateBannerError = UpdateBannerErrors[keyof UpdateBannerErrors];
 
-export type PutUmbracoManagementApiV1MeresoftBannersBannersByKeyResponses = {
+export type UpdateBannerResponses = {
     /**
      * OK
      */
     200: BannerResponseModel;
 };
 
-export type PutUmbracoManagementApiV1MeresoftBannersBannersByKeyResponse = PutUmbracoManagementApiV1MeresoftBannersBannersByKeyResponses[keyof PutUmbracoManagementApiV1MeresoftBannersBannersByKeyResponses];
+export type UpdateBannerResponse = UpdateBannerResponses[keyof UpdateBannerResponses];
 
-export type PostUmbracoManagementApiV1MeresoftBannersBannersByKeyCopyData = {
+export type CopyBannerData = {
     body?: CopyBannerRequestModel;
     path: {
         key: string;
@@ -320,7 +320,7 @@ export type PostUmbracoManagementApiV1MeresoftBannersBannersByKeyCopyData = {
     url: '/umbraco/management/api/v1/meresoft-banners/banners/{key}/copy';
 };
 
-export type PostUmbracoManagementApiV1MeresoftBannersBannersByKeyCopyErrors = {
+export type CopyBannerErrors = {
     /**
      * Bad Request
      */
@@ -339,16 +339,16 @@ export type PostUmbracoManagementApiV1MeresoftBannersBannersByKeyCopyErrors = {
     404: ProblemDetails;
 };
 
-export type PostUmbracoManagementApiV1MeresoftBannersBannersByKeyCopyError = PostUmbracoManagementApiV1MeresoftBannersBannersByKeyCopyErrors[keyof PostUmbracoManagementApiV1MeresoftBannersBannersByKeyCopyErrors];
+export type CopyBannerError = CopyBannerErrors[keyof CopyBannerErrors];
 
-export type PostUmbracoManagementApiV1MeresoftBannersBannersByKeyCopyResponses = {
+export type CopyBannerResponses = {
     /**
      * Created
      */
     201: unknown;
 };
 
-export type PostUmbracoManagementApiV1MeresoftBannersBannersByKeyPublishData = {
+export type PublishBannerData = {
     body?: PublishBannerRequestModel;
     path: {
         key: string;
@@ -357,7 +357,7 @@ export type PostUmbracoManagementApiV1MeresoftBannersBannersByKeyPublishData = {
     url: '/umbraco/management/api/v1/meresoft-banners/banners/{key}/publish';
 };
 
-export type PostUmbracoManagementApiV1MeresoftBannersBannersByKeyPublishErrors = {
+export type PublishBannerErrors = {
     /**
      * Bad Request
      */
@@ -380,18 +380,18 @@ export type PostUmbracoManagementApiV1MeresoftBannersBannersByKeyPublishErrors =
     409: ProblemDetails;
 };
 
-export type PostUmbracoManagementApiV1MeresoftBannersBannersByKeyPublishError = PostUmbracoManagementApiV1MeresoftBannersBannersByKeyPublishErrors[keyof PostUmbracoManagementApiV1MeresoftBannersBannersByKeyPublishErrors];
+export type PublishBannerError = PublishBannerErrors[keyof PublishBannerErrors];
 
-export type PostUmbracoManagementApiV1MeresoftBannersBannersByKeyPublishResponses = {
+export type PublishBannerResponses = {
     /**
      * OK
      */
     200: BannerResponseModel;
 };
 
-export type PostUmbracoManagementApiV1MeresoftBannersBannersByKeyPublishResponse = PostUmbracoManagementApiV1MeresoftBannersBannersByKeyPublishResponses[keyof PostUmbracoManagementApiV1MeresoftBannersBannersByKeyPublishResponses];
+export type PublishBannerResponse = PublishBannerResponses[keyof PublishBannerResponses];
 
-export type PostUmbracoManagementApiV1MeresoftBannersBannersByKeyUnpublishData = {
+export type UnpublishBannerData = {
     body?: never;
     path: {
         key: string;
@@ -400,7 +400,7 @@ export type PostUmbracoManagementApiV1MeresoftBannersBannersByKeyUnpublishData =
     url: '/umbraco/management/api/v1/meresoft-banners/banners/{key}/unpublish';
 };
 
-export type PostUmbracoManagementApiV1MeresoftBannersBannersByKeyUnpublishErrors = {
+export type UnpublishBannerErrors = {
     /**
      * The resource is protected and requires an authentication token
      */
@@ -415,25 +415,25 @@ export type PostUmbracoManagementApiV1MeresoftBannersBannersByKeyUnpublishErrors
     404: ProblemDetails;
 };
 
-export type PostUmbracoManagementApiV1MeresoftBannersBannersByKeyUnpublishError = PostUmbracoManagementApiV1MeresoftBannersBannersByKeyUnpublishErrors[keyof PostUmbracoManagementApiV1MeresoftBannersBannersByKeyUnpublishErrors];
+export type UnpublishBannerError = UnpublishBannerErrors[keyof UnpublishBannerErrors];
 
-export type PostUmbracoManagementApiV1MeresoftBannersBannersByKeyUnpublishResponses = {
+export type UnpublishBannerResponses = {
     /**
      * OK
      */
     200: BannerResponseModel;
 };
 
-export type PostUmbracoManagementApiV1MeresoftBannersBannersByKeyUnpublishResponse = PostUmbracoManagementApiV1MeresoftBannersBannersByKeyUnpublishResponses[keyof PostUmbracoManagementApiV1MeresoftBannersBannersByKeyUnpublishResponses];
+export type UnpublishBannerResponse = UnpublishBannerResponses[keyof UnpublishBannerResponses];
 
-export type GetUmbracoManagementApiV1MeresoftBannersRequestedZonesData = {
+export type ListRequestedZonesData = {
     body?: never;
     path?: never;
     query?: never;
     url: '/umbraco/management/api/v1/meresoft-banners/requested-zones';
 };
 
-export type GetUmbracoManagementApiV1MeresoftBannersRequestedZonesErrors = {
+export type ListRequestedZonesErrors = {
     /**
      * The resource is protected and requires an authentication token
      */
@@ -444,16 +444,16 @@ export type GetUmbracoManagementApiV1MeresoftBannersRequestedZonesErrors = {
     403: unknown;
 };
 
-export type GetUmbracoManagementApiV1MeresoftBannersRequestedZonesResponses = {
+export type ListRequestedZonesResponses = {
     /**
      * OK
      */
     200: Array<RequestedZoneResponseModel>;
 };
 
-export type GetUmbracoManagementApiV1MeresoftBannersRequestedZonesResponse = GetUmbracoManagementApiV1MeresoftBannersRequestedZonesResponses[keyof GetUmbracoManagementApiV1MeresoftBannersRequestedZonesResponses];
+export type ListRequestedZonesResponse = ListRequestedZonesResponses[keyof ListRequestedZonesResponses];
 
-export type DeleteUmbracoManagementApiV1MeresoftBannersRequestedZonesByAliasData = {
+export type DismissRequestedZoneData = {
     body?: never;
     path: {
         alias: string;
@@ -462,7 +462,7 @@ export type DeleteUmbracoManagementApiV1MeresoftBannersRequestedZonesByAliasData
     url: '/umbraco/management/api/v1/meresoft-banners/requested-zones/{alias}';
 };
 
-export type DeleteUmbracoManagementApiV1MeresoftBannersRequestedZonesByAliasErrors = {
+export type DismissRequestedZoneErrors = {
     /**
      * The resource is protected and requires an authentication token
      */
@@ -473,23 +473,23 @@ export type DeleteUmbracoManagementApiV1MeresoftBannersRequestedZonesByAliasErro
     403: unknown;
 };
 
-export type DeleteUmbracoManagementApiV1MeresoftBannersRequestedZonesByAliasResponses = {
+export type DismissRequestedZoneResponses = {
     /**
      * No Content
      */
     204: void;
 };
 
-export type DeleteUmbracoManagementApiV1MeresoftBannersRequestedZonesByAliasResponse = DeleteUmbracoManagementApiV1MeresoftBannersRequestedZonesByAliasResponses[keyof DeleteUmbracoManagementApiV1MeresoftBannersRequestedZonesByAliasResponses];
+export type DismissRequestedZoneResponse = DismissRequestedZoneResponses[keyof DismissRequestedZoneResponses];
 
-export type GetUmbracoManagementApiV1MeresoftBannersZonesData = {
+export type ListZonesData = {
     body?: never;
     path?: never;
     query?: never;
     url: '/umbraco/management/api/v1/meresoft-banners/zones';
 };
 
-export type GetUmbracoManagementApiV1MeresoftBannersZonesErrors = {
+export type ListZonesErrors = {
     /**
      * The resource is protected and requires an authentication token
      */
@@ -500,23 +500,23 @@ export type GetUmbracoManagementApiV1MeresoftBannersZonesErrors = {
     403: unknown;
 };
 
-export type GetUmbracoManagementApiV1MeresoftBannersZonesResponses = {
+export type ListZonesResponses = {
     /**
      * OK
      */
     200: Array<ZoneResponseModel>;
 };
 
-export type GetUmbracoManagementApiV1MeresoftBannersZonesResponse = GetUmbracoManagementApiV1MeresoftBannersZonesResponses[keyof GetUmbracoManagementApiV1MeresoftBannersZonesResponses];
+export type ListZonesResponse = ListZonesResponses[keyof ListZonesResponses];
 
-export type PostUmbracoManagementApiV1MeresoftBannersZonesData = {
+export type CreateZoneData = {
     body?: ZoneRequestModel;
     path?: never;
     query?: never;
     url: '/umbraco/management/api/v1/meresoft-banners/zones';
 };
 
-export type PostUmbracoManagementApiV1MeresoftBannersZonesErrors = {
+export type CreateZoneErrors = {
     /**
      * Bad Request
      */
@@ -535,16 +535,16 @@ export type PostUmbracoManagementApiV1MeresoftBannersZonesErrors = {
     409: ProblemDetails;
 };
 
-export type PostUmbracoManagementApiV1MeresoftBannersZonesError = PostUmbracoManagementApiV1MeresoftBannersZonesErrors[keyof PostUmbracoManagementApiV1MeresoftBannersZonesErrors];
+export type CreateZoneError = CreateZoneErrors[keyof CreateZoneErrors];
 
-export type PostUmbracoManagementApiV1MeresoftBannersZonesResponses = {
+export type CreateZoneResponses = {
     /**
      * Created
      */
     201: unknown;
 };
 
-export type DeleteUmbracoManagementApiV1MeresoftBannersZonesByKeyData = {
+export type DeleteZoneData = {
     body?: never;
     path: {
         key: string;
@@ -553,7 +553,7 @@ export type DeleteUmbracoManagementApiV1MeresoftBannersZonesByKeyData = {
     url: '/umbraco/management/api/v1/meresoft-banners/zones/{key}';
 };
 
-export type DeleteUmbracoManagementApiV1MeresoftBannersZonesByKeyErrors = {
+export type DeleteZoneErrors = {
     /**
      * The resource is protected and requires an authentication token
      */
@@ -572,18 +572,18 @@ export type DeleteUmbracoManagementApiV1MeresoftBannersZonesByKeyErrors = {
     409: ProblemDetails;
 };
 
-export type DeleteUmbracoManagementApiV1MeresoftBannersZonesByKeyError = DeleteUmbracoManagementApiV1MeresoftBannersZonesByKeyErrors[keyof DeleteUmbracoManagementApiV1MeresoftBannersZonesByKeyErrors];
+export type DeleteZoneError = DeleteZoneErrors[keyof DeleteZoneErrors];
 
-export type DeleteUmbracoManagementApiV1MeresoftBannersZonesByKeyResponses = {
+export type DeleteZoneResponses = {
     /**
      * No Content
      */
     204: void;
 };
 
-export type DeleteUmbracoManagementApiV1MeresoftBannersZonesByKeyResponse = DeleteUmbracoManagementApiV1MeresoftBannersZonesByKeyResponses[keyof DeleteUmbracoManagementApiV1MeresoftBannersZonesByKeyResponses];
+export type DeleteZoneResponse = DeleteZoneResponses[keyof DeleteZoneResponses];
 
-export type GetUmbracoManagementApiV1MeresoftBannersZonesByKeyData = {
+export type GetZoneData = {
     body?: never;
     path: {
         key: string;
@@ -592,7 +592,7 @@ export type GetUmbracoManagementApiV1MeresoftBannersZonesByKeyData = {
     url: '/umbraco/management/api/v1/meresoft-banners/zones/{key}';
 };
 
-export type GetUmbracoManagementApiV1MeresoftBannersZonesByKeyErrors = {
+export type GetZoneErrors = {
     /**
      * The resource is protected and requires an authentication token
      */
@@ -607,18 +607,18 @@ export type GetUmbracoManagementApiV1MeresoftBannersZonesByKeyErrors = {
     404: ProblemDetails;
 };
 
-export type GetUmbracoManagementApiV1MeresoftBannersZonesByKeyError = GetUmbracoManagementApiV1MeresoftBannersZonesByKeyErrors[keyof GetUmbracoManagementApiV1MeresoftBannersZonesByKeyErrors];
+export type GetZoneError = GetZoneErrors[keyof GetZoneErrors];
 
-export type GetUmbracoManagementApiV1MeresoftBannersZonesByKeyResponses = {
+export type GetZoneResponses = {
     /**
      * OK
      */
     200: ZoneResponseModel;
 };
 
-export type GetUmbracoManagementApiV1MeresoftBannersZonesByKeyResponse = GetUmbracoManagementApiV1MeresoftBannersZonesByKeyResponses[keyof GetUmbracoManagementApiV1MeresoftBannersZonesByKeyResponses];
+export type GetZoneResponse = GetZoneResponses[keyof GetZoneResponses];
 
-export type PutUmbracoManagementApiV1MeresoftBannersZonesByKeyData = {
+export type UpdateZoneData = {
     body?: ZoneRequestModel;
     path: {
         key: string;
@@ -627,7 +627,7 @@ export type PutUmbracoManagementApiV1MeresoftBannersZonesByKeyData = {
     url: '/umbraco/management/api/v1/meresoft-banners/zones/{key}';
 };
 
-export type PutUmbracoManagementApiV1MeresoftBannersZonesByKeyErrors = {
+export type UpdateZoneErrors = {
     /**
      * Bad Request
      */
@@ -650,13 +650,13 @@ export type PutUmbracoManagementApiV1MeresoftBannersZonesByKeyErrors = {
     409: ProblemDetails;
 };
 
-export type PutUmbracoManagementApiV1MeresoftBannersZonesByKeyError = PutUmbracoManagementApiV1MeresoftBannersZonesByKeyErrors[keyof PutUmbracoManagementApiV1MeresoftBannersZonesByKeyErrors];
+export type UpdateZoneError = UpdateZoneErrors[keyof UpdateZoneErrors];
 
-export type PutUmbracoManagementApiV1MeresoftBannersZonesByKeyResponses = {
+export type UpdateZoneResponses = {
     /**
      * OK
      */
     200: ZoneResponseModel;
 };
 
-export type PutUmbracoManagementApiV1MeresoftBannersZonesByKeyResponse = PutUmbracoManagementApiV1MeresoftBannersZonesByKeyResponses[keyof PutUmbracoManagementApiV1MeresoftBannersZonesByKeyResponses];
+export type UpdateZoneResponse = UpdateZoneResponses[keyof UpdateZoneResponses];

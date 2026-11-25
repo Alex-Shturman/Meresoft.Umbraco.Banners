@@ -16,7 +16,7 @@ namespace Meresoft.Umbraco.Banners.ManagementApi;
 /// </summary>
 [ApiVersion("1.0")]
 [VersionedApiBackOfficeRoute(BannersConstants.ApiName)]
-[ApiExplorerSettings(GroupName = "Banners")]
+[ApiExplorerSettings(GroupName = BannersConstants.ApiGroupName)]
 [MapToApi(BannersConstants.ApiName)]
 [Authorize(Policy = BannersConstants.SectionAccessPolicy)]
 public abstract class BannersManagementApiControllerBase : ManagementApiControllerBase

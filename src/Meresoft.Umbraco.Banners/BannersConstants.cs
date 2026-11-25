@@ -18,6 +18,9 @@ public static class BannersConstants
     /// <summary>Name of the management API and its OpenAPI document.</summary>
     public const string ApiName = "meresoft-banners";
 
+    /// <summary>API explorer group name of the management API controllers.</summary>
+    public const string ApiGroupName = "Banners";
+
     /// <summary>Audit entity type of a banner.</summary>
     public const string BannerEntityType = "meresoft-banner";
 
