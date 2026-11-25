@@ -10,8 +10,6 @@
   "Category": "Editor Tools",
   "LicenseTypes": [ "Free" ],
   "PackageType": "Package",
-  "VersionSupport": [
-    { "UmbracoVersion": "17", "DotNetVersion": "10" }
-  ],
-  "RelatedPackages": []
+  "IssueTrackerUrl": "https://github.com/meresoft/Meresoft.Umbraco.Banners/issues",
+  "DocumentationUrl": "https://github.com/meresoft/Meresoft.Umbraco.Banners#readme"
 }

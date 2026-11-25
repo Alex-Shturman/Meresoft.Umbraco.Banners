@@ -171,7 +171,7 @@ public sealed class OldStatisticsImporter(IBannerImportService import)
         ];
 
         BannerImportResult result = await import.ImportStatisticsAsync(rows, StatisticImportMode.Add);
-        // result.Inserted, result.Updated and result.Rejected (unknown banner or zone key, negative numbers)
+        // result.Inserted, result.Updated and result.Rejected (unknown banner or zone key, negative numbers, null entries)
     }
 }
 ```
