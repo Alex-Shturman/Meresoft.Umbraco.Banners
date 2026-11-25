@@ -1,5 +1,6 @@
 using System.Net;
 using Meresoft.Umbraco.Banners.Counting;
+using Meresoft.Umbraco.Banners.Rendering;
 using Meresoft.Umbraco.Banners.Tests.Integration.TestSetup;
 using NUnit.Framework;
 using Umbraco.Cms.Core;
@@ -191,7 +192,7 @@ public class ClickEndpointTests : PublicEndpointTestBase
             {
                 Name = "Url name",
             });
-        contentTypeService.Save(type);
+        contentTypeService.CreateAsync(type, Constants.Security.SuperUserKey).GetAwaiter().GetResult();
 
         IContent content = contentService.Create("Shadow", Constants.System.Root, type.Alias);
         content.SetValue(Constants.Conventions.Content.UrlName, segment);
