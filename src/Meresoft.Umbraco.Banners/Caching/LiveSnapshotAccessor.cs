@@ -105,10 +105,10 @@ internal sealed class LiveSnapshotAccessor : ILiveSnapshotAccessor
         }
     }
 
-    public async Task ReloadLimitsAsync()
+    public async Task ReloadLimitsAsync(CancellationToken cancellationToken = default)
     {
         // Behind the same lock as a rebuild, so a reload can never put an older snapshot over a newer one.
-        await _rebuildLock.WaitAsync();
+        await _rebuildLock.WaitAsync(cancellationToken);
         try
         {
             LiveSnapshot current = _current;

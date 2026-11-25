@@ -23,5 +23,5 @@ public interface ILiveSnapshotAccessor
     /// Reads the totals of the banners in the snapshot that have a limit and swaps in a snapshot without those that
     /// reached it. Cheap: no zones, banners or media are read. Called after each flush (US5).
     /// </summary>
-    Task ReloadLimitsAsync();
+    Task ReloadLimitsAsync(CancellationToken cancellationToken = default);
 }

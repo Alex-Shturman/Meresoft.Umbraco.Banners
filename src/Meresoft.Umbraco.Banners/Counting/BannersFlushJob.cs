@@ -59,23 +59,24 @@ internal sealed class BannersFlushJob : RecurringBackgroundJobBase
     {
         _counters.Flush();
 
-        // The totals now include this flush (and the other servers' flushes): banners over their limit leave the
-        // snapshot here, so the overshoot is at most the views of one interval (US5). The flush scopes are closed.
+        IReadOnlyList<RequestedZone> requested = _recorder.Drain();
+        WriteRequested(requested);
+
+        // After the zone writes, so a slow rebuild that holds the snapshot lock cannot delay them. The totals now
+        // include this flush (and the other servers' flushes): banners over their limit leave the snapshot here, so
+        // the overshoot is at most the views of one interval (US5). The flush scopes are closed.
         try
         {
-            await _snapshot.ReloadLimitsAsync();
+            await _snapshot.ReloadLimitsAsync(cancellationToken);
         }
-        catch (Exception ex)
+        catch (Exception ex) when (ex is not OperationCanceledException)
         {
             _logger.LogError(ex, "Reloading the banner limits failed; they are checked again after the next flush.");
         }
+    }
 
-        IReadOnlyList<RequestedZone> requested = _recorder.Drain();
-        if (requested.Count == 0)
-        {
-            return;
-        }
-
+    private void WriteRequested(IReadOnlyList<RequestedZone> requested)
+    {
         // One scope per alias: a failure on one alias (for example two servers inserting the same new alias
         // at once) must not roll back or lose the others.
         foreach (RequestedZone item in requested)

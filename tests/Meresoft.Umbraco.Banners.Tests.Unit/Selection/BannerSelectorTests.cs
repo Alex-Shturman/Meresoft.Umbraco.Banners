@@ -155,6 +155,6 @@ public class BannerSelectorTests
 
         public Task RebuildAsync(IReadOnlySet<Guid>? mediaKeysTreatedAsMissing = null) => Task.CompletedTask;
 
-        public Task ReloadLimitsAsync() => Task.CompletedTask;
+        public Task ReloadLimitsAsync(CancellationToken cancellationToken = default) => Task.CompletedTask;
     }
 }
