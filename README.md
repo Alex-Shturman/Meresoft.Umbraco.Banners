@@ -35,3 +35,19 @@ The click address is a plain GET, so anyone can call it directly (a script, a li
 looks like a browser, or someone pasting the address many times). Such requests can inflate the
 click count and so the click rate. Impressions are protected by a signed, single use view token; clicks
 are not, because a click must work without JavaScript and on cached pages.
+
+### View tokens on several servers and after a restart
+
+An impression is reported with a signed view token that the page carries. Each server remembers, in
+memory only, which token and banner pairs it has counted, so a repeated report counts once. That memory
+has three consequences:
+
+- A report replayed to a different server is counted once more per server. Replaying needs deliberate
+  effort and is bounded by the number of servers and the token lifetime (10 minutes by default).
+- A restart empties the memory. A token that was already counted can be counted again after the
+  restart, as long as it has not expired. The same bound applies.
+- The memory holds at most 250,000 pairs. When it is full it refuses new reports until entries expire,
+  and the log gets one warning (counts only) each time it fills up.
+
+Tokens are checked with the site's data protection keys, so servers behind a load balancer must share
+the key ring, which Umbraco needs for back office sign-in anyway.

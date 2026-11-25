@@ -1,6 +1,7 @@
 using System.Buffers.Binary;
 using System.Collections.Concurrent;
 using Meresoft.Umbraco.Banners.Configuration;
+using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Options;
 
 namespace Meresoft.Umbraco.Banners.Tokens;
@@ -12,19 +13,23 @@ public sealed class ReplaySet
 
     private readonly ConcurrentDictionary<Key, long> _entries = new();
     private readonly TimeProvider _timeProvider;
+    private readonly ILogger<ReplaySet> _logger;
     private readonly long _lifetimeTicks;
     private readonly long _purgeIntervalTicks;
     private readonly int _maxEntries;
     private long _nextPurgeTicks;
     private long _fullPurgeNotBeforeTicks;
     private int _purging;
+    private int _fullLogged;
 
     /// <summary>Creates the set.</summary>
-    public ReplaySet(TimeProvider timeProvider, IOptions<BannersOptions> options, int maxEntries = 250_000)
+    public ReplaySet(TimeProvider timeProvider, IOptions<BannersOptions> options, ILogger<ReplaySet> logger, int maxEntries = 250_000)
     {
         ArgumentNullException.ThrowIfNull(timeProvider);
         ArgumentNullException.ThrowIfNull(options);
+        ArgumentNullException.ThrowIfNull(logger);
         _timeProvider = timeProvider;
+        _logger = logger;
         _lifetimeTicks = options.Value.ViewTokenLifetime.Ticks;
         _purgeIntervalTicks = Math.Max(1, _lifetimeTicks / 2);
         _maxEntries = maxEntries;
@@ -68,8 +73,22 @@ public sealed class ReplaySet
 
             if (_entries.Count >= _maxEntries)
             {
+                // Said once per time the set fills up, with counts only: nothing of a token or a visitor goes into the log.
+                if (Interlocked.Exchange(ref _fullLogged, 1) == 0)
+                {
+                    _logger.LogWarning(
+                        "The banner view token replay set is full ({Capacity} entries) and refuses new impression reports until entries expire after {Lifetime}.",
+                        _maxEntries,
+                        TimeSpan.FromTicks(_lifetimeTicks));
+                }
+
                 return false;
             }
+        }
+
+        if (Volatile.Read(ref _fullLogged) == 1)
+        {
+            Volatile.Write(ref _fullLogged, 0);
         }
 
         return _entries.TryAdd(key, expiry);
