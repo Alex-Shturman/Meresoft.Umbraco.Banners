@@ -13,7 +13,7 @@ public class ZonesApiTests : BannersApiTestBase
     [Test]
     public async Task Create_Returns201WithLocation_AndGetReturnsTheZone()
     {
-        HttpResponseMessage response = await PostAsync("/zones", ZoneBody("Search-Top", renderMode: "client", showCount: 3));
+        HttpResponseMessage response = await PostAsync("/zones", ZoneBody("Search-Top", showCount: 3));
 
         Assert.That(response.StatusCode, Is.EqualTo(HttpStatusCode.Created));
         Guid key = KeyFromLocation(response);
@@ -25,9 +25,18 @@ public class ZonesApiTests : BannersApiTestBase
             Assert.That(zone.GetProperty("name").GetString(), Is.EqualTo("Zone Search-Top"));
             Assert.That(zone.GetProperty("showCount").GetInt32(), Is.EqualTo(3));
             Assert.That(zone.GetProperty("imageWidth").GetInt32(), Is.EqualTo(728));
-            Assert.That(zone.GetProperty("renderMode").GetString(), Is.EqualTo("Client"));
+            Assert.That(zone.GetProperty("renderMode").GetString(), Is.EqualTo("Server"));
             Assert.That(zone.GetProperty("updateDate").GetDateTime(), Is.Not.EqualTo(default(DateTime)));
         });
+    }
+
+    [Test]
+    public async Task Create_ClientRenderMode_Returns400_UntilClientModeExists()
+    {
+        HttpResponseMessage response = await PostAsync("/zones", ZoneBody("cached-top", renderMode: "client"));
+
+        Assert.That(response.StatusCode, Is.EqualTo(HttpStatusCode.BadRequest));
+        Assert.That((await ReadAsync(response)).GetProperty("errors").EnumerateArray().Any(e => e.TryGetProperty("$.renderMode", out _)), Is.True);
     }
 
     [Test]

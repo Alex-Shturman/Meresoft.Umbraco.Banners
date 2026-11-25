@@ -36,9 +36,8 @@ export default {
     zoneShowCount: "Banners shown at once",
     zoneImageWidth: "Image width",
     zoneImageHeight: "Image height",
-    zoneRenderMode: "Rendering",
-    zoneRenderServer: "Server: banners are part of the page HTML",
-    zoneRenderClient: "Client: the browser loads banners, for cached pages",
+    // TODO(US4, T112): add the render mode keys back with client mode (server: banners are part of the page HTML;
+    // client: the browser loads banners, for cached pages).
     zoneActiveBanners: "Active banners",
     zoneInUseHeadline: "Banners are still assigned to this zone",
     zoneInUseContent: "Remove the zone from these banners, then delete it.",

@@ -182,7 +182,8 @@ public class ZoneValidatorTests
         Assert.Multiple(() =>
         {
             Assert.That(Validate(z => z.RenderMode = ZoneRenderMode.Server).IsValid, Is.True);
-            Assert.That(Validate(z => z.RenderMode = ZoneRenderMode.Client).IsValid, Is.True);
+            // Client mode is switched off until the client mode story (US4, T112) delivers it.
+            Assert.That(Validate(z => z.RenderMode = ZoneRenderMode.Client).Errors, Contains.Key("renderMode"));
             Assert.That(Validate(z => z.RenderMode = (ZoneRenderMode)2).Errors, Contains.Key("renderMode"));
             Assert.That((int)ZoneRenderMode.Server, Is.EqualTo(0));
             Assert.That((int)ZoneRenderMode.Client, Is.EqualTo(1));

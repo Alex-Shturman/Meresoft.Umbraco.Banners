@@ -227,17 +227,10 @@ export class MeresoftZoneEditorElement extends UmbLitElement {
           ${this.#textField("showCount", "meresoftBanners_zoneShowCount", String(this._showCount), (v) => (this._showCount = Number(v)), undefined, "number")}
           ${this.#textField("imageWidth", "meresoftBanners_zoneImageWidth", this._imageWidth, (v) => (this._imageWidth = v), undefined, "number")}
           ${this.#textField("imageHeight", "meresoftBanners_zoneImageHeight", this._imageHeight, (v) => (this._imageHeight = v), undefined, "number")}
-          <uui-form-layout-item>
-            <uui-label slot="label" for="renderMode">${this.localize.term("meresoftBanners_zoneRenderMode")}</uui-label>
-            <uui-select
-              id="renderMode"
-              label=${this.localize.term("meresoftBanners_zoneRenderMode")}
-              .options=${[
-                { name: this.localize.term("meresoftBanners_zoneRenderServer"), value: "Server", selected: this._renderMode === "Server" },
-                { name: this.localize.term("meresoftBanners_zoneRenderClient"), value: "Client", selected: this._renderMode === "Client" },
-              ]}
-              @change=${(e: Event) => (this._renderMode = (e.target as HTMLInputElement).value as ZoneRenderMode)}></uui-select>
-          </uui-form-layout-item>
+          <!--
+            TODO(US4, T112): the render mode choice (server or client) comes back with client mode. Until then
+            the API only accepts server rendering, so no control is shown and new zones use Server.
+          -->
         </uui-box>
         <umb-footer-layout slot="footer">
           ${this.#zoneKey

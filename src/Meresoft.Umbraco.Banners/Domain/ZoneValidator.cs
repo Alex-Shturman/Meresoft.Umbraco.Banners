@@ -58,6 +58,12 @@ public static partial class ZoneValidator
         {
             result.Add("renderMode", "The render mode must be server or client.");
         }
+        else if (zone.RenderMode == ZoneRenderMode.Client)
+        {
+            // TODO(US4, T112): client mode is not delivered yet (no delivery endpoint, no placeholder markup).
+            // Remove this branch when Track 6 adds it, and re-enable the choice in zone-editor.element.ts.
+            result.Add("renderMode", "Client rendering is not available yet. Use server rendering.");
+        }
 
         return result;
     }
