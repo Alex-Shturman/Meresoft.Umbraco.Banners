@@ -5,8 +5,16 @@ import { getBannerEditorCredentials, getEditorCredentials } from "./support/cred
 /**
  * User story 6 on the sample site: the section is hidden from the sample editor (quickstart scenario 12), visible to
  * the administrator, a group with the section but without the HTML permission sees the HTML field read-only, and the
- * history views of a banner and a zone list the changes. All data is invented. The banner editor needs the sample
- * variables MB_SAMPLE_BANNER_EDITOR_EMAIL and MB_SAMPLE_BANNER_EDITOR_PASSWORD; the editor needs MB_SAMPLE_EDITOR_*.
+ * history views of a banner and a zone list the changes. All data is invented.
+ *
+ * Environment variables (read in support/credentials.ts, all exported in the shell that runs Playwright):
+ *   MB_SAMPLE_BASE_URL               the sample site, http://localhost:5100 by default
+ *   MB_SAMPLE_ADMIN_EMAIL/_PASSWORD  the administrator; required by every test here
+ *   MB_SAMPLE_EDITOR_EMAIL/_PASSWORD scenario 12 (a user of the built-in Editors group); that test is skipped, not failed,
+ *                                    when either variable is empty or unset in the Playwright process
+ *   MB_SAMPLE_BANNER_EDITOR_EMAIL/_PASSWORD  the read-only HTML field test; skipped the same way
+ * The sample site creates the editor and the banner editor at start-up from the same variable names
+ * (SampleUsersComposer.cs), so export them before starting the site as well, or the logins fail.
  */
 test.describe.configure({ mode: "serial" });
 
@@ -33,7 +41,7 @@ function toast(page: Page, text: string) {
 
 test("scenario 12: the sample editor sees no Banners section", async ({ browser }) => {
   const credentials = getEditorCredentials();
-  test.skip(!credentials, "MB_SAMPLE_EDITOR_EMAIL and MB_SAMPLE_EDITOR_PASSWORD are not set");
+  test.skip(!credentials, "scenario 12 needs MB_SAMPLE_EDITOR_EMAIL and MB_SAMPLE_EDITOR_PASSWORD exported in the shell that runs Playwright");
   const editor = await browser.newPage();
   try {
     await loginAs(editor, credentials!);
