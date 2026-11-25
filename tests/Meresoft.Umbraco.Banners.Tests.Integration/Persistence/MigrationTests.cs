@@ -224,4 +224,29 @@ public class MigrationTests : BannersIntegrationTestBase
                 "core tables were added or removed");
         });
     }
+
+    // Re-review 1b: the package takes an Umbraco write lock before it writes, so its row must exist in umbracoLock.
+
+    [Test]
+    public async Task Install_AddsThePackageWriteLock_AndAScopeCanTakeIt()
+    {
+        await InstallPackageAsync();
+
+        using IScope scope = ScopeProvider.CreateScope();
+        scope.EagerWriteLock(BannersConstants.WriteLockId);
+        int rows = scope.Database.ExecuteScalar<int>("SELECT COUNT(*) FROM umbracoLock WHERE id = @0", BannersConstants.WriteLockId);
+        scope.Complete();
+
+        Assert.That(rows, Is.EqualTo(1));
+    }
+
+    [Test]
+    public async Task RunningThePlanAgain_DoesNotAddASecondLockRow()
+    {
+        await InstallPackageAsync();
+        await InstallPackageAsync();
+
+        using IScope scope = ScopeProvider.CreateScope(autoComplete: true);
+        Assert.That(scope.Database.ExecuteScalar<int>("SELECT COUNT(*) FROM umbracoLock WHERE id = @0", BannersConstants.WriteLockId), Is.EqualTo(1));
+    }
 }

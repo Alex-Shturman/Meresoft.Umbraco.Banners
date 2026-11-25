@@ -20,5 +20,6 @@ public class BannersMigrationPlan : PackageMigrationPlan
     {
         To<CreateTables>("7b0c6c47-8f50-4f35-9a52-5f1d2a8f6a01");
         To<GrantAdministratorsAccess>("c9a4f1d2-3b8e-4e6a-b7d1-2e5f9c3a7b02");
+        To<AddWriteLock>("5e2d7a90-6c1b-4f3e-8a47-91b0c3d5e803");
     }
 }
