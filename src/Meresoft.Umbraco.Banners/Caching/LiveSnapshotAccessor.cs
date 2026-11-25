@@ -17,6 +17,8 @@ internal sealed class LiveSnapshotAccessor : ILiveSnapshotAccessor
     // Rebuilds run one at a time so an older read can never replace a newer one.
     private readonly SemaphoreSlim _rebuildLock = new(1, 1);
     private volatile LiveSnapshot _current = LiveSnapshot.Empty;
+    private volatile bool _built;
+    private int _warnedBeforeFirstBuild;
 
     public LiveSnapshotAccessor(
         IScopeProvider scopeProvider,
@@ -32,9 +34,22 @@ internal sealed class LiveSnapshotAccessor : ILiveSnapshotAccessor
         _logger = logger;
     }
 
-    public LiveSnapshot Current => _current;
+    public LiveSnapshot Current
+    {
+        get
+        {
+            // Before the first build every zone looks "not set up" and no banner shows. That is worth one line in
+            // the log, because the cause (the build failed at start up) is otherwise invisible on the page.
+            if (!IsBuilt && Interlocked.CompareExchange(ref _warnedBeforeFirstBuild, 1, 0) == 0)
+            {
+                _logger.LogWarning("The banner snapshot is read before its first build has succeeded; no banner is shown until it is built.");
+            }
 
-    public bool IsBuilt { get; private set; }
+            return _current;
+        }
+    }
+
+    public bool IsBuilt => _built;
 
     public async Task RebuildAsync(IReadOnlySet<Guid>? mediaKeysTreatedAsMissing = null)
     {
@@ -50,7 +65,7 @@ internal sealed class LiveSnapshotAccessor : ILiveSnapshotAccessor
             }
 
             _current = await _builder.BuildAsync(zones, banners, mediaKeysTreatedAsMissing);
-            IsBuilt = true;
+            _built = true;
             _logger.LogDebug("Banner snapshot rebuilt: {ZoneCount} zones, {MissingImageCount} banners with a missing image.", zones.Count, _current.ImageMissingBannerIds.Count);
         }
         finally
