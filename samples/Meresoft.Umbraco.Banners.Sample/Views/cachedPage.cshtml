@@ -1,0 +1,17 @@
+﻿@using Umbraco.Cms.Web.Common.PublishedModels
+@inherits Umbraco.Cms.Web.Common.Views.UmbracoViewPage
+@{
+    Layout = null;
+}
+<!doctype html>
+<html lang="en">
+<head>
+    <meta charset="utf-8">
+    <title>@Model.Name</title>
+</head>
+<body>
+    <h1>A cached page</h1>
+    <banner-zone alias="cached-top"></banner-zone>
+    <p>Rendered at @DateTime.UtcNow.ToString("HH:mm:ss") UTC (cached for 60 seconds).</p>
+</body>
+</html>
