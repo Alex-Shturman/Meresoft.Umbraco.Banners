@@ -1,6 +1,7 @@
 using Meresoft.Umbraco.Banners.Configuration;
 using Meresoft.Umbraco.Banners.Rendering;
 using Meresoft.Umbraco.Banners.Selection;
+using Meresoft.Umbraco.Banners.Tokens;
 using Microsoft.Extensions.Options;
 using NUnit.Framework;
 
@@ -12,12 +13,14 @@ public class BannerZoneHtmlWriterTests
     private const string ScriptTag = "<script src=\"/meresoft-banners/banners.js\" defer></script>";
 
     private BannerZoneHtmlWriter _writer = null!;
+    private FakeProtector _tokens = null!;
     private Dictionary<object, object?> _requestItems = null!;
 
     [SetUp]
     public void SetUp()
     {
-        _writer = new BannerZoneHtmlWriter(Options.Create(new BannersOptions()));
+        _tokens = new FakeProtector();
+        _writer = new BannerZoneHtmlWriter(Options.Create(new BannersOptions()), _tokens);
         _requestItems = [];
     }
 
@@ -45,9 +48,9 @@ public class BannerZoneHtmlWriterTests
         string html = Render("search-top", "my-ads", [Banner(12)]);
 
         Assert.That(html, Is.EqualTo(
-            "<div class=\"mb-zone my-ads\" data-mbz=\"search-top\" data-mb-base=\"/_banners\">"
+            "<div class=\"mb-zone my-ads\" data-mbz=\"search-top\" data-mb-base=\"/_banners\" data-mbz-token=\"token-3-12\">"
             + "<div class=\"mb-banner\" data-mbb=\"12\">"
-            + "<a href=\"https://example.org/show\" rel=\"sponsored noopener\">"
+            + "<a href=\"/_banners/c/12?z=3\" rel=\"sponsored noopener\">"
             + "<img src=\"/media/abc/banner.png?width=728&amp;height=90\" alt=\"Invented summer promo 2027\" width=\"728\" height=\"90\" loading=\"lazy\" decoding=\"async\">"
             + "</a></div></div>"
             + ScriptTag));
@@ -158,10 +161,63 @@ public class BannerZoneHtmlWriterTests
     [Test]
     public void TheBasePathComesFromTheOptions()
     {
-        var writer = new BannerZoneHtmlWriter(Options.Create(new BannersOptions { PublicPath = "/ads-x" }));
+        var writer = new BannerZoneHtmlWriter(Options.Create(new BannersOptions { PublicPath = "/ads-x" }), new FakeProtector());
 
         string html = writer.Render(new BannerZoneView("z", null, [Banner(1)], null), new Dictionary<object, object?>());
 
         Assert.That(html, Does.Contain("data-mb-base=\"/ads-x\""));
+    }
+
+    [Test]
+    public void TheLinkPointsAtTheClickAddress_NeverAtTheStoredUrl()
+    {
+        string html = Render("z", null, [Banner(12, b => b with { LinkUrl = "https://example.org/a?b=1&c=2" })]);
+
+        Assert.That(html, Does.Contain("href=\"/_banners/c/12?z=3\""));
+        Assert.That(html, Does.Not.Contain("example.org"));
+    }
+
+    [Test]
+    public void TheClickAddress_UsesTheConfiguredBasePath()
+    {
+        var writer = new BannerZoneHtmlWriter(Options.Create(new BannersOptions { PublicPath = "/ads-x" }), new FakeProtector());
+
+        string html = writer.Render(new BannerZoneView("z", null, [Banner(12)], null), new Dictionary<object, object?>());
+
+        Assert.That(html, Does.Contain("href=\"/ads-x/c/12?z=3\""));
+    }
+
+    [Test]
+    public void TheToken_CarriesTheZoneAndAllBannerIdsOfTheView()
+    {
+        string html = Render("z", null, [Banner(12), Banner(15)]);
+
+        Assert.That(_tokens.Issued, Is.EqualTo(new[] { (3, new[] { 12, 15 }) }));
+        Assert.That(html, Does.Contain("data-mbz-token=\"token-3-12-15\""));
+    }
+
+    [Test]
+    public void AZoneWithoutBanners_IssuesNoToken()
+    {
+        Render("z", null, [], "<p>Fallback</p>");
+
+        Assert.That(_tokens.Issued, Is.Empty);
+    }
+
+    private sealed class FakeProtector : IViewTokenProtector
+    {
+        public List<(int ZoneId, int[] BannerIds)> Issued { get; } = [];
+
+        public string Issue(int zoneId, IReadOnlyList<int> bannerIds)
+        {
+            Issued.Add((zoneId, bannerIds.ToArray()));
+            return "token-" + zoneId + "-" + string.Join('-', bannerIds);
+        }
+
+        public bool TryValidate(string? token, [System.Diagnostics.CodeAnalysis.NotNullWhen(true)] out ViewTokenPayload? payload)
+        {
+            payload = null;
+            return false;
+        }
     }
 }
