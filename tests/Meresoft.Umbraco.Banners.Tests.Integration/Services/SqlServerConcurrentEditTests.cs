@@ -13,6 +13,13 @@ namespace Meresoft.Umbraco.Banners.Tests.Integration.Services;
 /// Editor A updates the banner row and holds the transaction. Editor B's guarded update blocks on that row; when A
 /// commits, B's update no longer matches (the update date changed) and reports no row, which is ChangedByAnotherUser.
 /// Every wait has a timeout, so a broken guard fails the test instead of hanging it.
+/// It needs a real SQL Server run; it has not been executed on SQLite and is skipped there. The CI job
+/// <c>integration-tests-sqlserver</c> runs the whole integration project with <c>MB_TEST_SQLSERVER</c> set, with no
+/// category filter, so this test runs there.
+/// Nuance: with READ_COMMITTED_SNAPSHOT on, readers do not block on writers, so editor B's read is never blocked.
+/// With the default locking read committed, B may block already while loading the banner (the read waits for A's row
+/// lock) instead of at its guarded update. The result is the same: B's update finds no row after A commits, and
+/// the check "B is still waiting after one second" holds in both cases.
 /// </summary>
 [TestFixture]
 [Category("SqlServer")]
