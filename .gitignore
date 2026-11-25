@@ -40,3 +40,4 @@ samples/**/umbraco/
 tests/**/appsettings-schema*.json
 tests/**/umbraco-package-schema.json
 .playwright-mcp/
+samples/**/appsettings.Development.json
