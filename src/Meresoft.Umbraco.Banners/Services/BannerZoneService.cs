@@ -6,7 +6,6 @@ using Meresoft.Umbraco.Banners.Persistence.Repositories;
 using Meresoft.Umbraco.Banners.Services.Audit;
 using Meresoft.Umbraco.Banners.Services.Models;
 using Umbraco.Cms.Core;
-using Umbraco.Cms.Core.Cache;
 using Umbraco.Cms.Infrastructure.Scoping;
 
 namespace Meresoft.Umbraco.Banners.Services;
@@ -18,7 +17,6 @@ internal sealed class BannerZoneService : IBannerZoneService
     private readonly IZoneRepository _zones;
     private readonly IRequestedZoneRepository _requestedZones;
     private readonly BannerAuditWriter _audit;
-    private readonly DistributedCache _distributedCache;
     private readonly TimeProvider _timeProvider;
 
     public BannerZoneService(
@@ -26,14 +24,12 @@ internal sealed class BannerZoneService : IBannerZoneService
         IZoneRepository zones,
         IRequestedZoneRepository requestedZones,
         BannerAuditWriter audit,
-        DistributedCache distributedCache,
         TimeProvider timeProvider)
     {
         _scopeProvider = scopeProvider;
         _zones = zones;
         _requestedZones = requestedZones;
         _audit = audit;
-        _distributedCache = distributedCache;
         _timeProvider = timeProvider;
     }
 
@@ -103,7 +99,7 @@ internal sealed class BannerZoneService : IBannerZoneService
                 _zones.Add(zone);
                 _requestedZones.Delete(zone.Alias);
                 await _audit.WriteZoneAsync(BannerAuditAction.New, userKey, zone.Id);
-                _distributedCache.RefreshBannersAfterCommit(_scopeProvider, new BannersCacheRefresherPayload { ZoneId = zone.Id });
+                scope.Notifications.Publish(new BannersChangedNotification(new BannersCacheRefresherPayload { ZoneId = zone.Id }));
                 scope.Complete();
                 return Attempt.SucceedWithStatus(BannerOperationStatus.Success, zone);
             }
@@ -173,7 +169,7 @@ internal sealed class BannerZoneService : IBannerZoneService
 
         _requestedZones.Delete(zone.Alias);
         await _audit.WriteZoneAsync(BannerAuditAction.Save, userKey, zone.Id);
-        _distributedCache.RefreshBannersAfterCommit(_scopeProvider, new BannersCacheRefresherPayload { ZoneId = zone.Id });
+        scope.Notifications.Publish(new BannersChangedNotification(new BannersCacheRefresherPayload { ZoneId = zone.Id }));
         scope.Complete();
 
         return Attempt.SucceedWithStatus(BannerOperationStatus.Success, zone);
@@ -213,7 +209,7 @@ internal sealed class BannerZoneService : IBannerZoneService
 
         _zones.Delete(zone.Id);
         await _audit.WriteZoneAsync(BannerAuditAction.Delete, userKey, zone.Id);
-        _distributedCache.RefreshBannersAfterCommit(_scopeProvider, new BannersCacheRefresherPayload { ZoneId = zone.Id });
+        scope.Notifications.Publish(new BannersChangedNotification(new BannersCacheRefresherPayload { ZoneId = zone.Id }));
         scope.Complete();
 
         return BannerOperationStatus.Success;

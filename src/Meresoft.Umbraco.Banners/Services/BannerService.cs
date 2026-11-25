@@ -4,7 +4,6 @@ using Meresoft.Umbraco.Banners.Persistence.Repositories;
 using Meresoft.Umbraco.Banners.Services.Audit;
 using Meresoft.Umbraco.Banners.Services.Models;
 using Umbraco.Cms.Core;
-using Umbraco.Cms.Core.Cache;
 using Umbraco.Cms.Core.Models;
 using Umbraco.Cms.Core.Models.PublishedContent;
 using Umbraco.Cms.Core.PublishedCache;
@@ -22,7 +21,6 @@ internal sealed class BannerService : IBannerService
     private readonly IBannerRepository _banners;
     private readonly IZoneRepository _zones;
     private readonly BannerAuditWriter _audit;
-    private readonly DistributedCache _distributedCache;
     private readonly IPublishedMediaCache _mediaCache;
     private readonly BannerStateCalculator _stateCalculator;
     private readonly TimeProvider _timeProvider;
@@ -32,7 +30,6 @@ internal sealed class BannerService : IBannerService
         IBannerRepository banners,
         IZoneRepository zones,
         BannerAuditWriter audit,
-        DistributedCache distributedCache,
         IPublishedMediaCache mediaCache,
         BannerStateCalculator stateCalculator,
         TimeProvider timeProvider)
@@ -41,7 +38,6 @@ internal sealed class BannerService : IBannerService
         _banners = banners;
         _zones = zones;
         _audit = audit;
-        _distributedCache = distributedCache;
         _mediaCache = mediaCache;
         _stateCalculator = stateCalculator;
         _timeProvider = timeProvider;
@@ -218,7 +214,7 @@ internal sealed class BannerService : IBannerService
         }
 
         await _audit.WriteBannerAsync(BannerAuditAction.Publish, userKey, banner.Id);
-        _distributedCache.RefreshBannersAfterCommit(_scopeProvider, new BannersCacheRefresherPayload { BannerId = banner.Id });
+        scope.Notifications.Publish(new BannersChangedNotification(new BannersCacheRefresherPayload { BannerId = banner.Id }));
         scope.Complete();
 
         return await SucceedAsync(key);
@@ -245,7 +241,7 @@ internal sealed class BannerService : IBannerService
             }
 
             await _audit.WriteBannerAsync(BannerAuditAction.Unpublish, userKey, banner.Id);
-            _distributedCache.RefreshBannersAfterCommit(_scopeProvider, new BannersCacheRefresherPayload { BannerId = banner.Id });
+            scope.Notifications.Publish(new BannersChangedNotification(new BannersCacheRefresherPayload { BannerId = banner.Id }));
         }
 
         scope.Complete();
@@ -324,7 +320,7 @@ internal sealed class BannerService : IBannerService
 
         _banners.Delete(banner.Id);
         await _audit.WriteBannerAsync(BannerAuditAction.Delete, userKey, banner.Id);
-        _distributedCache.RefreshBannersAfterCommit(_scopeProvider, new BannersCacheRefresherPayload { BannerId = banner.Id });
+        scope.Notifications.Publish(new BannersChangedNotification(new BannersCacheRefresherPayload { BannerId = banner.Id }));
         scope.Complete();
 
         return BannerOperationStatus.Success;

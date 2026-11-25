@@ -67,6 +67,7 @@ public static class BannersBuilderExtensions
         builder.Services.AddSingleton<BannerResponseMapper>();
 
         builder
+            .AddNotificationHandler<BannersChangedNotification, BannersChangedNotificationHandler>()
             .AddNotificationAsyncHandler<BannersCacheRefresherNotification, SnapshotRebuildHandler>()
             .AddNotificationAsyncHandler<MediaCacheRefresherNotification, MediaChangedHandler>()
             .AddNotificationAsyncHandler<UmbracoApplicationStartedNotification, SnapshotStartupHandler>();
