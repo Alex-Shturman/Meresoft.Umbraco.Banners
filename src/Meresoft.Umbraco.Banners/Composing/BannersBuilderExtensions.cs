@@ -1,4 +1,11 @@
 using Meresoft.Umbraco.Banners.Configuration;
+using Meresoft.Umbraco.Banners.ManagementApi.Authorization;
+using Meresoft.Umbraco.Banners.ManagementApi.OpenApi;
+using Meresoft.Umbraco.Banners.Persistence.Repositories;
+using Meresoft.Umbraco.Banners.Services.Audit;
+using Microsoft.AspNetCore.Authorization;
+using OpenIddict.Validation.AspNetCore;
+using Swashbuckle.AspNetCore.SwaggerGen;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.DependencyInjection.Extensions;
 using Microsoft.Extensions.Options;
@@ -19,6 +26,18 @@ public static class BannersBuilderExtensions
             .Bind(builder.Config.GetSection(BannersOptions.SectionName))
             .ValidateOnStart();
         builder.Services.TryAddEnumerable(ServiceDescriptor.Singleton<IValidateOptions<BannersOptions>, BannersOptionsValidator>());
+
+        builder.Services.AddSingleton<IZoneRepository, ZoneRepository>();
+        builder.Services.AddSingleton<IBannerRepository, BannerRepository>();
+
+        builder.Services.AddTransient<BannerAuditWriter>();
+        builder.Services.AddSingleton<IAuthorizationHandler, SectionAccessHandler>();
+        builder.Services.AddAuthorizationBuilder().AddPolicy(BannersConstants.SectionAccessPolicy, policy =>
+        {
+            policy.AuthenticationSchemes.Add(OpenIddictValidationAspNetCoreDefaults.AuthenticationScheme);
+            policy.Requirements.Add(new SectionAccessRequirement());
+        });
+        builder.Services.ConfigureOptions<BannersSwaggerConfiguration>();
 
         return builder;
     }
