@@ -39,3 +39,4 @@ samples/**/umbraco-package-schema.json
 samples/**/umbraco/
 tests/**/appsettings-schema*.json
 tests/**/umbraco-package-schema.json
+.playwright-mcp/
