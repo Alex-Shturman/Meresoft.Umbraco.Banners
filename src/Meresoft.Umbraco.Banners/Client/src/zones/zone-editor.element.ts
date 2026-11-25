@@ -239,10 +239,7 @@ export class MeresoftZoneEditorElement extends UmbLitElement {
           ${this.#textField("showCount", "meresoftBanners_zoneShowCount", String(this._showCount), (v) => (this._showCount = Number(v)), undefined, "number")}
           ${this.#textField("imageWidth", "meresoftBanners_zoneImageWidth", this._imageWidth, (v) => (this._imageWidth = v), undefined, "number")}
           ${this.#textField("imageHeight", "meresoftBanners_zoneImageHeight", this._imageHeight, (v) => (this._imageHeight = v), undefined, "number")}
-          <!--
-            TODO(US4, T112): the render mode choice (server or client) comes back with client mode. Until then
-            the API only accepts server rendering, so no control is shown and new zones use Server.
-          -->
+          ${this.#renderModeChoice()}
         </uui-box>
         </div>
         <umb-footer-layout slot="footer">
@@ -282,6 +279,20 @@ export class MeresoftZoneEditorElement extends UmbLitElement {
         </ul>
       </uui-alert>
     `;
+  }
+
+  /** Server or client rendering, with help about cached pages. */
+  #renderModeChoice() {
+    return html`<uui-form-layout-item>
+      <uui-label slot="label">${this.localize.term("meresoftBanners_zoneRenderMode")}</uui-label>
+      <span slot="description">${this.localize.term("meresoftBanners_zoneRenderModeHelp")}</span>
+      <uui-radio-group
+        .value=${this._renderMode}
+        @change=${(e: Event) => (this._renderMode = (e.target as HTMLInputElement).value === "Client" ? "Client" : "Server")}>
+        <uui-radio value="Server" label=${this.localize.term("meresoftBanners_zoneRenderModeServer")}></uui-radio>
+        <uui-radio value="Client" label=${this.localize.term("meresoftBanners_zoneRenderModeClient")}></uui-radio>
+      </uui-radio-group>
+    </uui-form-layout-item>`;
   }
 
   #textField(
