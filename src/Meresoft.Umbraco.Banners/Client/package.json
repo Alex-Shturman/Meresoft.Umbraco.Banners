@@ -6,7 +6,8 @@
   "scripts": {
     "dev": "vite build --watch",
     "build": "tsc --noEmit && vite build && vite build --config vite.script.config.ts",
-    "lint": "eslint ."
+    "lint": "eslint .",
+    "generate:api": "openapi-ts"
   },
   "dependencies": {
     "lit": "^3.3.3"
