@@ -1,9 +1,10 @@
+using System.Reflection;
 using Meresoft.Umbraco.Banners.Caching;
 using Meresoft.Umbraco.Banners.Configuration;
 using Meresoft.Umbraco.Banners.Counting;
 using Meresoft.Umbraco.Banners.Domain;
-using Meresoft.Umbraco.Banners.ManagementApi.Banners;
 using Meresoft.Umbraco.Banners.ManagementApi.Authorization;
+using Meresoft.Umbraco.Banners.ManagementApi.Banners;
 using Meresoft.Umbraco.Banners.ManagementApi.OpenApi;
 using Meresoft.Umbraco.Banners.Persistence.Repositories;
 using Meresoft.Umbraco.Banners.Rendering;
@@ -11,6 +12,7 @@ using Meresoft.Umbraco.Banners.Selection;
 using Meresoft.Umbraco.Banners.Services;
 using Meresoft.Umbraco.Banners.Services.Audit;
 using Microsoft.AspNetCore.Authorization;
+using Microsoft.AspNetCore.Mvc.ApplicationParts;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.DependencyInjection.Extensions;
 using Microsoft.Extensions.Options;
@@ -36,6 +38,17 @@ public static class BannersBuilderExtensions
         builder.Services.TryAddEnumerable(ServiceDescriptor.Singleton<IValidateOptions<BannersOptions>, BannersOptionsValidator>());
 
         builder.Services.TryAddSingleton(TimeProvider.System);
+
+        // A class library that only references the shared framework is not scanned for controllers,
+        // so the management API controllers, the tag helper and the view component are registered here.
+        Assembly packageAssembly = typeof(BannersConstants).Assembly;
+        builder.Services.AddMvcCore().ConfigureApplicationPartManager(manager =>
+        {
+            if (!manager.ApplicationParts.OfType<AssemblyPart>().Any(part => part.Assembly == packageAssembly))
+            {
+                manager.ApplicationParts.Add(new AssemblyPart(packageAssembly));
+            }
+        });
 
         builder.Services.AddSingleton<IZoneRepository, ZoneRepository>();
         builder.Services.AddSingleton<IBannerRepository, BannerRepository>();

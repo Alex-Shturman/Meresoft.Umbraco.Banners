@@ -2,7 +2,6 @@ using System.Net.Http.Json;
 using NUnit.Framework;
 using System.Text.Json;
 using Meresoft.Umbraco.Banners.Domain;
-using Meresoft.Umbraco.Banners.ManagementApi;
 using Meresoft.Umbraco.Banners.Services;
 using Meresoft.Umbraco.Banners.Services.Models;
 using Meresoft.Umbraco.Banners.Tests.Integration.ManagementApi;
@@ -33,9 +32,8 @@ public abstract class BannersApiTestBase : ManagementApiTest<SectionProbeControl
     }
 
     protected override void CustomMvcSetup(IMvcBuilder mvcBuilder) =>
-        mvcBuilder
-            .AddApplicationPart(typeof(SectionProbeController).Assembly)
-            .AddApplicationPart(typeof(BannersManagementApiControllerBase).Assembly);
+        // The package's own controllers are found through AddMeresoftBanners, as on a real site.
+        mvcBuilder.AddApplicationPart(typeof(SectionProbeController).Assembly);
 
     protected override void CustomTestSetup(IUmbracoBuilder builder) =>
         builder.Services.AddSingleton<IServerMessenger, LocalServerMessenger>();
