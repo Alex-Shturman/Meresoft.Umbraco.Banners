@@ -272,4 +272,41 @@ public class HtmlPermissionTests : BannersApiTestBase
 
         Assert.That(create.Success, Is.True, create.Status.ToString());
     }
+
+    [Test]
+    public async Task WithoutTheVerb_TheTypeChangeAloneToHtml_Gives403_AndWithTheVerb400()
+    {
+        // Empty html isolates the type clause of the check from the html comparison.
+        Guid key = await CreateBannerAsync(NewMediaKey(), _zoneKey);
+        JsonElement banner = await ReadAsync(await GetAsync("/banners/" + key));
+        object body = HtmlBody(html: "", updateDate: banner.GetProperty("updateDate").GetDateTime());
+        Assert.That((await PutAsync("/banners/" + key, body)).StatusCode, Is.EqualTo(HttpStatusCode.BadRequest), "administrator: the type is fixed");
+
+        await SignInWithGroupsAsync("no-html-type-only@test.invalid", (Section: true, Html: false));
+
+        await AssertHtmlPermissionRequiredAsync(await PutAsync("/banners/" + key, body));
+    }
+
+    [Test]
+    public async Task WithoutTheVerb_AnImageBannerWithHtmlText_CannotBeCreated_AndNullHtmlIsNotAChange()
+    {
+        await SignInWithGroupsAsync("no-html-image-create@test.invalid", (Section: true, Html: false));
+        string withHtml = JsonSerializer.Serialize(BannerBody(NewMediaKey(), [_zoneKey]), Json).Replace("\"weight\":1", "\"weight\":1,\"html\":\"<b>x</b>\"");
+
+        HttpResponseMessage refused = await Client.PostAsync(Root + "/banners", new StringContent(withHtml, System.Text.Encoding.UTF8, "application/json"));
+        HttpResponseMessage allowed = await PostAsync("/banners", BannerBody(NewMediaKey(), [_zoneKey]));
+
+        await AssertHtmlPermissionRequiredAsync(refused);
+        Assert.That(allowed.StatusCode, Is.EqualTo(HttpStatusCode.Created));
+    }
+
+    [Test]
+    public async Task TheService_FailsClosed_ForAnUnknownUser()
+    {
+        var draft = new BannerDraftModel { Name = "Html offer", Html = StoredHtml, Weight = 1, ZoneKeys = [_zoneKey] };
+
+        var attempt = await GetRequiredService<IBannerService>().CreateAsync(new BannerCreateModel { Type = BannerType.Html, Draft = draft }, Guid.NewGuid());
+
+        Assert.That(attempt.Status, Is.EqualTo(BannerOperationStatus.HtmlPermissionRequired));
+    }
 }

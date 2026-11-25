@@ -41,6 +41,7 @@ export class MeresoftHistoryTableElement extends UmbLitElement {
   @state() private _failed = false;
 
   #load?: HistoryLoader;
+  #request = 0;
 
   async #reload() {
     this._entries = [];
@@ -54,7 +55,11 @@ export class MeresoftHistoryTableElement extends UmbLitElement {
     }
     this._loading = true;
     this._failed = false;
+    const request = ++this.#request;
     const result = await this.#load(this._entries.length, PAGE_SIZE);
+    if (request !== this.#request) {
+      return; // A newer load started meanwhile; its result replaces this one.
+    }
     if (result.data) {
       this._entries = [...this._entries, ...result.data.items];
       this._total = result.data.total;

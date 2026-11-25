@@ -255,4 +255,15 @@ public class BannerZoneHtmlWriterTests
         Assert.That(html, Does.Contain("<div class=\"mb-banner\" data-mbb=\"1\"><a href"));
         Assert.That(html, Does.Contain("<div class=\"mb-banner mb-html\" data-mbb=\"2\"><i>x</i></div>"));
     }
+
+    [Test]
+    public void AnHtmlBanner_ThatClosesTheBoxItself_IsEmittedVerbatim()
+    {
+        // Pins the contract: stored html is trusted and never encoded or repaired (FR-006).
+        const string stored = "</div><script>x()</script><div>";
+
+        string html = Render("z", null, [HtmlBanner(1, stored)]);
+
+        Assert.That(html, Does.Contain("data-mbb=\"1\">" + stored + "</div>"));
+    }
 }

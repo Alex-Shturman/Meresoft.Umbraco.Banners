@@ -176,7 +176,7 @@ internal sealed class BannerService : IBannerService
             // (FR-006); saving the other fields of an Html banner, with its html unchanged, does not. Checked before the
             // type rule, so a user without the permission learns nothing about it. The stored html is read from the draft,
             // or from the live version when no draft is left, so the check never depends on which version exists.
-            string? storedHtml = banner.Draft?.Html ?? banner.Live?.Html;
+            string? storedHtml = banner.Draft is not null ? banner.Draft.Html : banner.Live?.Html;
             if ((HtmlPermissionChecker.ChangesHtml(storedHtml, model.Html) || (model.Type == BannerType.Html && banner.Type != BannerType.Html))
                 && !mayEditHtml)
             {
@@ -404,7 +404,8 @@ internal sealed class BannerService : IBannerService
         banner.UpdatedBy = userKey;
 
         draft.MediaKey = model.MediaKey;
-        draft.Html = model.Html;
+        // Only an Html banner keeps html; an image banner never renders it, so it is not stored.
+        draft.Html = banner.Type == BannerType.Html ? model.Html : null;
         draft.LinkUrl = string.IsNullOrWhiteSpace(model.LinkUrl) ? null : model.LinkUrl.Trim();
         draft.OpenInNewWindow = model.OpenInNewWindow;
         draft.AltText = model.AltText?.Trim() ?? string.Empty;
