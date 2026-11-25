@@ -105,6 +105,8 @@ public sealed record SnapshotBanner
     private SelectedHolder _holder = new();
 
     /// <summary>Copy constructor of <c>with</c>: the copy starts with an empty holder, so it never shows the original's stale value.</summary>
+    // ADD EVERY NEW PROPERTY HERE. This constructor is written by hand, so a property added to the record and not copied
+    // below is silently lost by `with`. SnapshotBannerCopyTests fails when that happens.
     [System.Diagnostics.CodeAnalysis.SetsRequiredMembers]
     private SnapshotBanner(SnapshotBanner original)
     {
