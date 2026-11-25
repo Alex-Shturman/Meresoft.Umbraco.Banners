@@ -95,9 +95,20 @@ public class BannersApiTests : BannersApiTestBase
     }
 
     [Test]
+    public async Task Put_WithoutUpdateDate_Returns400_SoTheStaleCheckCannotBeSkipped()
+    {
+        Guid key = await CreateBannerAsync(_media, _zoneKey);
+
+        HttpResponseMessage response = await PutAsync("/banners/" + key, BannerBody(_media, [_zoneKey]));
+
+        Assert.That(response.StatusCode, Is.EqualTo(HttpStatusCode.BadRequest));
+        Assert.That((await ReadAsync(response)).GetProperty("errors").EnumerateArray().Any(e => e.TryGetProperty("$.updateDate", out _)), Is.True);
+    }
+
+    [Test]
     public async Task Put_Unknown_Returns404()
     {
-        HttpResponseMessage response = await PutAsync("/banners/" + Guid.NewGuid(), BannerBody(_media, [_zoneKey]));
+        HttpResponseMessage response = await PutAsync("/banners/" + Guid.NewGuid(), BannerBody(_media, [_zoneKey], DateTime.UtcNow));
 
         Assert.That(response.StatusCode, Is.EqualTo(HttpStatusCode.NotFound));
     }

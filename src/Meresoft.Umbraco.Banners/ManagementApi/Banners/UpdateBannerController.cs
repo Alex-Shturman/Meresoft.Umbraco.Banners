@@ -27,6 +27,13 @@ public class UpdateBannerController : BannersManagementApiControllerBase
     [ProducesResponseType<ProblemDetails>(StatusCodes.Status409Conflict)]
     public async Task<IActionResult> Update(Guid key, BannerRequestModel model)
     {
+        if (model.UpdateDate is null)
+        {
+            return OperationStatusResults.ToProblem(
+                BannerOperationStatus.InvalidData,
+                new Dictionary<string, string> { ["updateDate"] = "Send the update date you loaded, so a change by someone else is detected." });
+        }
+
         Attempt<Banner, BannerOperationStatus> attempt = await _banners.SaveDraftAsync(key, model.ToDraftModel(), CurrentUserKey());
         return attempt.Success
             ? Ok(await _mapper.MapAsync(attempt.Result!))

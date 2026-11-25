@@ -110,9 +110,20 @@ public class ZonesApiTests : BannersApiTestBase
     }
 
     [Test]
+    public async Task Put_WithoutUpdateDate_Returns400_SoTheStaleCheckCannotBeSkipped()
+    {
+        (Guid key, _) = await CreateZoneAsync("needs-date");
+
+        HttpResponseMessage response = await PutAsync("/zones/" + key, ZoneBody("needs-date"));
+
+        Assert.That(response.StatusCode, Is.EqualTo(HttpStatusCode.BadRequest));
+        Assert.That((await ReadAsync(response)).GetProperty("errors").EnumerateArray().Any(e => e.TryGetProperty("$.updateDate", out _)), Is.True);
+    }
+
+    [Test]
     public async Task Put_Unknown_Returns404()
     {
-        HttpResponseMessage response = await PutAsync("/zones/" + Guid.NewGuid(), ZoneBody("nope"));
+        HttpResponseMessage response = await PutAsync("/zones/" + Guid.NewGuid(), ZoneBody("nope", DateTime.UtcNow));
 
         Assert.That(response.StatusCode, Is.EqualTo(HttpStatusCode.NotFound));
     }

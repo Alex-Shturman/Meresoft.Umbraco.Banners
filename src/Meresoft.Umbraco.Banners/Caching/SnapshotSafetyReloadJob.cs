@@ -1,6 +1,7 @@
 using Meresoft.Umbraco.Banners.Configuration;
 using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Options;
+using Umbraco.Cms.Core.Sync;
 using Umbraco.Cms.Infrastructure.BackgroundJobs;
 
 namespace Meresoft.Umbraco.Banners.Caching;
@@ -19,6 +20,9 @@ internal sealed class SnapshotSafetyReloadJob : RecurringBackgroundJobBase
         _logger = logger;
         _enabled = options.Value.CacheSafetyReloadInterval > TimeSpan.Zero;
     }
+
+    /// <inheritdoc />
+    public override ServerRole[] ServerRoles => Enum.GetValues<ServerRole>();
 
     public override async Task RunJobAsync(CancellationToken cancellationToken)
     {

@@ -14,6 +14,7 @@ using Umbraco.Cms.Core.Events;
 using Umbraco.Cms.Core.Models;
 using Umbraco.Cms.Core.Services;
 using Umbraco.Cms.Core.Services.Changes;
+using Umbraco.Cms.Core.Sync;
 using Umbraco.Cms.Infrastructure.Scoping;
 
 namespace Meresoft.Umbraco.Banners.Tests.Integration.Caching;
@@ -164,5 +165,6 @@ public class CacheRefreshTests : BannersServiceTestBase
 
         Assert.That(on.Period, Is.EqualTo(TimeSpan.FromMinutes(7)));
         Assert.That(off.Period, Is.EqualTo(Timeout.InfiniteTimeSpan));
+        Assert.That(on.ServerRoles, Is.EquivalentTo(Enum.GetValues<ServerRole>()), "a subscriber server must heal a missed message too");
     }
 }
