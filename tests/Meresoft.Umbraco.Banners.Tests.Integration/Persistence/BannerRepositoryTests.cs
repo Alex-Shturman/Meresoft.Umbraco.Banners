@@ -306,7 +306,7 @@ public class BannerRepositoryTests : BannersIntegrationTestBase
     }
 
     [Test]
-    public void Delete_CascadesToVersionsAndAssignments_ButKeepsDailyStats()
+    public void Delete_RemovesVersionsAndAssignments_ButKeepsDailyStats()
     {
         Banner banner = NewBanner("Boat show");
         BannerZone zone;

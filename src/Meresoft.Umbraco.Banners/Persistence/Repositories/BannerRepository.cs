@@ -23,9 +23,15 @@ internal sealed class BannerRepository : RepositoryBase, IBannerRepository
         Database.Insert(dto);
         banner.Id = dto.Id;
 
-        foreach (BannerVersion version in new[] { banner.Draft, banner.Live }.OfType<BannerVersion>())
+        foreach ((BannerVersion? version, BannerVersionKind kind) in new[] { (banner.Draft, BannerVersionKind.Draft), (banner.Live, BannerVersionKind.Live) })
         {
+            if (version is null)
+            {
+                continue;
+            }
+
             version.BannerId = banner.Id;
+            version.Kind = kind;
             InsertVersion(version);
         }
 

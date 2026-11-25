@@ -35,6 +35,7 @@ public static class BannersBuilderExtensions
         builder.Services.AddAuthorizationBuilder().AddPolicy(BannersConstants.SectionAccessPolicy, policy =>
         {
             policy.AuthenticationSchemes.Add(OpenIddictValidationAspNetCoreDefaults.AuthenticationScheme);
+            policy.RequireAuthenticatedUser();
             policy.Requirements.Add(new SectionAccessRequirement());
         });
         builder.Services.ConfigureOptions<BannersSwaggerConfiguration>();
