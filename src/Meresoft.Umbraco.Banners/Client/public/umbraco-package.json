@@ -1,0 +1,14 @@
+{
+  "name": "Meresoft.Umbraco.Banners",
+  "id": "Meresoft.Umbraco.Banners",
+  "version": "0.1.0",
+  "allowTelemetry": false,
+  "extensions": [
+    {
+      "name": "Meresoft Banners Bundle",
+      "alias": "Meresoft.Banners.Bundle",
+      "type": "bundle",
+      "js": "/App_Plugins/MeresoftBanners/bundle.manifests.js"
+    }
+  ]
+}
