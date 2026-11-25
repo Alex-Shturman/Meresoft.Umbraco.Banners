@@ -1,10 +1,11 @@
 <!--
 Sync Impact Report
-- Version change: template -> 1.0.0 (first ratification)
-- Principles added: I. Generic Package, II. Umbraco Native, III. Privacy By Design, IV. Fast Pages,
-  V. Test First, VI. Stable Public Surface
-- Sections added: Distribution and Quality, Development Workflow, Governance
+- Version change: 1.0.0 -> 1.0.1 (PATCH, wording)
+- Modified principles: IV. Fast Pages (cache refresh trigger "when an editor saves" -> "when an editor
+  publishes or unpublishes", after spec 001 clarification: banners use draft and publish)
+- Added sections: none
 - Removed sections: none
+- Templates: plan, spec and tasks templates need no change
 - Deferred TODOs: none
 -->
 # Meresoft.Umbraco.Banners Constitution
@@ -50,8 +51,8 @@ Rationale: a package that needs no GDPR review is easy to adopt.
 
 - Rendering a page with banner zones MUST NOT wait on a database write. Impressions are counted
   in memory and written in batches by a background task; a lost batch on a crash is acceptable.
-- Banner selection reads from a cache that is refreshed when an editor saves, never per request
-  from the database.
+- Banner selection reads from a cache that is refreshed when an editor publishes or unpublishes,
+  never per request from the database.
 - Known bots and crawlers are not counted. A click is counted through a redirect endpoint that
   only redirects to the URL stored for that banner (no open redirect).
 - The package MUST stay correct with output caching and CDNs: there is a documented client side
@@ -104,4 +105,4 @@ speckit constitution command, recorded with a version bump (MAJOR for removed or
 principles, MINOR for new principles or sections, PATCH for wording) and approved by the owner.
 Every plan has a Constitution Check that lists each principle as pass or justified deviation.
 
-**Version**: 1.0.0 | **Ratified**: 2026-11-25 | **Last Amended**: 2026-11-25
+**Version**: 1.0.1 | **Ratified**: 2026-11-25 | **Last Amended**: 2026-11-25
