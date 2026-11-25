@@ -1,6 +1,7 @@
 using Meresoft.Umbraco.Banners.Caching;
 using Meresoft.Umbraco.Banners.Domain;
 using Meresoft.Umbraco.Banners.Selection;
+using Microsoft.Extensions.Time.Testing;
 using NSubstitute;
 using NUnit.Framework;
 
@@ -18,7 +19,57 @@ public class BannerSelectorTests
         var snapshot = new LiveSnapshot(new Dictionary<string, SnapshotZone> { ["home-top"] = zone }, new HashSet<int>(), new HashSet<Guid>());
         ILiveSnapshotAccessor accessor = Substitute.For<ILiveSnapshotAccessor>();
         accessor.Current.Returns(snapshot);
-        return new BannerSelector(accessor);
+        return NewSelector(accessor, new FakeTimeProvider(Now));
+    }
+
+    private static readonly DateTimeOffset Now = new(2027, 6, 5, 12, 0, 0, TimeSpan.Zero);
+
+    private static BannerSelector NewSelector(ILiveSnapshotAccessor accessor, TimeProvider time) =>
+        new(accessor, new WeightedSampler(new SeededRandomSource(7)), new ScheduleFilter(time));
+
+    private static BannerSelector SelectorFor(params SnapshotBanner[] candidates)
+    {
+        var zone = new SnapshotZone(1, "home-top", 1, ZoneRenderMode.Server, null, null, candidates);
+        var snapshot = new LiveSnapshot(new Dictionary<string, SnapshotZone> { ["home-top"] = zone }, new HashSet<int>(), new HashSet<Guid>());
+        ILiveSnapshotAccessor accessor = Substitute.For<ILiveSnapshotAccessor>();
+        accessor.Current.Returns(snapshot);
+        return NewSelector(accessor, new FakeTimeProvider(Now));
+    }
+
+    private static SnapshotBanner Banner(int id, int weight = 1, DateTime? start = null, DateTime? end = null) => new()
+    {
+        BannerId = id, ZoneId = 1, ImageUrl = "/m/x.png", AltText = "alt", LinkUrl = "https://example.org/x",
+        Weight = weight, StartUtc = start, EndUtc = end,
+    };
+
+    [Test]
+    public void ExpiredAndNotYetStartedBanners_AreNeverSelected()
+    {
+        BannerSelector selector = SelectorFor(
+            Banner(1, end: Now.UtcDateTime.AddMinutes(-1)),
+            Banner(2, start: Now.UtcDateTime.AddMinutes(1)),
+            Banner(3));
+
+        for (int i = 0; i < 200; i++)
+        {
+            Assert.That(selector.Select("home-top").Select(b => b.BannerId), Is.EqualTo(new[] { 3 }));
+        }
+    }
+
+    [Test]
+    public void WhenOnlyExpiredBannersRemain_TheZoneIsEmpty()
+    {
+        Assert.That(SelectorFor(Banner(1, end: Now.UtcDateTime.AddSeconds(-1))).Select("home-top"), Is.Empty);
+    }
+
+    [Test]
+    public void WeightsAreHonoured_ThroughTheSelector()
+    {
+        BannerSelector selector = SelectorFor(Banner(1, 1), Banner(2, 3));
+
+        int second = Enumerable.Range(0, 4000).Count(_ => selector.Select("home-top")[0].BannerId == 2);
+
+        Assert.That(second * 100.0 / 4000, Is.InRange(70.0, 80.0));
     }
 
     [Test]

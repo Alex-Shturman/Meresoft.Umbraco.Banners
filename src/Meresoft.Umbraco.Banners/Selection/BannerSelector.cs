@@ -7,8 +7,15 @@ namespace Meresoft.Umbraco.Banners.Selection;
 internal sealed class BannerSelector : IBannerSelector
 {
     private readonly ILiveSnapshotAccessor _snapshot;
+    private readonly WeightedSampler _sampler;
+    private readonly ScheduleFilter _schedule;
 
-    public BannerSelector(ILiveSnapshotAccessor snapshot) => _snapshot = snapshot;
+    public BannerSelector(ILiveSnapshotAccessor snapshot, WeightedSampler sampler, ScheduleFilter schedule)
+    {
+        _snapshot = snapshot;
+        _sampler = sampler;
+        _schedule = schedule;
+    }
 
     public IReadOnlyList<SelectedBanner> Select(string zoneAlias)
     {
@@ -19,22 +26,9 @@ internal sealed class BannerSelector : IBannerSelector
             return [];
         }
 
-        int count = Math.Min(zone.ShowCount, zone.Candidates.Count);
-        return Pick(zone.Candidates, count).Select(ToSelected).ToArray();
-    }
-
-    // Uniform random choice of different candidates. US2 replaces this method with the weighted sampler.
-    private static IEnumerable<SnapshotBanner> Pick(IReadOnlyList<SnapshotBanner> candidates, int count)
-    {
-        if (count == 1)
-        {
-            // The common case allocates no copy and shuffles nothing.
-            return [candidates[Random.Shared.Next(candidates.Count)]];
-        }
-
-        SnapshotBanner[] pool = [.. candidates];
-        Random.Shared.Shuffle(pool);
-        return pool.Take(count);
+        // The schedule is judged now, per request: a start or end time changes what shows without a publish.
+        IReadOnlyList<SnapshotBanner> active = _schedule.Active(zone.Candidates);
+        return _sampler.Pick(active, zone.ShowCount).Select(ToSelected).ToArray();
     }
 
     private static SelectedBanner ToSelected(SnapshotBanner banner) => new()

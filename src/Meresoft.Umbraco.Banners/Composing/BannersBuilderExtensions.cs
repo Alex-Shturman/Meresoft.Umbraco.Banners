@@ -60,6 +60,9 @@ public static class BannersBuilderExtensions
 
         builder.Services.AddSingleton<LiveSnapshotBuilder>();
         builder.Services.AddSingleton<ILiveSnapshotAccessor, LiveSnapshotAccessor>();
+        builder.Services.AddSingleton<IRandomSource, SharedRandomSource>();
+        builder.Services.AddSingleton<WeightedSampler>();
+        builder.Services.AddSingleton<ScheduleFilter>();
         builder.Services.AddSingleton<IBannerSelector, BannerSelector>();
         builder.Services.AddSingleton<RequestedZoneRecorder>();
         builder.Services.AddSingleton<BannerZoneHtmlWriter>();

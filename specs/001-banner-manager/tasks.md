@@ -145,16 +145,16 @@ and localization base, audit writer. No user story starts before this phase is d
 
 ### Tests for User Story 2 (write first, they must fail)
 
-- [ ] T061 [P] [US2] Unit tests in `tests/Meresoft.Umbraco.Banners.Tests.Unit/Selection/WeightedSamplerTests.cs` with a seeded random source: weights 1 and 3, ShowCount 1, 4,000 draws, shares within 5 points of 25% and 75% (US2 scenario 1); ShowCount 3 of 5 active gives 3 different banners every time (US2 scenario 3); ShowCount 3 with 1 active gives 1; no candidates gives an empty list
-- [ ] T062 [P] [US2] Unit tests in `tests/Meresoft.Umbraco.Banners.Tests.Unit/Selection/ScheduleFilterTests.cs` with a fake `TimeProvider`: active inside [StartUtc, EndUtc), not active at `EndUtc` or before `StartUtc`, open ends when null (US2 scenario 2)
-- [ ] T063 [P] [US2] Integration tests in `tests/Meresoft.Umbraco.Banners.Tests.Integration/Services/MultiZoneAssignmentTests.cs`: a banner assigned to two zones is a candidate in both with the same weight (clarification 1); changing the draft's zones does not change the site until publish; removing a zone from a banner keeps the DailyStat rows of that zone; an unpublished banner is never selected and keeps its statistics (US2 scenario 4)
+- [x] T061 [P] [US2] Unit tests in `tests/Meresoft.Umbraco.Banners.Tests.Unit/Selection/WeightedSamplerTests.cs` with a seeded random source: weights 1 and 3, ShowCount 1, 4,000 draws, shares within 5 points of 25% and 75% (US2 scenario 1); ShowCount 3 of 5 active gives 3 different banners every time (US2 scenario 3); ShowCount 3 with 1 active gives 1; no candidates gives an empty list
+- [x] T062 [P] [US2] Unit tests in `tests/Meresoft.Umbraco.Banners.Tests.Unit/Selection/ScheduleFilterTests.cs` with a fake `TimeProvider`: active inside [StartUtc, EndUtc), not active at `EndUtc` or before `StartUtc`, open ends when null (US2 scenario 2)
+- [x] T063 [P] [US2] Integration tests in `tests/Meresoft.Umbraco.Banners.Tests.Integration/Services/MultiZoneAssignmentTests.cs`: a banner assigned to two zones is a candidate in both with the same weight (clarification 1); changing the draft's zones does not change the site until publish; removing a zone from a banner keeps the DailyStat rows of that zone; an unpublished banner is never selected and keeps its statistics (US2 scenario 4)
 - [ ] T068 [P] [US2] Browser test `tests/e2e/us2-rotation.spec.ts`, covering the weight, schedule and show count fields of T067: quickstart scenario 6 and an expired banner that never shows
 
 ### Implementation for User Story 2
 
-- [ ] T064 [P] [US2] Implement `src/Meresoft.Umbraco.Banners/Selection/IRandomSource.cs` (default over `Random.Shared`) and `src/Meresoft.Umbraco.Banners/Selection/WeightedSampler.cs` (draw by weight, remove, repeat ShowCount times) (makes T061 pass)
-- [ ] T065 [P] [US2] Implement `src/Meresoft.Umbraco.Banners/Selection/ScheduleFilter.cs` with `TimeProvider`, evaluated per request against snapshot candidates (R8) (makes T062 pass)
-- [ ] T066 [US2] Use `WeightedSampler` and `ScheduleFilter` in `src/Meresoft.Umbraco.Banners/Selection/BannerSelector.cs` and make sure `LiveSnapshotBuilder.cs` adds a banner to every assigned zone (makes T063 pass)
+- [x] T064 [P] [US2] Implement `src/Meresoft.Umbraco.Banners/Selection/IRandomSource.cs` (default over `Random.Shared`) and `src/Meresoft.Umbraco.Banners/Selection/WeightedSampler.cs` (draw by weight, remove, repeat ShowCount times) (makes T061 pass)
+- [x] T065 [P] [US2] Implement `src/Meresoft.Umbraco.Banners/Selection/ScheduleFilter.cs` with `TimeProvider`, evaluated per request against snapshot candidates (R8) (makes T062 pass)
+- [x] T066 [US2] Use `WeightedSampler` and `ScheduleFilter` in `src/Meresoft.Umbraco.Banners/Selection/BannerSelector.cs` and make sure `LiveSnapshotBuilder.cs` adds a banner to every assigned zone (makes T063 pass)
 - [ ] T067 [P] [US2] Add weight, start and end fields to `src/Meresoft.Umbraco.Banners/Client/src/banners/banner-editor.element.ts` (times entered and shown in the user's time zone, sent in UTC, helper in `src/Meresoft.Umbraco.Banners/Client/src/shared/date-time.ts`), the Scheduled and Expired flags to `banners-list-view.element.ts`, and the show count field to `src/Meresoft.Umbraco.Banners/Client/src/zones/zone-editor.element.ts`
 
 **Checkpoint**: US1 and US2 work together; rotation and schedules follow the weights and dates.
