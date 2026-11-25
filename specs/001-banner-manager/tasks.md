@@ -154,7 +154,7 @@ and localization base, audit writer. No user story starts before this phase is d
 
 - [x] T064 [P] [US2] Implement `src/Meresoft.Umbraco.Banners/Selection/IRandomSource.cs` (default over `Random.Shared`) and `src/Meresoft.Umbraco.Banners/Selection/WeightedSampler.cs` (draw by weight, remove, repeat ShowCount times) (makes T061 pass)
 - [x] T065 [P] [US2] Implement `src/Meresoft.Umbraco.Banners/Selection/ScheduleFilter.cs` with `TimeProvider`, evaluated per request against snapshot candidates (R8) (makes T062 pass)
-- [x] T066 [US2] Use `WeightedSampler` and `ScheduleFilter` in `src/Meresoft.Umbraco.Banners/Selection/BannerSelector.cs` and make sure `LiveSnapshotBuilder.cs` adds a banner to every assigned zone (makes T063 pass)
+- [x] T066 [US2] Use `WeightedSampler` and `ScheduleFilter` in `src/Meresoft.Umbraco.Banners/Selection/BannerSelector.cs` and make sure `LiveSnapshotBuilder.cs` adds a banner to every assigned zone (T063 was a regression guard and passed first time, because the builder already handled multi-zone)
 - [x] T067 [P] [US2] Add weight, start and end fields to `src/Meresoft.Umbraco.Banners/Client/src/banners/banner-editor.element.ts` (times entered and shown in the user's time zone, sent in UTC, helper in `src/Meresoft.Umbraco.Banners/Client/src/shared/date-time.ts`), the Scheduled and Expired flags to `banners-list-view.element.ts`, and the show count field to `src/Meresoft.Umbraco.Banners/Client/src/zones/zone-editor.element.ts`
 
 **Checkpoint**: US1 and US2 work together; rotation and schedules follow the weights and dates.

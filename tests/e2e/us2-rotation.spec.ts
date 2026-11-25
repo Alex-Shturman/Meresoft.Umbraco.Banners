@@ -124,6 +124,9 @@ test("setup: the zone exists and nothing else is published", async () => {
   await unpublishEverything();
 });
 
+// This is a smoke test of the wiring: both banners show and the heavier one shows more often. The exact 25% and 75%
+// shares within 5 points over 4,000 seeded draws are checked in WeightedSamplerTests (unit), where the random
+// source is seeded; a live site cannot repeat a statistical check without flaking.
 test("scenario 6: weights 1 and 3 show both banners, the second more often", async ({ request }) => {
   test.setTimeout(180_000);
   await createAndPublish({ name: "Rotation A", alt: "Invented rotation A", weight: 1 });
