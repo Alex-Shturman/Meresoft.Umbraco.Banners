@@ -6,6 +6,7 @@ using Umbraco.Cms.Core.Models;
 using Umbraco.Cms.Core.Notifications;
 using Umbraco.Cms.Core.Services;
 using Umbraco.Cms.Core.Strings;
+using Umbraco.Extensions;
 
 namespace Meresoft.Umbraco.Banners.Sample;
 
@@ -17,7 +18,7 @@ public sealed class SampleContentComposer : IComposer
 }
 
 /// <summary>
-/// Creates three document types with templates and one published page each, when missing:
+/// Also creates one invented image media item for banners. Creates three document types with templates and one published page each, when missing:
 /// home (zone home-top), long (zone long-bottom below the fold), cached (zone cached-top, output
 /// cached for 60 s). Everything here is invented sample data.
 /// </summary>
@@ -33,6 +34,7 @@ public sealed class SampleContentSeeder : INotificationAsyncHandler<UmbracoAppli
     private readonly IContentTypeService _contentTypeService;
     private readonly ITemplateService _templateService;
     private readonly IContentService _contentService;
+    private readonly IMediaService _mediaService;
     private readonly IShortStringHelper _shortStringHelper;
     private readonly IWebHostEnvironment _hostingEnvironment;
     private readonly IRuntimeState _runtimeState;
@@ -42,6 +44,7 @@ public sealed class SampleContentSeeder : INotificationAsyncHandler<UmbracoAppli
         IContentTypeService contentTypeService,
         ITemplateService templateService,
         IContentService contentService,
+        IMediaService mediaService,
         IShortStringHelper shortStringHelper,
         IWebHostEnvironment hostingEnvironment,
         IRuntimeState runtimeState,
@@ -50,6 +53,7 @@ public sealed class SampleContentSeeder : INotificationAsyncHandler<UmbracoAppli
         _contentTypeService = contentTypeService;
         _templateService = templateService;
         _contentService = contentService;
+        _mediaService = mediaService;
         _shortStringHelper = shortStringHelper;
         _hostingEnvironment = hostingEnvironment;
         _runtimeState = runtimeState;
@@ -62,6 +66,8 @@ public sealed class SampleContentSeeder : INotificationAsyncHandler<UmbracoAppli
         {
             return;
         }
+
+        await SeedImageAsync(cancellationToken);
 
         foreach ((string alias, string name, string _) in Pages)
         {
@@ -95,5 +101,26 @@ public sealed class SampleContentSeeder : INotificationAsyncHandler<UmbracoAppli
             _contentService.Save(content);
             _contentService.Publish(content, ["*"]);
         }
+    }
+    /// <summary>Name of the invented image that banners in the sample site and the browser tests use.</summary>
+    public const string ImageName = "Invented sample banner image";
+
+    // A valid 1 x 1 PNG; the zone width and height scale it.
+    private const string TinyPngBase64 = "iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mP8z8BQDwAEhQGAhKmMIQAAAABJRU5ErkJggg==";
+
+    private async Task SeedImageAsync(CancellationToken cancellationToken)
+    {
+        if (_mediaService.GetRootMedia().Any(m => m.Name == ImageName))
+        {
+            return;
+        }
+
+        string folder = Path.Combine(_hostingEnvironment.WebRootPath, "media", "sample");
+        Directory.CreateDirectory(folder);
+        await System.IO.File.WriteAllBytesAsync(Path.Combine(folder, "banner.png"), Convert.FromBase64String(TinyPngBase64), cancellationToken);
+
+        IMedia image = _mediaService.CreateMedia(ImageName, Constants.System.Root, Constants.Conventions.MediaTypes.Image);
+        image.SetValue(Constants.Conventions.Media.File, "{\"src\":\"/media/sample/banner.png\"}");
+        _mediaService.Save(image);
     }
 }
