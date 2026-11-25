@@ -2,7 +2,7 @@
 
 import type { Client, ClientMeta, Options as Options2, RequestResult, TDataShape } from './client';
 import { client } from './client.gen';
-import type { CopyBannerData, CopyBannerErrors, CopyBannerResponses, CreateBannerData, CreateBannerErrors, CreateBannerResponses, CreateZoneData, CreateZoneErrors, CreateZoneResponses, DeleteBannerData, DeleteBannerErrors, DeleteBannerResponses, DeleteZoneData, DeleteZoneErrors, DeleteZoneResponses, DismissRequestedZoneData, DismissRequestedZoneErrors, DismissRequestedZoneResponses, GetBannerData, GetBannerErrors, GetBannerResponses, GetZoneData, GetZoneErrors, GetZoneResponses, ListBannersData, ListBannersErrors, ListBannersResponses, ListRequestedZonesData, ListRequestedZonesErrors, ListRequestedZonesResponses, ListZonesData, ListZonesErrors, ListZonesResponses, PublishBannerData, PublishBannerErrors, PublishBannerResponses, UnpublishBannerData, UnpublishBannerErrors, UnpublishBannerResponses, UpdateBannerData, UpdateBannerErrors, UpdateBannerResponses, UpdateZoneData, UpdateZoneErrors, UpdateZoneResponses } from './types.gen';
+import type { CopyBannerData, CopyBannerErrors, CopyBannerResponses, CreateBannerData, CreateBannerErrors, CreateBannerResponses, CreateZoneData, CreateZoneErrors, CreateZoneResponses, DeleteBannerData, DeleteBannerErrors, DeleteBannerResponses, DeleteZoneData, DeleteZoneErrors, DeleteZoneResponses, DismissRequestedZoneData, DismissRequestedZoneErrors, DismissRequestedZoneResponses, GetBannerData, GetBannerErrors, GetBannerResponses, GetReportCsvData, GetReportCsvErrors, GetReportCsvResponses, GetReportData, GetReportErrors, GetReportResponses, GetZoneData, GetZoneErrors, GetZoneResponses, ListBannersData, ListBannersErrors, ListBannersResponses, ListRequestedZonesData, ListRequestedZonesErrors, ListRequestedZonesResponses, ListZonesData, ListZonesErrors, ListZonesResponses, PublishBannerData, PublishBannerErrors, PublishBannerResponses, UnpublishBannerData, UnpublishBannerErrors, UnpublishBannerResponses, UpdateBannerData, UpdateBannerErrors, UpdateBannerResponses, UpdateZoneData, UpdateZoneErrors, UpdateZoneResponses } from './types.gen';
 
 export type Options<TData extends TDataShape = TDataShape, ThrowOnError extends boolean = boolean, TResponse = unknown> = Options2<TData, ThrowOnError, TResponse> & {
     /**
@@ -79,6 +79,18 @@ export const publishBanner = <ThrowOnError extends boolean = false>(options: Opt
 export const unpublishBanner = <ThrowOnError extends boolean = false>(options: Options<UnpublishBannerData, ThrowOnError>): RequestResult<UnpublishBannerResponses, UnpublishBannerErrors, ThrowOnError> => (options.client ?? client).post<UnpublishBannerResponses, UnpublishBannerErrors, ThrowOnError>({
     security: [{ scheme: 'bearer', type: 'http' }],
     url: '/umbraco/management/api/v1/meresoft-banners/banners/{key}/unpublish',
+    ...options
+});
+
+export const getReport = <ThrowOnError extends boolean = false>(options?: Options<GetReportData, ThrowOnError>): RequestResult<GetReportResponses, GetReportErrors, ThrowOnError> => (options?.client ?? client).get<GetReportResponses, GetReportErrors, ThrowOnError>({
+    security: [{ scheme: 'bearer', type: 'http' }],
+    url: '/umbraco/management/api/v1/meresoft-banners/reports',
+    ...options
+});
+
+export const getReportCsv = <ThrowOnError extends boolean = false>(options?: Options<GetReportCsvData, ThrowOnError>): RequestResult<GetReportCsvResponses, GetReportCsvErrors, ThrowOnError> => (options?.client ?? client).get<GetReportCsvResponses, GetReportCsvErrors, ThrowOnError>({
+    security: [{ scheme: 'bearer', type: 'http' }],
+    url: '/umbraco/management/api/v1/meresoft-banners/reports/csv',
     ...options
 });
 
