@@ -2,7 +2,7 @@ import { devices, expect, test, type APIRequestContext, type Browser, type Page 
 import { loginAsAdmin, openBannersView } from "./support/backoffice";
 
 /**
- * User story 5 on the sample site: quickstart scenario 13 (an impression limit of 3, five views, the banner stops
+ * User story 5 on the sample site: quickstart scenario 13 (an impression limit of 3, views until the limit, the banner stops
  * showing after the next flush and the back office says "Limit reached"), and US5 scenario 2 (raising the limit and
  * publishing shows it again). The sample site flushes every 5 seconds. All data is invented. The spec makes sure the
  * zone home-top exists and takes any banner that is already published off the site first, so it runs on a fresh
@@ -11,10 +11,14 @@ import { loginAsAdmin, openBannersView } from "./support/backoffice";
 test.describe.configure({ mode: "serial" });
 
 const IMAGE_NAME = "Invented sample banner image";
-const BANNER_NAME = "Limited campaign";
-const ALT = "Invented limited campaign";
+// A name of its own per run, so banners of earlier runs or specs on the same database never match.
+const RUN = Date.now().toString(36);
+const BANNER_NAME = `Limited campaign ${RUN}`;
+const ALT = `Invented limited campaign ${RUN}`;
 const LIMIT = 3;
-const VIEWS = 5;
+// The flush job takes the banner off some time after its limit is reached (5 s interval), so more views than the
+// limit can still be served. This is the most views the scenario tries before it gives up waiting for that flush.
+const MAX_VIEWS = 12;
 
 let admin: Page;
 
@@ -63,8 +67,11 @@ async function homeShowsBanner(request: APIRequestContext): Promise<boolean> {
   return (await (await request.get("/")).text()).includes(`alt="${ALT}"`);
 }
 
-/** One visitor who loads the home page and keeps it open until the package script has reported the view. */
-async function view(browser: Browser): Promise<number> {
+/**
+ * One visitor who loads the home page and keeps it open until the package script has reported the view.
+ * Returns false when the flush took the banner off between the check and the page load: nothing was viewed then.
+ */
+async function view(browser: Browser): Promise<boolean> {
   const context = await browser.newContext({ ...devices["Desktop Chrome"] });
   const reported: string[] = [];
   await context.route("**/_banners/seen", async (route) => {
@@ -73,7 +80,10 @@ async function view(browser: Browser): Promise<number> {
   });
   const page = await context.newPage();
   await page.goto("/");
-  await expect(page.locator("[data-mbb]")).toBeAttached();
+  if ((await page.locator("[data-mbb]").count()) === 0) {
+    await context.close();
+    return false;
+  }
   // Visible for one second at 50 percent counts one view; the hidden tab then sends the queue at once.
   await page.waitForTimeout(1_500);
   await page.evaluate(() => {
@@ -82,7 +92,7 @@ async function view(browser: Browser): Promise<number> {
   });
   await expect.poll(() => reported.length, { timeout: 6_000 }).toBe(1);
   await context.close();
-  return reported.length;
+  return true;
 }
 
 test("setup: the zone exists, nothing else is published, and a banner with a limit of 3 is published", async ({ request }) => {
@@ -127,12 +137,15 @@ test("an invalid limit is refused with a message at the field", async () => {
   await expect(toast("Banner saved")).toBeVisible();
 });
 
-test("scenario 13: five views, then the banner stops showing and the list says Limit reached", async ({ browser, request }) => {
+test("scenario 13: after the limit of views the banner stops showing and the list says Limit reached", async ({ browser, request }) => {
   test.setTimeout(240_000);
-  for (let i = 0; i < VIEWS; i++) {
-    expect(await homeShowsBanner(request), `still shown before view ${i + 1}`).toBeTruthy();
-    await view(browser);
+  // Views go on while the banner is served. When the flush takes it off is up to the flush job, so the test does
+  // not assume a view count beyond the limit: it requires that the banner is served until the limit is reached.
+  let counted = 0;
+  while (counted < MAX_VIEWS && (await homeShowsBanner(request)) && (await view(browser))) {
+    counted++;
   }
+  expect(counted, "the banner is served until its limit is reached").toBeGreaterThanOrEqual(LIMIT);
 
   // The flush job writes every 5 seconds and then takes the banner out of the snapshot (overshoot: one interval).
   await expect.poll(() => homeShowsBanner(request), { timeout: 60_000, intervals: [1_000] }).toBeFalsy();
@@ -153,7 +166,7 @@ test("US5 scenario 2: raising the limit and publishing shows the banner again", 
   await expect(toast("Banner published")).toBeVisible();
 
   await expect.poll(() => homeShowsBanner(request), { timeout: 15_000, intervals: [250] }).toBeTruthy();
-  await expect(admin.getByText("Limit reached")).toHaveCount(0);
+  await expect(admin.getByRole("row").filter({ hasText: BANNER_NAME }).getByText("Limit reached")).toHaveCount(0);
 });
 
 test("FR-006: choosing the HTML type hides the click limit and keeps the impression limit", async () => {
