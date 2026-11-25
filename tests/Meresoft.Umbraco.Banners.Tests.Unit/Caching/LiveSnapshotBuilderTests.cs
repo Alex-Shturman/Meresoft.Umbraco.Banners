@@ -206,4 +206,27 @@ public class LiveSnapshotBuilderTests
 
         Assert.That(snapshot.Zones["home-top"].Candidates.Single().ImageUrl, Is.EqualTo("/base/media/a/summer.png"));
     }
+
+    [Test]
+    public async Task AnAbsoluteAddressOnThePlaceholderHost_IsStoredAsPathAndQuery()
+    {
+        // A provider that ignores the relative mode and builds the address from the base it was given.
+        _urlProvider.GetMediaUrl(Arg.Any<IPublishedContent>(), "umbracoFile", UrlMode.Relative, Arg.Any<string?>(), Arg.Any<Uri>())
+            .Returns(UrlInfo.AsUrl("http://localhost/media/a/summer.png?v=1", "test", null));
+
+        LiveSnapshot snapshot = await _builder.BuildAsync([Zone(1, "home-top")], [Published(10, MediaA, 1)]);
+
+        Assert.That(snapshot.Zones["home-top"].Candidates.Single().ImageUrl, Is.EqualTo("/media/a/summer.png?v=1"));
+    }
+
+    [Test]
+    public async Task AnAbsoluteAddressOnAnotherHost_IsKept()
+    {
+        _urlProvider.GetMediaUrl(Arg.Any<IPublishedContent>(), "umbracoFile", UrlMode.Relative, Arg.Any<string?>(), Arg.Any<Uri>())
+            .Returns(UrlInfo.AsUrl("http://localhost:8080/media/a.png", "test", null));
+
+        LiveSnapshot snapshot = await _builder.BuildAsync([Zone(1, "home-top")], [Published(10, MediaA, 1)]);
+
+        Assert.That(snapshot.Zones["home-top"].Candidates.Single().ImageUrl, Is.EqualTo("http://localhost:8080/media/a.png"));
+    }
 }

@@ -127,7 +127,11 @@ internal sealed class LiveSnapshotBuilder
             UrlInfo? info = provider.GetMediaUrl(media, MediaFileProperty, UrlMode.Relative, null, NoRequestBase);
             if (info?.Url is { } address)
             {
-                url = address.IsAbsoluteUri ? address.AbsoluteUri : address.OriginalString;
+                url = !address.IsAbsoluteUri
+                    ? address.OriginalString
+                    : address.Authority == NoRequestBase.Authority
+                        ? address.PathAndQuery // Built from the placeholder base, so it is a site relative address.
+                        : address.AbsoluteUri;
                 break;
             }
         }

@@ -112,6 +112,8 @@ test("scenario 4: publishing shows the banner on the home page within 5 seconds,
   const html = await (await request.get("/")).text();
   expect(html).toContain(`href="${STORED_URL}"`);
   expect(html).toContain('alt="Invented summer promo"');
+  expect(html).toMatch(/<img src="\/media\/sample\/banner\.png/);
+  expect(html).not.toContain("localhost:5100/media");
 });
 
 test("scenario 5: changing the alt text and only saving keeps the published version on the site", async ({ request }) => {

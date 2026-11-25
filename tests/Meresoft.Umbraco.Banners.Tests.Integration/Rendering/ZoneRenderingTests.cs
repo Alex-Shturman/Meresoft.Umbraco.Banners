@@ -87,7 +87,8 @@ public class ZoneRenderingTests : BannersServiceTestBase
         Assert.That(html, Does.Contain($"data-mbb=\"{_banner.Id}\""));
         Assert.That(html, Does.Contain("href=\"https://example.org/show\""));
         Assert.That(html, Does.Contain("alt=\"Invented summer promo\""));
-        Assert.That(html, Does.Contain("/media/invented/banner.png"));
+        Assert.That(html, Does.Contain("src=\"/media/invented/banner.png"), "a site relative address from the real media URL provider");
+        Assert.That(html, Does.Not.Contain("localhost"));
     }
 
     [Test]
