@@ -1,7 +1,7 @@
 using Meresoft.Umbraco.Banners.Caching;
 using Meresoft.Umbraco.Banners.Domain;
-using Meresoft.Umbraco.Banners.ManagementApi.Authorization;
 using Meresoft.Umbraco.Banners.Persistence;
+using Meresoft.Umbraco.Banners.Services.Authorization;
 using Meresoft.Umbraco.Banners.Persistence.Repositories;
 using Meresoft.Umbraco.Banners.Services.Audit;
 using Meresoft.Umbraco.Banners.Services.Models;

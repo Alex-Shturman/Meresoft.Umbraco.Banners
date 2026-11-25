@@ -1,6 +1,6 @@
 using Umbraco.Cms.Core.Services;
 
-namespace Meresoft.Umbraco.Banners.ManagementApi.Authorization;
+namespace Meresoft.Umbraco.Banners.Services.Authorization;
 
 /// <summary>
 /// Decides whether a back office user may create or change HTML. The permission is stored as a fallback permission
