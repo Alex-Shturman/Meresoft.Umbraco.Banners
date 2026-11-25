@@ -209,7 +209,7 @@ internal sealed class BannerService : IBannerService
         }
 
         await _audit.WriteBannerAsync(BannerAuditAction.Publish, userKey, banner.Id);
-        _distributedCache.RefreshBanners(new BannersCacheRefresherPayload { BannerId = banner.Id });
+        _distributedCache.RefreshBannersAfterCommit(_scopeProvider, new BannersCacheRefresherPayload { BannerId = banner.Id });
         scope.Complete();
 
         return await SucceedAsync(key);
@@ -236,7 +236,7 @@ internal sealed class BannerService : IBannerService
             }
 
             await _audit.WriteBannerAsync(BannerAuditAction.Unpublish, userKey, banner.Id);
-            _distributedCache.RefreshBanners(new BannersCacheRefresherPayload { BannerId = banner.Id });
+            _distributedCache.RefreshBannersAfterCommit(_scopeProvider, new BannersCacheRefresherPayload { BannerId = banner.Id });
         }
 
         scope.Complete();
@@ -310,7 +310,7 @@ internal sealed class BannerService : IBannerService
 
         _banners.Delete(banner.Id);
         await _audit.WriteBannerAsync(BannerAuditAction.Delete, userKey, banner.Id);
-        _distributedCache.RefreshBanners(new BannersCacheRefresherPayload { BannerId = banner.Id });
+        _distributedCache.RefreshBannersAfterCommit(_scopeProvider, new BannersCacheRefresherPayload { BannerId = banner.Id });
         scope.Complete();
 
         return BannerOperationStatus.Success;

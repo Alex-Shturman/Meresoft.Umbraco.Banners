@@ -81,6 +81,24 @@ public class CacheRefreshTests : BannersServiceTestBase
     }
 
     [Test]
+    public async Task Publish_InsideAScopeThatRollsBack_SendsNoMessage_AndLeavesTheSnapshotUnchanged()
+    {
+        RefreshMessageSpy.Payloads.Clear();
+
+        using (IScope outer = ScopeProvider.CreateScope())
+        {
+            var attempt = await BannerService.PublishAsync(_banner.Key, User);
+            Assert.That(attempt.Success, Is.True);
+            // The outer scope is disposed without Complete, so the publish is rolled back.
+        }
+
+        await Task.Delay(300);
+        Assert.That(RefreshMessageSpy.Payloads, Is.Empty, "a message must only follow a commit");
+        Assert.That(Shows(Accessor.Current, _banner.Id), Is.False);
+        Assert.That((await BannerService.GetAsync(_banner.Key))!.IsPublished, Is.False);
+    }
+
+    [Test]
     public async Task Unpublish_RemovesTheBannerFromTheSnapshot()
     {
         await BannerService.PublishAsync(_banner.Key, User);
