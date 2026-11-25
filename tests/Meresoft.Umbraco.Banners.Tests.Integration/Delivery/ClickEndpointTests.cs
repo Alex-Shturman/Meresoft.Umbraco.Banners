@@ -97,6 +97,58 @@ public class ClickEndpointTests : PublicEndpointTestBase
         Assert.That(Counted(), Is.Empty);
     }
 
+    // Review 3: only a navigation counts. Prefetches, fetch calls and image requests are redirected like any other request.
+
+    private async Task<HttpResponseMessage> ClickWithHeadersAsync(PublishedBanner banner, params (string Name, string Value)[] headers)
+    {
+        var request = new HttpRequestMessage(HttpMethod.Get, $"/_banners/c/{banner.BannerId}?z={banner.ZoneId}");
+        foreach ((string name, string value) in headers)
+        {
+            request.Headers.TryAddWithoutValidation(name, value);
+        }
+
+        return await Anonymous.SendAsync(request);
+    }
+
+    [Test]
+    public async Task ANavigationClick_IsCounted()
+    {
+        PublishedBanner banner = await PublishBannerAsync("home-top");
+
+        AssertRedirectsToStoredLink(await ClickWithHeadersAsync(banner, ("Sec-Fetch-Mode", "navigate"), ("Sec-Fetch-Dest", "document")));
+
+        Assert.That(Counted().Sum(c => c.Clicks), Is.EqualTo(1));
+    }
+
+    [Test]
+    public async Task AClickWithoutAnyFetchMetadata_IsCounted_ForBrowsersThatSendNone()
+    {
+        PublishedBanner banner = await PublishBannerAsync("home-top");
+
+        AssertRedirectsToStoredLink(await ClickWithHeadersAsync(banner));
+
+        Assert.That(Counted().Sum(c => c.Clicks), Is.EqualTo(1));
+    }
+
+    [TestCase("Sec-Fetch-Mode", "cors")]
+    [TestCase("Sec-Fetch-Mode", "no-cors")]
+    [TestCase("Sec-Fetch-Mode", "same-origin")]
+    [TestCase("Sec-Fetch-Dest", "image")]
+    [TestCase("Sec-Fetch-Dest", "empty")]
+    [TestCase("Sec-Fetch-Dest", "iframe")]
+    [TestCase("Sec-Purpose", "prefetch")]
+    [TestCase("Sec-Purpose", "prefetch;prerender")]
+    [TestCase("Purpose", "prefetch")]
+    [TestCase("Purpose", "Prefetch")]
+    public async Task ARequestThatIsNotANavigation_StillRedirects_ButIsNotCounted(string header, string value)
+    {
+        PublishedBanner banner = await PublishBannerAsync("home-top");
+
+        AssertRedirectsToStoredLink(await ClickWithHeadersAsync(banner, (header, value)));
+
+        Assert.That(Counted(), Is.Empty);
+    }
+
     [Test]
     public async Task AnUnknownBanner_Is404_AndCountsNothing()
     {

@@ -21,3 +21,17 @@ Limits: the package does not use the aggregate `UrlProvider`, because that needs
 provider that needs the current request (for example one that picks a host by the visitor's domain)
 cannot answer for a snapshot that is shared by all visitors. Address changes of such a provider show
 after the next snapshot rebuild.
+
+### Clicks and click rate
+
+A banner link points at the package's click address (`{PublicPath}/c/{bannerId}?z={zoneId}`), which
+redirects to the stored link. A click is counted only when the request looks like a navigation by a
+person: the browser sends no fetch metadata, or `Sec-Fetch-Mode: navigate` and
+`Sec-Fetch-Dest: document`, and it is not a prefetch (`Sec-Purpose` or `Purpose` is `prefetch`), a
+known bot, and the banner is published in that zone. Other requests are redirected but not counted.
+The package reads these headers in memory only and stores nothing from them.
+
+The click address is a plain GET, so anyone can call it directly (a script, a link checker that
+looks like a browser, or someone pasting the address many times). Such requests can inflate the
+click count and so the click rate. Impressions are protected by a signed, single use view token; clicks
+are not, because a click must work without JavaScript and on cached pages.

@@ -1,6 +1,7 @@
 using System.Globalization;
 using Meresoft.Umbraco.Banners.Counting;
 using Microsoft.AspNetCore.Authorization;
+using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Mvc;
 
 namespace Meresoft.Umbraco.Banners.Delivery;
@@ -54,12 +55,27 @@ public sealed class ClickController : ControllerBase
             return NotFound();
         }
 
-        // The user agent is only read here, in memory, for the bot check.
-        if (target.Countable && zoneId is { } z && !_bots.IsBot(Request.Headers.UserAgent.ToString()))
+        // The user agent and the fetch headers are only read here, in memory, for the bot and navigation checks.
+        if (target.Countable && zoneId is { } z && IsNavigation() && !_bots.IsBot(Request.Headers.UserAgent.ToString()))
         {
             _buffer.AddClick(DateOnly.FromDateTime(_timeProvider.GetUtcNow().UtcDateTime), banner, z);
         }
 
         return Redirect(target.LinkUrl);
+    }
+
+    /// <summary>
+    /// True for a person following the link: the browser says it is a navigation to a document, or sends no fetch metadata
+    /// at all (older browsers). Fetch and image requests, and prefetches, are redirected but not counted.
+    /// </summary>
+    private bool IsNavigation()
+    {
+        IHeaderDictionary headers = Request.Headers;
+        string mode = headers["Sec-Fetch-Mode"].ToString();
+        string destination = headers["Sec-Fetch-Dest"].ToString();
+        return (mode.Length == 0 || mode.Equals("navigate", StringComparison.OrdinalIgnoreCase))
+            && (destination.Length == 0 || destination.Equals("document", StringComparison.OrdinalIgnoreCase))
+            && !headers["Sec-Purpose"].ToString().Contains("prefetch", StringComparison.OrdinalIgnoreCase)
+            && !headers["Purpose"].ToString().Contains("prefetch", StringComparison.OrdinalIgnoreCase);
     }
 }
