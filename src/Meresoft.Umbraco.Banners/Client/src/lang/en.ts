@@ -121,6 +121,5 @@ export default {
     reportNoteDelay: "Counts may be up to one minute behind.",
     chartSummary: "Impressions and clicks per day from %0% to %1%: %2% impressions and %3% clicks in total.",
     chartTip: "%0%: %1% impressions, %2% clicks",
-  
   },
 } as UmbLocalizationDictionary;
