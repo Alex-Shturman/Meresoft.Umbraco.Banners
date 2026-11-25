@@ -138,6 +138,8 @@ export default {
     historyUnknownUser: "Unknown user",
     historyWhat: "Change",
     historyMore: "Show more",
+    historyRetry: "Try again",
+    historyMoreFailed: "The next entries could not be loaded. The entries above are still shown.",
     history_new: "Created",
     history_save: "Saved",
     history_publish: "Published",

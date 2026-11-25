@@ -1,10 +1,9 @@
-import { css, customElement, html, nothing, property, repeat, state } from "@umbraco-cms/backoffice/external/lit";
+import { css, customElement, html, nothing, property, repeat } from "@umbraco-cms/backoffice/external/lit";
 import { UmbLitElement } from "@umbraco-cms/backoffice/lit-element";
 import { UmbTextStyles } from "@umbraco-cms/backoffice/style";
-import type { HistoryEntryModel, HistoryPageModel } from "../api/types.gen.js";
-import type { ApiResult } from "./api.js";
+import { HistoryPager, type HistoryLoader } from "./history-pager.js";
 
-const PAGE_SIZE = 20;
+export type { HistoryLoader } from "./history-pager.js";
 
 /** Colour of the tag of each audit action; an action this view does not know shows as a plain tag. */
 const ACTION_COLOR: Record<string, "default" | "positive" | "warning" | "danger"> = {
@@ -16,58 +15,21 @@ const ACTION_COLOR: Record<string, "default" | "positive" | "warning" | "danger"
   delete: "danger",
 };
 
-/** A page loader: the banner and the zone history views each pass their own endpoint. */
-export type HistoryLoader = (skip: number, take: number) => Promise<ApiResult<HistoryPageModel>>;
-
 /**
  * The changes of one banner or zone, newest first: when, who and what. Shared by the banner and the zone history
- * views, which only differ in the endpoint they call.
+ * views, which only differ in the endpoint they call. The paging state lives in `HistoryPager`.
  */
 @customElement("meresoft-history-table")
 export class MeresoftHistoryTableElement extends UmbLitElement {
   /** Loads one page of the history. Setting a new loader reloads the list. */
   @property({ attribute: false })
   set load(value: HistoryLoader | undefined) {
-    this.#load = value;
-    void this.#reload();
-  }
-  get load(): HistoryLoader | undefined {
-    return this.#load;
+    this.#pager = value ? new HistoryPager(value, 20, undefined, () => this.requestUpdate()) : undefined;
+    void this.#pager?.reload();
+    this.requestUpdate();
   }
 
-  @state() private _entries: HistoryEntryModel[] = [];
-  @state() private _total = 0;
-  @state() private _loading = true;
-  @state() private _failed = false;
-
-  #load?: HistoryLoader;
-  #request = 0;
-
-  async #reload() {
-    this._entries = [];
-    this._total = 0;
-    await this.#more();
-  }
-
-  async #more() {
-    if (!this.#load) {
-      return;
-    }
-    this._loading = true;
-    this._failed = false;
-    const request = ++this.#request;
-    const result = await this.#load(this._entries.length, PAGE_SIZE);
-    if (request !== this.#request) {
-      return; // A newer load started meanwhile; its result replaces this one.
-    }
-    if (result.data) {
-      this._entries = [...this._entries, ...result.data.items];
-      this._total = result.data.total;
-    } else {
-      this._failed = true;
-    }
-    this._loading = false;
-  }
+  #pager?: HistoryPager;
 
   #actionLabel(action: string): string {
     const key = `meresoftBanners_history_${action}`;
@@ -76,16 +38,20 @@ export class MeresoftHistoryTableElement extends UmbLitElement {
   }
 
   override render() {
-    if (this._failed) {
+    const pager = this.#pager;
+    if (!pager) {
+      return nothing;
+    }
+    if (pager.error === "first") {
       return html`<uui-alert color="danger">
         ${this.localize.term("meresoftBanners_loadFailed")}
-        <uui-button look="secondary" label=${this.localize.term("meresoftBanners_reload")} @click=${() => this.#reload()}></uui-button>
+        <uui-button look="secondary" label=${this.localize.term("meresoftBanners_reload")} @click=${() => pager.reload()}></uui-button>
       </uui-alert>`;
     }
-    if (this._loading && this._entries.length === 0) {
+    if (pager.loading && pager.entries.length === 0) {
       return html`<uui-loader></uui-loader>`;
     }
-    if (this._entries.length === 0) {
+    if (pager.entries.length === 0) {
       return html`<p class="empty">${this.localize.term("meresoftBanners_historyEmpty")}</p>`;
     }
 
@@ -97,7 +63,7 @@ export class MeresoftHistoryTableElement extends UmbLitElement {
           <uui-table-head-cell>${this.localize.term("meresoftBanners_historyWhat")}</uui-table-head-cell>
         </uui-table-head>
         ${repeat(
-          this._entries,
+          pager.entries,
           (_, index) => index,
           (entry) => html`
             <uui-table-row>
@@ -110,13 +76,16 @@ export class MeresoftHistoryTableElement extends UmbLitElement {
           `,
         )}
       </uui-table>
-      ${this._entries.length < this._total
+      ${pager.error === "more"
+        ? html`<uui-alert class="more-error" color="danger" role="alert">${this.localize.term("meresoftBanners_historyMoreFailed")}</uui-alert>`
+        : nothing}
+      ${pager.canLoadMore
         ? html`<uui-button
             class="more"
             look="secondary"
-            label=${this.localize.term("meresoftBanners_historyMore")}
-            ?disabled=${this._loading}
-            @click=${() => this.#more()}></uui-button>`
+            label=${this.localize.term(pager.error === "more" ? "meresoftBanners_historyRetry" : "meresoftBanners_historyMore")}
+            ?disabled=${pager.loading}
+            @click=${() => pager.more()}></uui-button>`
         : nothing}
     `;
   }
@@ -134,8 +103,12 @@ export class MeresoftHistoryTableElement extends UmbLitElement {
       .empty {
         color: var(--uui-color-text-alt);
       }
-      .more {
+      .more,
+      .more-error {
         margin-top: var(--uui-size-layout-1);
+      }
+      .more-error {
+        display: block;
       }
     `,
   ];
