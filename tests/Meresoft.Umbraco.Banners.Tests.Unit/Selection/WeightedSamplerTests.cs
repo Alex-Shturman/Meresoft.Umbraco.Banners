@@ -138,9 +138,14 @@ public class WeightedSamplerTests
         Assert.That(Sampler().Pick(candidates, 3).Select(b => b.BannerId), Is.EquivalentTo(new[] { 1, 2, 3 }));
     }
 
+    // Not parallel, so no other test's work shares the thread pool during the warm up. The limit is about twice the
+    // expected 32 bytes (the one element result array), so a small runtime change in array overhead does not break it,
+    // while a copy of the candidates (88 bytes and more) still does.
     [Test]
+    [NonParallelizable]
     public void PickingOneOfSeveral_AllocatesLittleMoreThanTheResult()
     {
+        IgnoreUnderCoverage();
         WeightedSampler sampler = Sampler();
         SnapshotBanner[] candidates = [Candidate(1, 1), Candidate(2, 3), Candidate(3, 5), Candidate(4, 2)];
         for (int i = 0; i < 2000; i++)
@@ -155,6 +160,22 @@ public class WeightedSamplerTests
         }
 
         long perCall = (GC.GetAllocatedBytesForCurrentThread() - before) / 1000;
-        Assert.That(perCall, Is.LessThanOrEqualTo(32), "only the one element result list, no copy of the candidates");
+        Assert.That(perCall, Is.LessThanOrEqualTo(64), "only the one element result list, no copy of the candidates");
+    }
+
+    /// <summary>
+    /// Allocation tests measure the bytes of a call. Coverage instrumentation adds allocations of its own, so they are
+    /// skipped when the environment variable COVERAGE or CollectCoverage is set (any value but empty or "false").
+    /// </summary>
+    internal static void IgnoreUnderCoverage()
+    {
+        foreach (string name in new[] { "COVERAGE", "CollectCoverage" })
+        {
+            string? value = Environment.GetEnvironmentVariable(name);
+            if (!string.IsNullOrEmpty(value) && !value.Equals("false", StringComparison.OrdinalIgnoreCase))
+            {
+                Assert.Ignore($"Allocation counts are not meaningful while coverage instrumentation is active ({name} is set).");
+            }
+        }
     }
 }

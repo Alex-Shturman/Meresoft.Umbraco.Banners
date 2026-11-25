@@ -117,9 +117,13 @@ public class BannerSelectorTests
         Assert.That(SelectorFor(1, 2).Select("  Home-Top "), Has.Count.EqualTo(1));
     }
 
+    // Not parallel and skipped under coverage, see WeightedSamplerTests. The expected cost is about 64 bytes (the
+    // sampler's list and the result list); the limit has twice that, and the old Select().ToArray() path cost far more.
     [Test]
+    [NonParallelizable]
     public void SelectingOne_AllocatesOnlyTheTwoSmallLists()
     {
+        WeightedSamplerTests.IgnoreUnderCoverage();
         // A plain fake, because a mocking library records every call and would be what the test measures.
         var zone = new SnapshotZone(1, "home-top", 1, ZoneRenderMode.Server, null, null, [Banner(1, 1), Banner(2, 3)]);
         var snapshot = new LiveSnapshot(new Dictionary<string, SnapshotZone> { ["home-top"] = zone }, new HashSet<int>(), new HashSet<Guid>());
@@ -136,7 +140,7 @@ public class BannerSelectorTests
         }
 
         long perCall = (GC.GetAllocatedBytesForCurrentThread() - before) / 1000;
-        Assert.That(perCall, Is.LessThanOrEqualTo(72), "the sampler's list and the result list; the SelectedBanner is built once");
+        Assert.That(perCall, Is.LessThanOrEqualTo(144), "the sampler's list and the result list; the SelectedBanner is built once");
     }
 
     private sealed class FixedSnapshotAccessor(LiveSnapshot snapshot) : ILiveSnapshotAccessor
