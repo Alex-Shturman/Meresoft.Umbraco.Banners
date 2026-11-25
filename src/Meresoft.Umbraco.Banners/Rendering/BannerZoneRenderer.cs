@@ -34,13 +34,16 @@ public sealed class BannerZoneRenderer
             return new ZoneSelection(normalised, []);
         }
 
-        if (!_snapshot.Current.Zones.ContainsKey(normalised))
+        if (!_snapshot.Current.Zones.TryGetValue(normalised, out SnapshotZone? zone))
         {
             _recorder.Record(normalised);
             return new ZoneSelection(normalised, []);
         }
 
-        return new ZoneSelection(normalised, _selector.Select(normalised));
+        // A client mode zone chooses nothing here: the browser asks the delivery endpoint, so the page can be cached.
+        return zone.RenderMode == ZoneRenderMode.Client
+            ? new ZoneSelection(normalised, [], ZoneRenderMode.Client)
+            : new ZoneSelection(normalised, _selector.Select(normalised));
     }
 
     /// <summary>
@@ -50,6 +53,11 @@ public sealed class BannerZoneRenderer
     public string Render(IDictionary<object, object?> requestItems, ZoneSelection selection, string? cssClass, string? fallbackHtml)
     {
         string? fallback = string.IsNullOrWhiteSpace(fallbackHtml) ? null : fallbackHtml;
+        if (selection.Mode == ZoneRenderMode.Client)
+        {
+            return _writer.Render(new BannerZoneView(selection.Alias, cssClass, [], fallback, ZoneRenderMode.Client), requestItems);
+        }
+
         if (selection.Banners.Count == 0)
         {
             return fallback ?? string.Empty;
@@ -61,5 +69,6 @@ public sealed class BannerZoneRenderer
 
 /// <summary>The outcome of the selection half of a render.</summary>
 /// <param name="Alias">The normalised alias.</param>
-/// <param name="Banners">The chosen banners; empty when the zone is unknown, empty, or has no active banner.</param>
-public sealed record ZoneSelection(string Alias, IReadOnlyList<SelectedBanner> Banners);
+/// <param name="Banners">The chosen banners; empty when the zone is unknown, empty, has no active banner, or is a client mode zone.</param>
+/// <param name="Mode">Client for a zone the browser fills; Server otherwise (also for an unknown zone).</param>
+public sealed record ZoneSelection(string Alias, IReadOnlyList<SelectedBanner> Banners, ZoneRenderMode Mode = ZoneRenderMode.Server);

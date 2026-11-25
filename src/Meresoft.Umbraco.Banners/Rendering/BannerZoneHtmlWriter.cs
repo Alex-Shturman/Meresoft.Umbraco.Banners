@@ -1,6 +1,7 @@
 using System.Net;
 using System.Text;
 using Meresoft.Umbraco.Banners.Configuration;
+using Meresoft.Umbraco.Banners.Domain;
 using Meresoft.Umbraco.Banners.Selection;
 using Meresoft.Umbraco.Banners.Tokens;
 using Microsoft.Extensions.Options;
@@ -13,6 +14,7 @@ public sealed class BannerZoneHtmlWriter
     private const string ScriptWrittenKey = "Meresoft.Banners.ScriptWritten";
 
     private readonly string _basePath;
+    private readonly bool _deliveryEnabled;
     private readonly IViewTokenProtector _tokens;
 
     /// <summary>Creates the writer.</summary>
@@ -20,6 +22,7 @@ public sealed class BannerZoneHtmlWriter
     {
         ArgumentNullException.ThrowIfNull(options);
         _basePath = options.Value.PublicPath;
+        _deliveryEnabled = options.Value.DeliveryEndpointEnabled;
         _tokens = tokens ?? throw new ArgumentNullException(nameof(tokens));
     }
 
@@ -31,6 +34,11 @@ public sealed class BannerZoneHtmlWriter
     {
         ArgumentNullException.ThrowIfNull(view);
         ArgumentNullException.ThrowIfNull(requestItems);
+
+        if (view.Mode == ZoneRenderMode.Client)
+        {
+            return RenderPlaceholder(view, requestItems);
+        }
 
         if (view.Banners.Count == 0)
         {
@@ -58,6 +66,37 @@ public sealed class BannerZoneHtmlWriter
         }
 
         html.Append("</div>");
+
+        if (requestItems.TryAdd(ScriptWrittenKey, true))
+        {
+            html.Append(PackageScript.Tag);
+        }
+
+        return html.ToString();
+    }
+
+    /// <summary>
+    /// Client mode: the page holds a placeholder and the package script asks the delivery endpoint for the banners, so the
+    /// page can be cached. It is always written, because the server does not know which banners the browser will get, and
+    /// carries no token. With the delivery endpoint switched off the script could not fill it, so only the fallback is written.
+    /// </summary>
+    private string RenderPlaceholder(BannerZoneView view, IDictionary<object, object?> requestItems)
+    {
+        if (!_deliveryEnabled)
+        {
+            return view.FallbackHtml ?? string.Empty;
+        }
+
+        var html = new StringBuilder(256);
+        html.Append("<div class=\"mb-zone");
+        if (!string.IsNullOrWhiteSpace(view.CssClass))
+        {
+            html.Append(' ').Append(Encode(view.CssClass.Trim()));
+        }
+
+        html.Append("\" data-mbz=\"").Append(Encode(view.Alias))
+            .Append("\" data-mb-base=\"").Append(Encode(_basePath))
+            .Append("\" data-mbz-mode=\"client\">").Append(view.FallbackHtml).Append("</div>");
 
         if (requestItems.TryAdd(ScriptWrittenKey, true))
         {
