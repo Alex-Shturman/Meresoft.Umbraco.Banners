@@ -1,10 +1,12 @@
+/* global console, process */
+// Fails the build when the package script is 5,120 bytes or more (FR-010).
 import { readFileSync, existsSync } from 'node:fs';
 import { gzipSync } from 'node:zlib';
 import { fileURLToPath } from 'node:url';
 import { dirname, resolve } from 'node:path';
 
 const limit = 5120;
-const file = resolve(dirname(fileURLToPath(import.meta.url)), '../wwwroot/meresoft-banners/banners.js');
+const file = resolve(dirname(fileURLToPath(import.meta.url)), '../../wwwroot/meresoft-banners/banners.js');
 
 if (!existsSync(file)) {
     console.error(`banners.js not found at ${file}. Build the script first.`);
