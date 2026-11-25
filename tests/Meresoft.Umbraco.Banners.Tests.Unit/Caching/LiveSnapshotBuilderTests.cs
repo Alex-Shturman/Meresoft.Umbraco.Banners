@@ -7,6 +7,7 @@ using Umbraco.Cms.Core.Models;
 using Umbraco.Cms.Core.Models.PublishedContent;
 using Umbraco.Cms.Core.PropertyEditors.ValueConverters;
 using Umbraco.Cms.Core.PublishedCache;
+using Umbraco.Cms.Core.Routing;
 
 namespace Meresoft.Umbraco.Banners.Tests.Unit.Caching;
 
@@ -18,6 +19,7 @@ public class LiveSnapshotBuilderTests
 
     private IPublishedMediaCache _mediaCache = null!;
     private IImageUrlGenerator _images = null!;
+    private IMediaUrlProvider _urlProvider = null!;
     private LiveSnapshotBuilder _builder = null!;
 
     [SetUp]
@@ -31,7 +33,9 @@ public class LiveSnapshotBuilderTests
                 ImageUrlGenerationOptions o = call.Arg<ImageUrlGenerationOptions>();
                 return $"{o.ImageUrl}?width={o.Width}&height={o.Height}";
             });
-        _builder = new LiveSnapshotBuilder(_mediaCache, _images);
+        _urlProvider = Substitute.For<IMediaUrlProvider>();
+        _urlProvider.GetMediaUrl(default!, default!, default, default, default!).ReturnsForAnyArgs(call => UrlInfo.AsMessage("not mine", "test", null));
+        _builder = new LiveSnapshotBuilder(_mediaCache, new MediaUrlProviderCollection(() => [_urlProvider]), _images);
         AddMedia(MediaA, "/media/a/summer.png");
         AddMedia(MediaB, "/media/b/winter.png");
     }
@@ -179,5 +183,27 @@ public class LiveSnapshotBuilderTests
         Assert.That(snapshot.Zones["home-top"].Candidates.Select(c => c.BannerId), Is.EqualTo(new[] { 11 }));
         Assert.That(snapshot.ImageMissingBannerIds, Is.EquivalentTo(new[] { 10 }));
         Assert.That(snapshot.MediaKeys, Does.Contain(MediaA), "the key stays known, so a later change to it is noticed");
+    }
+
+    [Test]
+    public async Task AMediaUrlProviderThatAnswers_IsUsedWithoutARequest_AndItsAddressWins()
+    {
+        _urlProvider.GetMediaUrl(Arg.Any<IPublishedContent>(), "umbracoFile", UrlMode.Relative, Arg.Any<string?>(), Arg.Any<Uri>())
+            .Returns(UrlInfo.AsUrl("https://cdn.example.org/media/a/summer.png", "cdn", null));
+
+        LiveSnapshot snapshot = await _builder.BuildAsync([Zone(1, "home-top")], [Published(10, MediaA, 1)]);
+
+        Assert.That(snapshot.Zones["home-top"].Candidates.Single().ImageUrl, Is.EqualTo("https://cdn.example.org/media/a/summer.png"));
+    }
+
+    [Test]
+    public async Task AProviderRelativeAddress_IsKeptRelative()
+    {
+        _urlProvider.GetMediaUrl(Arg.Any<IPublishedContent>(), "umbracoFile", UrlMode.Relative, Arg.Any<string?>(), Arg.Any<Uri>())
+            .Returns(UrlInfo.FromUri(new Uri("/base/media/a/summer.png", UriKind.Relative), "default", null));
+
+        LiveSnapshot snapshot = await _builder.BuildAsync([Zone(1, "home-top")], [Published(10, MediaA, 1)]);
+
+        Assert.That(snapshot.Zones["home-top"].Candidates.Single().ImageUrl, Is.EqualTo("/base/media/a/summer.png"));
     }
 }

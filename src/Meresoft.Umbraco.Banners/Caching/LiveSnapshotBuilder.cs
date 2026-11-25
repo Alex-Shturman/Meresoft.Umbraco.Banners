@@ -4,6 +4,7 @@ using Umbraco.Cms.Core.Models;
 using Umbraco.Cms.Core.Models.PublishedContent;
 using Umbraco.Cms.Core.PropertyEditors.ValueConverters;
 using Umbraco.Cms.Core.PublishedCache;
+using Umbraco.Cms.Core.Routing;
 
 namespace Meresoft.Umbraco.Banners.Caching;
 
@@ -15,12 +16,17 @@ internal sealed class LiveSnapshotBuilder
 {
     private const string MediaFileProperty = "umbracoFile";
 
+    // The relative mode never reads the base address; the providers only need some address to be given.
+    private static readonly Uri NoRequestBase = new("http://localhost/");
+
     private readonly IPublishedMediaCache _mediaCache;
+    private readonly MediaUrlProviderCollection _mediaUrlProviders;
     private readonly IImageUrlGenerator _imageUrlGenerator;
 
-    public LiveSnapshotBuilder(IPublishedMediaCache mediaCache, IImageUrlGenerator imageUrlGenerator)
+    public LiveSnapshotBuilder(IPublishedMediaCache mediaCache, MediaUrlProviderCollection mediaUrlProviders, IImageUrlGenerator imageUrlGenerator)
     {
         _mediaCache = mediaCache ?? throw new ArgumentNullException(nameof(mediaCache));
+        _mediaUrlProviders = mediaUrlProviders ?? throw new ArgumentNullException(nameof(mediaUrlProviders));
         _imageUrlGenerator = imageUrlGenerator ?? throw new ArgumentNullException(nameof(imageUrlGenerator));
     }
 
@@ -111,9 +117,22 @@ internal sealed class LiveSnapshotBuilder
             return null;
         }
 
-        // The stored file path is read from the property: the URL provider needs a request URL, which
-        // background work (start up, safety reload) does not have.
-        string? url = media.GetProperty(MediaFileProperty)?.GetValue() switch
+        // The registered media URL providers are asked one by one, directly and in relative mode, so this works in
+        // background work (start up, safety reload) where no request exists, and a custom provider (CDN, path base)
+        // is honoured. The aggregate UrlProvider is not used: it reads the request URL, which does not exist there.
+        // If no provider answers, the stored file path of the property is used as it is.
+        string? url = null;
+        foreach (IMediaUrlProvider provider in _mediaUrlProviders)
+        {
+            UrlInfo? info = provider.GetMediaUrl(media, MediaFileProperty, UrlMode.Relative, null, NoRequestBase);
+            if (info?.Url is { } address)
+            {
+                url = address.IsAbsoluteUri ? address.AbsoluteUri : address.OriginalString;
+                break;
+            }
+        }
+
+        url ??= media.GetProperty(MediaFileProperty)?.GetValue() switch
         {
             ImageCropperValue cropper => cropper.Src,
             string path => path,

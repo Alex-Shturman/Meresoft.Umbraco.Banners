@@ -88,8 +88,8 @@ test("scenario 3: a saved draft does not show on the site", async ({ request }) 
   await picker.locator("uui-card-media").filter({ hasText: IMAGE_NAME.slice(0, 15) }).first().click();
   await picker.getByRole("button", { name: "Choose", exact: true }).click();
   await expect(page.getByRole("link", { name: IMAGE_NAME })).toBeVisible(); // the image is now in the editor
-  // The picker takes about 300 ms to slide away; text typed during that time is lost by the back office.
-  await page.waitForTimeout(600);
+  // The picker slides away for about 300 ms; text typed while it is still there is lost by the back office.
+  await expect(page.locator("uui-modal-sidebar")).toHaveCount(0);
   await page.getByLabel("Link").fill(STORED_URL);
   await page.getByLabel("Alternative text").fill("Invented summer promo");
   await page.locator("uui-checkbox", { hasText: "Home page, top" }).click();
