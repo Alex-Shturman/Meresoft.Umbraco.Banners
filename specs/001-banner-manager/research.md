@@ -155,10 +155,21 @@ and gets a test early in implementation.
 
 ## R12. Audit and history
 
-- **Decision**: `IAuditService.AddAsync(AuditType, userKey, bannerId or zoneId, entityType
+- **Writing**: `IAuditService.AddAsync(AuditType, userKey, bannerId or zoneId, entityType
   "meresoft-banner" or "meresoft-banner-zone", comment)` with `AuditType.New`, `Save`, `Publish`,
-  `Unpublish`, `Copy`, `Delete`; history read with `GetItemsByEntityAsync(entityId, skip, take)`
-  and filtered by entity type. Comments hold ids and action names only.
+  `Unpublish`, `Copy`, `Delete`. Comments hold ids and action names only.
+- **Reading**: not through `IAuditService.GetItemsByEntityAsync`. That method filters by entity id only, and
+  banners, zones and content nodes share the id space, so the entity type would have to be filtered after
+  paging, which breaks the total and the pages. Its `customFilter` cannot help: Umbraco's `AuditItemMapper`
+  has no map for `EntityType` (a query on it throws "No map defined ... for property EntityType"). The package
+  reads the `umbracoLog` table itself with a read-only repository (`AuditHistoryRepository`, own NPoco mapping
+  `AuditLogRowDto`, because Umbraco's `LogDto` is internal): `WHERE NodeId = @id AND entityType = @type`,
+  newest first then by id, paged in SQL, with a count for the total. It works on SQL Server and SQLite and
+  writes nothing. User names come from `IUserIdKeyResolver` (id to key) and one `IUserService.GetAsync`; a user
+  that no longer exists gives a null name and the back office shows its own text.
+- **Retention**: Umbraco's log scrubber (`IAuditService.CleanLogsAsync(MaxLogAge)`) deletes only rows with the
+  header `open` or `system`, so the rows of the package stay (pinned by `AuditRetentionTests`; README, "History
+  and permissions"). The history view reads at most 10,000 entries back, 100 per request.
 
 ## R13. Testing
 
