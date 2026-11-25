@@ -50,7 +50,7 @@ internal sealed class BannerLinkLookup : IBannerLinkLookup
             }
 
             SnapshotBanner? candidate = zone.Candidates.FirstOrDefault(c => c.BannerId == bannerId);
-            return candidate is null ? null : new ClickTarget(candidate.LinkUrl, Countable: true);
+            return candidate is null || string.IsNullOrWhiteSpace(candidate.LinkUrl) ? null : new ClickTarget(candidate.LinkUrl, Countable: true);
         }
 
         return null;

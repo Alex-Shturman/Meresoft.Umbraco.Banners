@@ -51,6 +51,7 @@ export class MeresoftReportsViewElement extends UmbLitElement {
   @state() private _failed = false;
   @state() private _periodError?: string;
   @state() private _csvFailed = false;
+  #requestCount = 0;
 
   constructor() {
     super();
@@ -72,10 +73,15 @@ export class MeresoftReportsViewElement extends UmbLitElement {
   }
 
   async #load() {
+    const request = ++this.#requestCount;
     this._loading = true;
     this._periodError = undefined;
     const result = await send<ReportResponseModel>(getReport({ query: this.#query() }));
+    if (request !== this.#requestCount) {
+      return; // a newer choice was made meanwhile; its answer is the one to show
+    }
     if (result.status === 400) {
+      this._failed = false;
       this._periodError = this.localize.term("meresoftBanners_reportPeriodInvalid");
     } else {
       this._failed = result.data === undefined;
@@ -273,7 +279,8 @@ export class MeresoftReportsViewElement extends UmbLitElement {
           </uui-table-head>
           ${repeat(
             report.rows,
-            (r) => `${r.bannerKey ?? r.bannerName}/${r.zoneAlias}`,
+            // Deleted banners have no key and share a name, so the position keeps their keys apart.
+            (r, index) => `${r.bannerKey ?? `deleted-${index}`}/${r.zoneAlias}`,
             (r) => html`
               <uui-table-row>
                 <uui-table-cell>

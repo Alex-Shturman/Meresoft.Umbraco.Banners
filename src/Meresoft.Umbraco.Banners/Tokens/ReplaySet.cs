@@ -16,6 +16,7 @@ public sealed class ReplaySet
     private readonly long _purgeIntervalTicks;
     private readonly int _maxEntries;
     private long _nextPurgeTicks;
+    private long _fullPurgeNotBeforeTicks;
     private int _purging;
 
     /// <summary>Creates the set.</summary>
@@ -58,7 +59,13 @@ public sealed class ReplaySet
 
         if (_entries.Count >= _maxEntries)
         {
-            Purge(now);
+            // A full set is scanned at most once a second: a flood of reports must not turn into a scan per request.
+            if (now >= Interlocked.Read(ref _fullPurgeNotBeforeTicks))
+            {
+                Interlocked.Exchange(ref _fullPurgeNotBeforeTicks, now + TimeSpan.TicksPerSecond);
+                Purge(now);
+            }
+
             if (_entries.Count >= _maxEntries)
             {
                 return false;
