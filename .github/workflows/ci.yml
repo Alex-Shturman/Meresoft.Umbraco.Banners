@@ -43,5 +43,41 @@ jobs:
           node-version: 22
           cache: npm
           cache-dependency-path: src/Meresoft.Umbraco.Banners/Client/package-lock.json
+      # The package project's BuildClientAssets Exec target runs npm ci and npm run build, so no separate npm step is needed.
       - name: Integration tests (SQLite)
+        run: dotnet test tests/Meresoft.Umbraco.Banners.Tests.Integration --configuration Release
+
+  integration-tests-sqlserver:
+    runs-on: ubuntu-latest
+    services:
+      sqlserver:
+        image: mcr.microsoft.com/mssql/server:2022-latest
+        env:
+          ACCEPT_EULA: "Y"
+          # Throwaway password for a container that exists only during this job. Set the repository
+          # secret MB_CI_SQL_PASSWORD to override it; no real secret is stored in the repository.
+          MSSQL_SA_PASSWORD: ${{ secrets.MB_CI_SQL_PASSWORD || 'Ci-Only-Invented-1234!' }}
+        ports:
+          - 1433:1433
+        options: >-
+          --health-cmd "/opt/mssql-tools18/bin/sqlcmd -C -S localhost -U sa -P $MSSQL_SA_PASSWORD -Q 'SELECT 1'"
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 12
+          --health-start-period 20s
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: 10.0.x
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+          cache-dependency-path: src/Meresoft.Umbraco.Banners/Client/package-lock.json
+      # Runs the whole integration suite on SQL Server, including the DailyStat date column check and
+      # the banner list query paths. The test setup reads the master connection string from MB_TEST_SQLSERVER.
+      - name: Integration tests (SQL Server)
+        env:
+          MB_TEST_SQLSERVER: Server=localhost,1433;User Id=sa;Password=${{ secrets.MB_CI_SQL_PASSWORD || 'Ci-Only-Invented-1234!' }};TrustServerCertificate=True;Encrypt=False
         run: dotnet test tests/Meresoft.Umbraco.Banners.Tests.Integration --configuration Release
