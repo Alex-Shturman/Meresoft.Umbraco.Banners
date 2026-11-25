@@ -99,6 +99,16 @@ public class CacheRefreshTests : BannersServiceTestBase
     }
 
     [Test]
+    public async Task IsBuilt_IsFalseUntilTheFirstBuildHasSucceeded()
+    {
+        Assert.That(Accessor.IsBuilt, Is.False);
+
+        await Accessor.RebuildAsync();
+
+        Assert.That(Accessor.IsBuilt, Is.True);
+    }
+
+    [Test]
     public async Task Unpublish_RemovesTheBannerFromTheSnapshot()
     {
         await BannerService.PublishAsync(_banner.Key, User);
