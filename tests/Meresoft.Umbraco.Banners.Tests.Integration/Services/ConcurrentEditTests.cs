@@ -12,6 +12,8 @@ namespace Meresoft.Umbraco.Banners.Tests.Integration.Services;
 /// The stale check must hold when another editor saves between the read and the write of a request.
 /// Real threads cannot be used here: the SQLite test database stalls on overlapping write scopes, so the
 /// competing save is run at exactly that point, from a repository decorator, inside the same transaction.
+/// Real simultaneity (two connections, one blocked on the other's row lock) is covered only by
+/// <see cref="SqlServerConcurrentEditTests"/>, which needs a SQL Server.
 /// </summary>
 [TestFixture]
 public class ConcurrentEditTests : BannersServiceTestBase
