@@ -8,6 +8,9 @@ namespace Meresoft.Umbraco.Banners.Selection;
 /// </summary>
 internal sealed class WeightedSampler
 {
+    private const int MinWeight = 1;
+    private const int MaxWeight = 100;
+
     private readonly IRandomSource _random;
 
     public WeightedSampler(IRandomSource random) => _random = random ?? throw new ArgumentNullException(nameof(random));
@@ -63,6 +66,7 @@ internal sealed class WeightedSampler
         return picked;
     }
 
-    // The editor allows 1 to 100; anything lower is treated as 1 so a bad value never breaks the draw.
-    private static int WeightOf(SnapshotBanner banner) => Math.Max(1, banner.Weight);
+    // The editor and the validator allow 1 to 100. Anything outside is clamped, so a bad stored value never breaks
+    // the draw, and the sum of the weights of any realistic number of candidates (100 each) cannot overflow an int.
+    private static int WeightOf(SnapshotBanner banner) => Math.Clamp(banner.Weight, MinWeight, MaxWeight);
 }

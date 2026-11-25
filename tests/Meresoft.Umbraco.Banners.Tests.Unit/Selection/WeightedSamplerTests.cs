@@ -129,4 +129,12 @@ public class WeightedSamplerTests
 
         Assert.That(Sampler().Pick(candidates, 2).Select(b => b.BannerId), Is.EquivalentTo(new[] { 1, 2 }));
     }
+
+    [Test]
+    public void AWeightAboveTheEditorLimit_DoesNotOverflowTheSum()
+    {
+        SnapshotBanner[] candidates = [Candidate(1, int.MaxValue), Candidate(2, int.MaxValue), Candidate(3, int.MaxValue)];
+
+        Assert.That(Sampler().Pick(candidates, 3).Select(b => b.BannerId), Is.EquivalentTo(new[] { 1, 2, 3 }));
+    }
 }
