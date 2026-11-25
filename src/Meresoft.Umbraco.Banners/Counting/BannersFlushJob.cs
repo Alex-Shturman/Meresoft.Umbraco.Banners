@@ -12,7 +12,7 @@ namespace Meresoft.Umbraco.Banners.Counting;
 
 /// <summary>
 /// Writes the in-memory work of the last interval to the database, off the request path (FR-012).
-/// For now that is the requested zones; counts of impressions and clicks come with the statistics.
+/// That is the counted impressions and clicks (<see cref="CounterFlusher"/>) and the requested zones.
 /// Runs on every server, because every server counts its own page requests.
 /// </summary>
 internal sealed class BannersFlushJob : RecurringBackgroundJobBase
@@ -20,6 +20,7 @@ internal sealed class BannersFlushJob : RecurringBackgroundJobBase
     private static readonly TimeSpan StartDelay = TimeSpan.FromSeconds(30);
 
     private readonly RequestedZoneRecorder _recorder;
+    private readonly CounterFlusher _counters;
     private readonly IScopeProvider _scopeProvider;
     private readonly IRequestedZoneRepository _requestedZones;
     private readonly IZoneRepository _zones;
@@ -28,6 +29,7 @@ internal sealed class BannersFlushJob : RecurringBackgroundJobBase
     public BannersFlushJob(
         IOptions<BannersOptions> options,
         RequestedZoneRecorder recorder,
+        CounterFlusher counters,
         IScopeProvider scopeProvider,
         IRequestedZoneRepository requestedZones,
         IZoneRepository zones,
@@ -35,6 +37,7 @@ internal sealed class BannersFlushJob : RecurringBackgroundJobBase
         : base(options.Value.FlushInterval)
     {
         _recorder = recorder;
+        _counters = counters;
         _scopeProvider = scopeProvider;
         _requestedZones = requestedZones;
         _zones = zones;
@@ -49,6 +52,8 @@ internal sealed class BannersFlushJob : RecurringBackgroundJobBase
 
     public override Task RunJobAsync(CancellationToken cancellationToken)
     {
+        _counters.Flush();
+
         IReadOnlyList<RequestedZone> requested = _recorder.Drain();
         if (requested.Count == 0)
         {

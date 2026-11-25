@@ -1,5 +1,6 @@
 using System.Data.Common;
 using Meresoft.Umbraco.Banners.Counting;
+using Meresoft.Umbraco.Banners.Domain;
 using Meresoft.Umbraco.Banners.Persistence.Dtos;
 using Meresoft.Umbraco.Banners.Persistence.Repositories;
 using Meresoft.Umbraco.Banners.Tests.Integration.TestSetup;
