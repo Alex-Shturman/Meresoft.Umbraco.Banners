@@ -146,7 +146,7 @@ test("US5 scenario 2: raising the limit and publishing shows the banner again", 
   await admin.getByLabel("Impression limit").fill("100");
   await admin.getByRole("button", { name: "Save" }).click();
   await expect(toast("Banner saved")).toBeVisible();
-  await admin.getByRole("button", { name: "Publish" }).click();
+  await admin.getByRole("button", { name: "Publish", exact: true }).click();
   await expect(toast("Banner published")).toBeVisible();
 
   await expect.poll(() => homeShowsBanner(request), { timeout: 15_000, intervals: [250] }).toBeTruthy();
