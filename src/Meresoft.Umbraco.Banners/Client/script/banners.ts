@@ -149,8 +149,10 @@
     fetch(mbBase + "/zone/" + encodeURIComponent(mbz), { credentials: "omit" })
       .then((r) => (r.ok ? r.json() : null))
       .then((d: { token?: string; banners?: Delivered[] } | null) => {
-        if (d?.token && d.banners?.length) {
-          const els = d.banners.map(build);
+        // The answer comes from the site's own origin and is trusted, as the Html banner markup is (FR-006). As defence
+        // in depth an image banner only links through the click endpoint of this site, never to another address.
+        const els = (d?.banners ?? []).filter((b) => b.type === "html" || b.clickUrl?.startsWith(mbBase + "/c/")).map(build);
+        if (d?.token && els.length) {
           zone.dataset.mbzToken = d.token;
           zone.replaceChildren(...els);
           els.forEach((el) => observer.observe(el));

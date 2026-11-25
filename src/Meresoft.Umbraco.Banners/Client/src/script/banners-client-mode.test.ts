@@ -220,6 +220,30 @@ describe("the package script in client mode", () => {
     expect(sent).toEqual([{ url: "/_banners/seen", body: "tok-9 12" }]);
   });
 
+  it.each([
+    ["an address on another site", "https://evil.example/c/12?z=3"],
+    ["a protocol relative address", "//evil.example/c/12"],
+    ["a javascript address", "javascript:alert(1)"],
+    ["a path outside the click endpoint", "/_banners/other/12"],
+    ["a click path of another base", "/ads-x/c/12?z=3"],
+  ])("skips an image banner whose click address is %s, and renders the others", async (_name, clickUrl) => {
+    const { zone } = placeholder("z");
+
+    await runScript([zone], json({ zone: "z", token: "t", banners: [{ ...imageBanner, clickUrl }, { ...imageBanner, id: 13, clickUrl: "/_banners/c/13?z=3" }] }));
+
+    expect(zone.children.map((c) => c.attributes.get("data-mbb"))).toEqual(["13"]);
+    expect(observed.map((e) => e.attributes.get("data-mbb"))).toEqual(["13"]);
+  });
+
+  it("keeps the fallback when every banner was skipped for its click address", async () => {
+    const { zone, fallback } = placeholder("z");
+
+    await runScript([zone], json({ zone: "z", token: "t", banners: [{ ...imageBanner, clickUrl: "https://evil.example/" }] }));
+
+    expect(zone.children).toEqual([fallback]);
+    expect(zone.dataset.mbzToken).toBeUndefined();
+  });
+
   it("keeps the fallback when no banner came back", async () => {
     const { zone, fallback } = placeholder("z");
 
