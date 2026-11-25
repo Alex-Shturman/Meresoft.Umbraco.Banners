@@ -146,7 +146,7 @@ public class ZoneDeliveryEndpointTests : PublicEndpointTestBase
     }
 
     [TestCase("9starts-with-digit")]
-    [TestCase("has_underscore")]
+    [TestCase("has.dot")]
     [TestCase("a%20b")]
     public async Task AnAliasThatFailsTheAliasRules_Gives404(string alias)
     {
