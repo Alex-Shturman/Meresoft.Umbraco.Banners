@@ -5,8 +5,8 @@ using NUnit.Framework;
 using Umbraco.Cms.Core.Media;
 using Umbraco.Cms.Core.Models;
 using Umbraco.Cms.Core.Models.PublishedContent;
+using Umbraco.Cms.Core.PropertyEditors.ValueConverters;
 using Umbraco.Cms.Core.PublishedCache;
-using Umbraco.Cms.Core.Routing;
 
 namespace Meresoft.Umbraco.Banners.Tests.Unit.Caching;
 
@@ -17,7 +17,6 @@ public class LiveSnapshotBuilderTests
     private static readonly Guid MediaB = Guid.Parse("aaaaaaaa-0000-0000-0000-000000000002");
 
     private IPublishedMediaCache _mediaCache = null!;
-    private IPublishedUrlProvider _urls = null!;
     private IImageUrlGenerator _images = null!;
     private LiveSnapshotBuilder _builder = null!;
 
@@ -25,7 +24,6 @@ public class LiveSnapshotBuilderTests
     public void SetUp()
     {
         _mediaCache = Substitute.For<IPublishedMediaCache>();
-        _urls = Substitute.For<IPublishedUrlProvider>();
         _images = Substitute.For<IImageUrlGenerator>();
         _images.GetImageUrl(Arg.Any<ImageUrlGenerationOptions>())
             .Returns(call =>
@@ -33,7 +31,7 @@ public class LiveSnapshotBuilderTests
                 ImageUrlGenerationOptions o = call.Arg<ImageUrlGenerationOptions>();
                 return $"{o.ImageUrl}?width={o.Width}&height={o.Height}";
             });
-        _builder = new LiveSnapshotBuilder(_mediaCache, _urls, _images);
+        _builder = new LiveSnapshotBuilder(_mediaCache, _images);
         AddMedia(MediaA, "/media/a/summer.png");
         AddMedia(MediaB, "/media/b/winter.png");
     }
@@ -42,8 +40,10 @@ public class LiveSnapshotBuilderTests
     {
         IPublishedContent content = Substitute.For<IPublishedContent>();
         content.Key.Returns(key);
+        IPublishedProperty file = Substitute.For<IPublishedProperty>();
+        file.GetValue(Arg.Any<string?>(), Arg.Any<string?>()).Returns(new ImageCropperValue { Src = url });
+        content.GetProperty("umbracoFile").Returns(file);
         _mediaCache.GetByIdAsync(key).Returns(Task.FromResult<IPublishedContent?>(content));
-        _urls.GetMediaUrl(content, Arg.Any<UrlMode>(), Arg.Any<string?>(), Arg.Any<string>(), Arg.Any<Uri?>()).Returns(url);
     }
 
     private static BannerZone Zone(int id, string alias, int? width = null, int? height = null) => new()
