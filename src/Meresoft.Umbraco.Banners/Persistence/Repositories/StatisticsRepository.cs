@@ -14,40 +14,46 @@ internal sealed class StatisticsRepository : RepositoryBase, IStatisticsReposito
     {
     }
 
+    /// <summary>The Day column as a query parameter: every statement here goes through <see cref="StatisticsDayParameter"/>.</summary>
+    private object DayParameter(DateOnly day) =>
+        StatisticsDayParameter.For(Syntax.ProviderName.Contains("Sqlite", StringComparison.OrdinalIgnoreCase), day);
+
+    private string Column(string name) => Syntax.GetQuotedColumnName(name);
+
     public void AddDelta(CounterEntry delta)
     {
         // Add to the stored value instead of replacing it: several servers write into the same rows (research R7).
-        // The query builder cannot express "column = column + value", so this one statement is written out, with quoted names.
+        // The query builder cannot express "column = column + value", so these statements are written out, with quoted names.
         string table = Syntax.GetQuotedTableName(DailyStatDto.TableName);
-        string impressions = Syntax.GetQuotedColumnName("Impressions");
-        string clicks = Syntax.GetQuotedColumnName("Clicks");
+        object day = DayParameter(delta.Day);
         int updated = Database.Execute(
-            $"UPDATE {table} SET {impressions} = {impressions} + @0, {clicks} = {clicks} + @1 "
-            + $"WHERE {Syntax.GetQuotedColumnName("Day")} = @2 AND {Syntax.GetQuotedColumnName("BannerId")} = @3 AND {Syntax.GetQuotedColumnName("ZoneId")} = @4",
+            $"UPDATE {table} SET {Column("Impressions")} = {Column("Impressions")} + @0, {Column("Clicks")} = {Column("Clicks")} + @1 "
+            + $"WHERE {Column("Day")} = @2 AND {Column("BannerId")} = @3 AND {Column("ZoneId")} = @4",
             delta.Impressions,
             delta.Clicks,
-            delta.Day,
+            day,
             delta.BannerId,
             delta.ZoneId);
 
         if (updated == 0)
         {
             // A primary key violation here means another server inserted the row first; the caller retries, and the update then succeeds.
-            Database.Insert(new DailyStatDto
-            {
-                Day = delta.Day,
-                BannerId = delta.BannerId,
-                ZoneId = delta.ZoneId,
-                Impressions = delta.Impressions,
-                Clicks = delta.Clicks,
-            });
+            Database.Execute(
+                $"INSERT INTO {table} ({Column("Day")}, {Column("BannerId")}, {Column("ZoneId")}, {Column("Impressions")}, {Column("Clicks")}, {Column("IsImported")}) "
+                + "VALUES (@0, @1, @2, @3, @4, @5)",
+                day,
+                delta.BannerId,
+                delta.ZoneId,
+                delta.Impressions,
+                delta.Clicks,
+                false);
         }
     }
 
     public IReadOnlyList<DailyStatRow> GetDailyRows(DateOnly from, DateOnly to, int? zoneId, int? bannerId)
     {
         var sql = NewSql().Select<DailyStatDto>().From<DailyStatDto>()
-            .Where<DailyStatDto>(s => s.Day >= from && s.Day <= to);
+            .Where($"{Column("Day")} >= @0 AND {Column("Day")} <= @1", DayParameter(from), DayParameter(to));
         if (zoneId is { } zone)
         {
             sql = sql.Where<DailyStatDto>(s => s.ZoneId == zone);
@@ -58,8 +64,9 @@ internal sealed class StatisticsRepository : RepositoryBase, IStatisticsReposito
             sql = sql.Where<DailyStatDto>(s => s.BannerId == banner);
         }
 
-        return Database.Fetch<DailyStatDto>(sql.OrderBy<DailyStatDto>(s => s.Day))
-            .Select(d => new DailyStatRow(d.Day, d.BannerId, d.ZoneId, d.Impressions, d.Clicks, d.IsImported))
+        // Read through a plain row type: the Day column comes back as text (SQLite) or a datetime (SQL Server).
+        return Database.Fetch<DailyStatReadRow>(sql.OrderBy<DailyStatDto>(s => s.Day))
+            .Select(d => new DailyStatRow(StatisticsDayParameter.Read(d.Day), d.BannerId, d.ZoneId, d.Impressions, d.Clicks, d.IsImported))
             .ToList();
     }
 
@@ -74,5 +81,21 @@ internal sealed class StatisticsRepository : RepositoryBase, IStatisticsReposito
         return Database.Fetch<DailyStatDto>(NewSql().Select<DailyStatDto>().From<DailyStatDto>().WhereIn<DailyStatDto>(s => s.BannerId, ids))
             .GroupBy(d => d.BannerId)
             .ToDictionary(g => g.Key, g => new BannerTotals(g.Sum(d => d.Impressions), g.Sum(d => d.Clicks)));
+    }
+
+    /// <summary>A statistics row as read from the database, with the Day value left as the driver returns it.</summary>
+    private sealed class DailyStatReadRow
+    {
+        public object Day { get; set; } = null!;
+
+        public int BannerId { get; set; }
+
+        public int ZoneId { get; set; }
+
+        public long Impressions { get; set; }
+
+        public long Clicks { get; set; }
+
+        public bool IsImported { get; set; }
     }
 }

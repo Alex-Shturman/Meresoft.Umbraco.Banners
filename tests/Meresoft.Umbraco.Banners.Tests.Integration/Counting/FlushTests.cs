@@ -1,7 +1,6 @@
 using System.Data.Common;
 using Meresoft.Umbraco.Banners.Counting;
 using Meresoft.Umbraco.Banners.Domain;
-using Meresoft.Umbraco.Banners.Persistence.Dtos;
 using Meresoft.Umbraco.Banners.Persistence.Repositories;
 using Meresoft.Umbraco.Banners.Tests.Integration.TestSetup;
 using Microsoft.Extensions.DependencyInjection;
@@ -38,16 +37,28 @@ public class FlushTests : BannersServiceTestBase
 
     private CounterFlusher NewFlusher(CounterBuffer buffer) => ActivatorUtilities.CreateInstance<CounterFlusher>(Services, buffer);
 
-    private List<DailyStatDto> Rows()
+    // Rows are read and written through the repository and plain statements, never through the table mapping of Day,
+    // so nothing here depends on how one database stores a date (the SQL Server job of CI runs these tests too).
+    private List<DailyStatRow> Rows()
     {
         using IScope scope = ScopeProvider.CreateScope(autoComplete: true);
-        return scope.Database.Fetch<DailyStatDto>();
+        return [.. GetRequiredService<IStatisticsRepository>().GetDailyRows(new DateOnly(2000, 1, 1), new DateOnly(2100, 1, 1), null, null)];
     }
 
     private void InsertRow(int bannerId, int zoneId, long impressions, long clicks, bool imported = false)
     {
         using IScope scope = ScopeProvider.CreateScope();
-        scope.Database.Insert(new DailyStatDto { Day = Day, BannerId = bannerId, ZoneId = zoneId, Impressions = impressions, Clicks = clicks, IsImported = imported });
+        // Written without the failing decorator of this fixture: the other server's insert.
+        ActivatorUtilities.CreateInstance<StatisticsRepository>(Services).AddDelta(new CounterEntry(Day, bannerId, zoneId, impressions, clicks));
+        if (imported)
+        {
+            scope.Database.Execute(
+                "UPDATE meresoftBannersDailyStat SET IsImported = @0 WHERE BannerId = @1 AND ZoneId = @2",
+                true,
+                bannerId,
+                zoneId);
+        }
+
         scope.Complete();
     }
 
@@ -61,7 +72,7 @@ public class FlushTests : BannersServiceTestBase
 
         NewFlusher(Buffer).Flush();
 
-        DailyStatDto row = Rows().Single();
+        DailyStatRow row = Rows().Single();
         Assert.That((row.Impressions, row.Clicks, row.IsImported), Is.EqualTo((102L, 5L, true)));
         Assert.That(Buffer.Swap(), Is.Empty, "nothing is left to write");
     }
@@ -92,7 +103,7 @@ public class FlushTests : BannersServiceTestBase
         CounterFlusher second = NewFlusher(other);
         await Task.WhenAll(Task.Run(first.Flush), Task.Run(second.Flush));
 
-        DailyStatDto row = Rows().Single();
+        DailyStatRow row = Rows().Single();
         Assert.That((row.Impressions, row.Clicks), Is.EqualTo((80L, 40L)));
     }
 
