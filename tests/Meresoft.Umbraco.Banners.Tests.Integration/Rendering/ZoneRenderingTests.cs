@@ -85,7 +85,7 @@ public class ZoneRenderingTests : BannersServiceTestBase
 
         Assert.That(html, Does.Contain("class=\"mb-zone my-ads\""));
         Assert.That(html, Does.Contain($"data-mbb=\"{_banner.Id}\""));
-        Assert.That(html, Does.Contain("href=\"https://example.org/show\""));
+        Assert.That(html, Does.Contain($"href=\"/_banners/c/{_banner.Id}?z={_banner.Draft!.ZoneIds[0]}\""), "the link goes through the click endpoint");
         Assert.That(html, Does.Contain("alt=\"Invented summer promo\""));
         Assert.That(html, Does.Contain("src=\"/media/invented/banner.png"), "a site relative address from the real media URL provider");
         Assert.That(html, Does.Not.Contain("localhost"));

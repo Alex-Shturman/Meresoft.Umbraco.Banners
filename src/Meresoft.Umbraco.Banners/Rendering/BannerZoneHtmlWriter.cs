@@ -2,6 +2,7 @@ using System.Net;
 using System.Text;
 using Meresoft.Umbraco.Banners.Configuration;
 using Meresoft.Umbraco.Banners.Selection;
+using Meresoft.Umbraco.Banners.Tokens;
 using Microsoft.Extensions.Options;
 
 namespace Meresoft.Umbraco.Banners.Rendering;
@@ -12,12 +13,14 @@ public sealed class BannerZoneHtmlWriter
     private const string ScriptWrittenKey = "Meresoft.Banners.ScriptWritten";
 
     private readonly string _basePath;
+    private readonly IViewTokenProtector _tokens;
 
     /// <summary>Creates the writer.</summary>
-    public BannerZoneHtmlWriter(IOptions<BannersOptions> options)
+    public BannerZoneHtmlWriter(IOptions<BannersOptions> options, IViewTokenProtector tokens)
     {
         ArgumentNullException.ThrowIfNull(options);
         _basePath = options.Value.PublicPath;
+        _tokens = tokens ?? throw new ArgumentNullException(nameof(tokens));
     }
 
     /// <summary>
@@ -42,7 +45,9 @@ public sealed class BannerZoneHtmlWriter
         }
 
         html.Append("\" data-mbz=\"").Append(Encode(view.Alias))
-            .Append("\" data-mb-base=\"").Append(Encode(_basePath)).Append("\">");
+            .Append("\" data-mb-base=\"").Append(Encode(_basePath))
+            .Append("\" data-mbz-token=\"").Append(_tokens.Issue(view.Banners[0].ZoneId, [.. view.Banners.Select(b => b.BannerId)]))
+            .Append("\">");
 
         foreach (SelectedBanner banner in view.Banners)
         {
@@ -59,10 +64,11 @@ public sealed class BannerZoneHtmlWriter
         return html.ToString();
     }
 
-    private static void AppendBanner(StringBuilder html, SelectedBanner banner)
+    private void AppendBanner(StringBuilder html, SelectedBanner banner)
     {
         html.Append("<div class=\"mb-banner\" data-mbb=\"").Append(banner.BannerId).Append("\">");
-        html.Append("<a href=\"").Append(Encode(banner.LinkUrl)).Append("\" rel=\"sponsored noopener\"");
+        // The link goes through the click endpoint, which counts the click and redirects to the stored address.
+        html.Append("<a href=\"").Append(Encode($"{_basePath}/c/{banner.BannerId}?z={banner.ZoneId}")).Append("\" rel=\"sponsored noopener\"");
         if (banner.OpenInNewWindow)
         {
             html.Append(" target=\"_blank\"");

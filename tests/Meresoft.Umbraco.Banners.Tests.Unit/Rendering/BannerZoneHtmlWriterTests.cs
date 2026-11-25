@@ -111,7 +111,7 @@ public class BannerZoneHtmlWriterTests
         Assert.That(html, Does.Not.Contain("\"><script>"));
         Assert.That(html, Does.Contain("alt=\"&lt;b&gt;&quot;alt&quot;&lt;/b&gt;\""));
         Assert.That(html, Does.Contain("title=\"t&quot; onmouseover=&quot;x\""));
-        Assert.That(html, Does.Contain("href=\"https://example.org/a?b=1&amp;c=&quot;2&quot;\""));
+        Assert.That(html, Does.Contain("src=\"/m.png?a=1&amp;b=&quot;2&quot;\""));
     }
 
     [Test]
