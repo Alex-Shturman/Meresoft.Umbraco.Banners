@@ -68,12 +68,12 @@ public static class BannerVersionValidator
 
         if (version.ImpressionLimit is < 1)
         {
-            result.Add("impressionLimit", "The impression limit must be at least 1.");
+            result.Add("impressionLimit", "The impression limit must be a whole number, 1 or more.");
         }
 
         if (version.ClickLimit is < 1)
         {
-            result.Add("clickLimit", "The click limit must be at least 1.");
+            result.Add("clickLimit", "The click limit must be a whole number, 1 or more.");
         }
         else if (!isImage && version.ClickLimit is not null)
         {

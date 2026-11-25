@@ -43,11 +43,14 @@ public class BannerRequestModel
     /// <summary>First moment the banner no longer shows, UTC.</summary>
     public DateTime? EndUtc { get; set; }
 
-    /// <summary>Impressions after which the banner stops.</summary>
-    public long? ImpressionLimit { get; set; }
+    /// <summary>
+    /// Impressions after which the banner stops, a whole number of 1 or more. Read as a number like the weight, so a
+    /// fractional or too large value comes back as an error on this field, not as a failed read of the whole body.
+    /// </summary>
+    public double? ImpressionLimit { get; set; }
 
-    /// <summary>Clicks after which the banner stops (image banners only).</summary>
-    public long? ClickLimit { get; set; }
+    /// <summary>Clicks after which the banner stops (image banners only), read like <see cref="ImpressionLimit"/>.</summary>
+    public double? ClickLimit { get; set; }
 
     /// <summary>Keys of the zones the banner is assigned to.</summary>
     public IReadOnlyList<Guid> ZoneKeys { get; set; } = [];
@@ -58,6 +61,11 @@ public class BannerRequestModel
     // 0 is below the allowed range, so the validator reports it on the weight field.
     private static int WholeWeightOrZero(double? weight) =>
         weight is { } w && w >= 1 && w <= 100 && w == Math.Floor(w) ? (int)w : 0;
+
+    // No limit stays no limit. A value that is not a whole number from 1 to 2^53 becomes 0, which the validator
+    // reports on the limit's own field.
+    private static long? WholeLimitOrZero(double? limit) =>
+        limit is not { } l ? null : l >= 1 && l <= 9_007_199_254_740_992d && l == Math.Floor(l) ? (long)l : 0;
 
     internal BannerDraftModel ToDraftModel() => new()
     {
@@ -72,8 +80,8 @@ public class BannerRequestModel
         Weight = WholeWeightOrZero(Weight),
         StartUtc = StartUtc,
         EndUtc = EndUtc,
-        ImpressionLimit = ImpressionLimit,
-        ClickLimit = ClickLimit,
+        ImpressionLimit = WholeLimitOrZero(ImpressionLimit),
+        ClickLimit = WholeLimitOrZero(ClickLimit),
         ZoneKeys = ZoneKeys,
         UpdateDate = UpdateDate,
     };

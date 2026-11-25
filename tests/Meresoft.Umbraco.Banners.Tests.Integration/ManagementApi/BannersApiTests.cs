@@ -67,6 +67,36 @@ public class BannersApiTests : BannersApiTestBase
         });
     }
 
+    [TestCase("impressionLimit", "2.5")]
+    [TestCase("impressionLimit", "0")]
+    [TestCase("impressionLimit", "-3")]
+    [TestCase("impressionLimit", "1e300")]
+    [TestCase("clickLimit", "2.5")]
+    [TestCase("clickLimit", "0")]
+    public async Task Create_ABadLimit_Returns400WithAFieldErrorOnThatLimit(string field, string limitJson)
+    {
+        string json = JsonSerializer.Serialize(BannerBody(_media, [_zoneKey]), Json).Replace("\"weight\":1", "\"weight\":1,\"" + field + "\":" + limitJson);
+
+        HttpResponseMessage response = await Client.PostAsync(Root + "/banners", new StringContent(json, System.Text.Encoding.UTF8, "application/json"));
+
+        Assert.That(response.StatusCode, Is.EqualTo(HttpStatusCode.BadRequest));
+        JsonElement body = await ReadAsync(response);
+        string[] fields = body.GetProperty("errors").EnumerateArray().SelectMany(e => e.EnumerateObject().Select(f => f.Name)).ToArray();
+        Assert.That(fields, Is.EqualTo(new[] { "$." + field }), body.ToString());
+        Assert.That(body.GetProperty("title").GetString(), Is.EqualTo("Invalid data"));
+    }
+
+    [Test]
+    public async Task Create_AWholeLimitWrittenWithADecimalPoint_IsAccepted()
+    {
+        string json = JsonSerializer.Serialize(BannerBody(_media, [_zoneKey]), Json).Replace("\"weight\":1", "\"weight\":1,\"impressionLimit\":50.0");
+
+        HttpResponseMessage response = await Client.PostAsync(Root + "/banners", new StringContent(json, System.Text.Encoding.UTF8, "application/json"));
+
+        Assert.That(response.StatusCode, Is.EqualTo(HttpStatusCode.Created), await response.Content.ReadAsStringAsync());
+        Assert.That((await GetBannerAsync(KeyFromLocation(response))).GetProperty("draft").GetProperty("impressionLimit").GetInt64(), Is.EqualTo(50));
+    }
+
     [Test]
     public async Task Create_InvalidLink_Returns400WithFieldErrors()
     {
