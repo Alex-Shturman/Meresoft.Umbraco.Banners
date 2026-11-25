@@ -44,3 +44,4 @@ samples/**/appsettings.Development.json
 
 # Agent worktrees
 .claude/worktrees/
+BenchmarkDotNet.Artifacts/

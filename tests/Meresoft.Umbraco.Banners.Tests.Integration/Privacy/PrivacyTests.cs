@@ -118,6 +118,8 @@ public class PrivacyTests : PublicEndpointTestBase
     {
         public void AddDelta(CounterEntry delta) => throw new FailingWriteException();
 
+        public bool Import(DateOnly day, int bannerId, int zoneId, long impressions, long clicks, bool replace) => throw new FailingWriteException();
+
         public IReadOnlyList<DailyStatRow> GetDailyRows(DateOnly from, DateOnly to, int? zoneId, int? bannerId) => [];
 
         public IReadOnlyDictionary<int, Meresoft.Umbraco.Banners.Domain.BannerTotals> GetTotals(IReadOnlyCollection<int> bannerIds) =>

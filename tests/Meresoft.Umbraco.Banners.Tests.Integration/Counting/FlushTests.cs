@@ -193,6 +193,9 @@ public class FlushTests : BannersServiceTestBase
             _inner.AddDelta(delta);
         }
 
+        public bool Import(DateOnly day, int bannerId, int zoneId, long impressions, long clicks, bool replace) =>
+            _inner.Import(day, bannerId, zoneId, impressions, clicks, replace);
+
         public IReadOnlyList<DailyStatRow> GetDailyRows(DateOnly from, DateOnly to, int? zoneId, int? bannerId) =>
             _inner.GetDailyRows(from, to, zoneId, bannerId);
 

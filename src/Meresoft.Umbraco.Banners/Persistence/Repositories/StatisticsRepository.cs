@@ -50,6 +50,38 @@ internal sealed class StatisticsRepository : RepositoryBase, IStatisticsReposito
         }
     }
 
+    public bool Import(DateOnly day, int bannerId, int zoneId, long impressions, long clicks, bool replace)
+    {
+        string table = Syntax.GetQuotedTableName(DailyStatDto.TableName);
+        object dayValue = DayParameter(day);
+        string impressionsValue = replace ? "@0" : $"{Column("Impressions")} + @0";
+        string clicksValue = replace ? "@1" : $"{Column("Clicks")} + @1";
+        int updated = Database.Execute(
+            $"UPDATE {table} SET {Column("Impressions")} = {impressionsValue}, {Column("Clicks")} = {clicksValue}, {Column("IsImported")} = @2 "
+            + $"WHERE {Column("Day")} = @3 AND {Column("BannerId")} = @4 AND {Column("ZoneId")} = @5",
+            impressions,
+            clicks,
+            true,
+            dayValue,
+            bannerId,
+            zoneId);
+        if (updated > 0)
+        {
+            return false;
+        }
+
+        Database.Execute(
+            $"INSERT INTO {table} ({Column("Day")}, {Column("BannerId")}, {Column("ZoneId")}, {Column("Impressions")}, {Column("Clicks")}, {Column("IsImported")}) "
+            + "VALUES (@0, @1, @2, @3, @4, @5)",
+            dayValue,
+            bannerId,
+            zoneId,
+            impressions,
+            clicks,
+            true);
+        return true;
+    }
+
     public IReadOnlyList<DailyStatRow> GetDailyRows(DateOnly from, DateOnly to, int? zoneId, int? bannerId)
     {
         var sql = NewSql().Select<DailyStatDto>().From<DailyStatDto>()

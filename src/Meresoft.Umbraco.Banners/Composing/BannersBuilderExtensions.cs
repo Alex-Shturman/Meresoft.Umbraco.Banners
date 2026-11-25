@@ -67,6 +67,7 @@ public static class BannersBuilderExtensions
         builder.Services.AddSingleton<IBannerZoneService, BannerZoneService>();
         builder.Services.AddSingleton<IBannerService, BannerService>();
         builder.Services.AddSingleton<IBannerStatisticsService, BannerStatisticsService>();
+        builder.Services.AddSingleton<IBannerImportService, BannerImportService>();
 
         // Impressions and clicks (US3): view tokens, bot filter, in-memory counters and the public endpoints.
         builder.Services.AddSingleton<IViewTokenProtector, ViewTokenProtector>();

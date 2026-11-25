@@ -116,6 +116,8 @@ public class CounterFlusherTests
             }
         }
 
+        public bool Import(DateOnly day, int bannerId, int zoneId, long impressions, long clicks, bool replace) => throw new NotSupportedException();
+
         public IReadOnlyList<DailyStatRow> GetDailyRows(DateOnly from, DateOnly to, int? zoneId, int? bannerId) => [];
 
         public IReadOnlyDictionary<int, BannerTotals> GetTotals(IReadOnlyCollection<int> bannerIds) => new Dictionary<int, BannerTotals>();
