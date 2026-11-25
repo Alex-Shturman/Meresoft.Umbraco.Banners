@@ -71,6 +71,10 @@ export default {
     bannerTypeHtml: "HTML",
     bannerState: "State",
     bannerWeight: "Weight",
+    bannerWeightDescription: "A banner with weight 3 is shown three times as often as one with weight 1. 1 to 100.",
+    bannerStart: "Show from",
+    bannerEnd: "Show until",
+    bannerScheduleDescription: "Leave empty to show without a time limit. Times are in your time zone (%0%).",
     bannerUpdated: "Updated",
     filterZone: "Zone",
     filterState: "State",
@@ -83,5 +87,7 @@ export default {
     stateUnpublished: "Unpublished",
     flagNotPlaced: "Not placed",
     flagImageMissing: "Image missing",
+    flagScheduled: "Scheduled",
+    flagExpired: "Expired",
   },
 } as UmbLocalizationDictionary;

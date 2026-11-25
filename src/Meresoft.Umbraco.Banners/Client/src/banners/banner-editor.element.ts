@@ -22,6 +22,7 @@ import type {
 } from "../api/types.gen.js";
 import { configureBannersClient } from "../api/client-setup.js";
 import { client, fieldErrors, keyFromLocation, navigate, send, type ApiProblem } from "../shared/api.js";
+import { resolveUtc, userTimeZone, utcToLocalInput } from "../shared/date-time.js";
 import { STATE_DISPLAY, activeFlags } from "./banner-state.js";
 
 // The picker is a back office component; this import makes sure it is defined.
@@ -56,6 +57,9 @@ export class MeresoftBannerEditorElement extends UmbLitElement {
   @state() private _altText = "";
   @state() private _title = "";
   @state() private _zoneKeys: string[] = [];
+  @state() private _weight = "1";
+  @state() private _start = "";
+  @state() private _end = "";
   @state() private _errors: Record<string, string> = {};
   @state() private _problem = "";
   @state() private _conflict = false;
@@ -114,9 +118,12 @@ export class MeresoftBannerEditorElement extends UmbLitElement {
     this._altText = draft?.altText ?? "";
     this._title = draft?.title ?? "";
     this._zoneKeys = [...(draft?.zoneKeys ?? [])];
+    this._weight = String(draft?.weight ?? 1);
+    this._start = utcToLocalInput(draft?.startUtc);
+    this._end = utcToLocalInput(draft?.endUtc);
   }
 
-  /** The edited fields on top of what the draft already holds (weight, schedule and limits are edited elsewhere). */
+  /** The edited fields on top of what the draft already holds (limits are edited elsewhere). */
   #body(): BannerRequestModel {
     const draft = this._banner?.draft;
     return {
@@ -128,9 +135,9 @@ export class MeresoftBannerEditorElement extends UmbLitElement {
       openInNewWindow: this._openInNewWindow,
       altText: this._altText,
       title: this._title || null,
-      weight: draft?.weight ?? 1,
-      startUtc: draft?.startUtc ?? null,
-      endUtc: draft?.endUtc ?? null,
+      weight: Number(this._weight) || 1,
+      startUtc: resolveUtc(this._start, draft?.startUtc),
+      endUtc: resolveUtc(this._end, draft?.endUtc),
       impressionLimit: draft?.impressionLimit ?? null,
       clickLimit: draft?.clickLimit ?? null,
       zoneKeys: this._zoneKeys,
@@ -306,6 +313,9 @@ export class MeresoftBannerEditorElement extends UmbLitElement {
           </uui-form-layout-item>
           ${this.#textField("altText", "meresoftBanners_bannerAltText", this._altText, (v) => (this._altText = v), "meresoftBanners_bannerAltTextDescription")}
           ${this.#textField("title", "meresoftBanners_bannerTitle", this._title, (v) => (this._title = v))}
+          ${this.#textField("weight", "meresoftBanners_bannerWeight", this._weight, (v) => (this._weight = v), "meresoftBanners_bannerWeightDescription", "number")}
+          ${this.#textField("startUtc", "meresoftBanners_bannerStart", this._start, (v) => (this._start = v), "meresoftBanners_bannerScheduleDescription", "datetime-local")}
+          ${this.#textField("endUtc", "meresoftBanners_bannerEnd", this._end, (v) => (this._end = v), undefined, "datetime-local")}
           <uui-form-layout-item>
             <uui-label slot="label">${this.localize.term("meresoftBanners_bannerZones")}</uui-label>
             ${this._zones.length === 0
@@ -350,13 +360,20 @@ export class MeresoftBannerEditorElement extends UmbLitElement {
     return this._errors[field] ? html`<div class="field-error" role="alert">${this._errors[field]}</div>` : nothing;
   }
 
-  #textField(field: string, labelKey: string, value: string, set: (value: string) => void, descriptionKey?: string) {
+  #textField(
+    field: string,
+    labelKey: string,
+    value: string,
+    set: (value: string) => void,
+    descriptionKey?: string,
+    type: "text" | "number" | "datetime-local" = "text",
+  ) {
     const label = this.localize.term(labelKey);
     return html`
       <uui-form-layout-item>
         <uui-label slot="label" for=${field}>${label}</uui-label>
-        ${descriptionKey ? html`<span slot="description">${this.localize.term(descriptionKey)}</span>` : nothing}
-        <uui-input id=${field} label=${label} .value=${value} @input=${(e: Event) => set((e.target as HTMLInputElement).value)}></uui-input>
+        ${descriptionKey ? html`<span slot="description">${this.localize.term(descriptionKey, userTimeZone())}</span>` : nothing}
+        <uui-input id=${field} type=${type} min=${type === "number" ? "1" : nothing} max=${type === "number" ? "100" : nothing} label=${label} .value=${value} @input=${(e: Event) => set((e.target as HTMLInputElement).value)}></uui-input>
         ${this.#error(field)}
       </uui-form-layout-item>
     `;

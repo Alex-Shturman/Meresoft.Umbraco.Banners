@@ -17,5 +17,11 @@ export function activeFlags(flags: BannerFlagsModel): Array<{ key: string; color
   if (flags.imageMissing) {
     result.push({ key: "meresoftBanners_flagImageMissing", color: "danger" });
   }
+  if (flags.scheduled) {
+    result.push({ key: "meresoftBanners_flagScheduled", color: "warning" });
+  }
+  if (flags.expired) {
+    result.push({ key: "meresoftBanners_flagExpired", color: "danger" });
+  }
   return result;
 }
