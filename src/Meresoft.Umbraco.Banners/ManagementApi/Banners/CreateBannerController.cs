@@ -22,6 +22,7 @@ public class CreateBannerController : BannersManagementApiControllerBase
     [ProducesResponseType<ProblemDetails>(StatusCodes.Status400BadRequest)]
     public async Task<IActionResult> Create(BannerRequestModel model)
     {
+        // TODO(US6, T101 and T102): the service rejects Type=Html until the HTML permission check exists; add the check here with Track 5.
         var create = new BannerCreateModel { Type = model.Type ?? BannerType.Image, Draft = model.ToDraftModel() };
         Attempt<Banner, BannerOperationStatus> attempt = await _banners.CreateAsync(create, CurrentUserKey());
         return attempt.Success

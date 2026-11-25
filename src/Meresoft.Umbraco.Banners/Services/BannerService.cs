@@ -112,6 +112,11 @@ internal sealed class BannerService : IBannerService
     {
         ArgumentNullException.ThrowIfNull(model);
 
+        if (model.Type == BannerType.Html)
+        {
+            return HtmlNotAvailable();
+        }
+
         DateTime now = UtcTimestamp.Truncate(_timeProvider.GetUtcNow().UtcDateTime);
         var banner = new Banner
         {
@@ -256,6 +261,11 @@ internal sealed class BannerService : IBannerService
             return Attempt.FailWithStatus<Banner, BannerOperationStatus>(BannerOperationStatus.NotFound, null!);
         }
 
+        if (source.Type == BannerType.Html)
+        {
+            return HtmlNotAvailable();
+        }
+
         string name = string.IsNullOrWhiteSpace(newName)
             ? (source.Name.Length > MaxNameLength - CopySuffix.Length ? source.Name[..(MaxNameLength - CopySuffix.Length)] : source.Name) + CopySuffix
             : newName.Trim();
@@ -318,6 +328,17 @@ internal sealed class BannerService : IBannerService
         scope.Complete();
 
         return BannerOperationStatus.Success;
+    }
+
+    /// <summary>
+    /// TODO(US6, T101 and T102): Html banners, and the HTML permission check that must guard them, arrive with Track 5.
+    /// Until then no Html row can be created, so nobody can store markup without the permission check.
+    /// </summary>
+    private static Attempt<Banner, BannerOperationStatus> HtmlNotAvailable()
+    {
+        var result = new FieldValidationResult();
+        result.Add("type", "Html banners are not available yet.");
+        return Attempt.FailWithStatus<Banner, BannerOperationStatus>(BannerOperationStatus.InvalidData, null!, new BannerValidationException(result));
     }
 
     private static bool IsStale(DateTime? loaded, Banner banner) =>

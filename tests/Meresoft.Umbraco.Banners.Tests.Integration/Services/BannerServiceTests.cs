@@ -119,6 +119,55 @@ public class BannerServiceTests : BannersServiceTestBase
         Assert.That((await BannerService.GetAsync(banner.Key))!.IsPublished, Is.False);
     }
 
+    private async Task<Banner> InsertHtmlBannerDirectlyAsync()
+    {
+        var banner = new Banner
+        {
+            Key = Guid.NewGuid(),
+            Name = "Html offer",
+            Type = BannerType.Html,
+            CreateDate = Clock.GetUtcNow().UtcDateTime,
+            UpdateDate = Clock.GetUtcNow().UtcDateTime,
+            CreatedBy = User,
+            UpdatedBy = User,
+            Draft = new BannerVersion { Kind = BannerVersionKind.Draft, Html = "<p>Invented html</p>", Weight = 1, SavedDate = Clock.GetUtcNow().UtcDateTime, SavedBy = User, ZoneIds = [_zone.Id] },
+        };
+        using (IScope scope = ScopeProvider.CreateScope())
+        {
+            GetRequiredService<Meresoft.Umbraco.Banners.Persistence.Repositories.IBannerRepository>().Add(banner);
+            scope.Complete();
+        }
+
+        return await Task.FromResult(banner);
+    }
+
+    [Test]
+    public async Task Create_HtmlBanner_ReturnsInvalidDataOnType_UntilThePermissionCheckExists()
+    {
+        // TODO(US6, T101 and T102): Html banners and their permission check arrive with Track 5; until then no Html row can be created.
+        BannerDraftModel draft = ImageDraft(_media, _zone.Key);
+        draft.MediaKey = null;
+        draft.Html = "<p>Invented html</p>";
+
+        var attempt = await BannerService.CreateAsync(new BannerCreateModel { Type = BannerType.Html, Draft = draft }, User);
+
+        Assert.That(attempt.Status, Is.EqualTo(BannerOperationStatus.InvalidData));
+        Assert.That(((BannerValidationException)attempt.Exception!).Errors, Contains.Key("type"));
+        Assert.That((await BannerService.GetPagedAsync(new BannerQuery { Type = BannerType.Html })).Total, Is.EqualTo(0));
+    }
+
+    [Test]
+    public async Task Copy_OfAnHtmlBanner_ReturnsInvalidDataOnType_AndCreatesNothing()
+    {
+        Banner html = await InsertHtmlBannerDirectlyAsync();
+
+        var attempt = await BannerService.CopyAsync(html.Key, null, User);
+
+        Assert.That(attempt.Status, Is.EqualTo(BannerOperationStatus.InvalidData));
+        Assert.That(((BannerValidationException)attempt.Exception!).Errors, Contains.Key("type"));
+        Assert.That((await BannerService.GetPagedAsync(new BannerQuery { Type = BannerType.Html })).Total, Is.EqualTo(1), "only the row inserted by the test");
+    }
+
     [Test]
     public async Task Create_UnknownZoneKey_ReturnsInvalidData()
     {

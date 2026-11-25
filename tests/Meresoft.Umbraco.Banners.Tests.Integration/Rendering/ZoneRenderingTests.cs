@@ -116,6 +116,35 @@ public class ZoneRenderingTests : BannersServiceTestBase
     }
 
     [Test]
+    public async Task AnHtmlBannerInsertedDirectly_IsNeverRendered()
+    {
+        BannerZone zone = await NewZoneAsync("home-top");
+        var banner = new Banner
+        {
+            Key = Guid.NewGuid(),
+            Name = "Html offer",
+            Type = BannerType.Html,
+            CreateDate = Clock.GetUtcNow().UtcDateTime,
+            UpdateDate = Clock.GetUtcNow().UtcDateTime,
+            CreatedBy = User,
+            UpdatedBy = User,
+            Draft = new BannerVersion { Kind = BannerVersionKind.Draft, Html = "<script>invented()</script>", Weight = 1, SavedDate = Clock.GetUtcNow().UtcDateTime, SavedBy = User, ZoneIds = [zone.Id] },
+        };
+        using (IScope scope = ScopeProvider.CreateScope())
+        {
+            var repository = GetRequiredService<Meresoft.Umbraco.Banners.Persistence.Repositories.IBannerRepository>();
+            repository.Add(banner);
+            repository.CopyDraftOverLive(banner.Id, Clock.GetUtcNow().UtcDateTime);
+            scope.Complete();
+        }
+
+        await GetRequiredService<ILiveSnapshotAccessor>().RebuildAsync();
+        string html = await RenderTagHelperAsync(new DefaultHttpContext(), "home-top");
+
+        Assert.That(html, Is.Empty);
+    }
+
+    [Test]
     public async Task ViewComponent_RendersThePublishedBanner()
     {
         await PublishBannerInZoneAsync();
