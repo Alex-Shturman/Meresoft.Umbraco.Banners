@@ -11,7 +11,7 @@ internal sealed class DailyStatDto
     public const string TableName = "meresoftBannersDailyStat";
 
     [Column("Day")]
-    public DateTime Day { get; set; }
+    public DateOnly Day { get; set; }
 
     [Column("BannerId")]
     public int BannerId { get; set; }

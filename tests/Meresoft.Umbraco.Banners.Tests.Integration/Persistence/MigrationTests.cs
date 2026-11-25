@@ -166,6 +166,32 @@ public class MigrationTests : BannersIntegrationTestBase
     }
 
     [Test]
+    public async Task DailyStat_Day_IsADateWithoutTimePart()
+    {
+        await InstallPackageAsync();
+
+        using IScope scope = ScopeProvider.CreateScope(autoComplete: true);
+        IUmbracoDatabase db = scope.Database;
+        db.Insert(new Meresoft.Umbraco.Banners.Persistence.Dtos.DailyStatDto
+        {
+            Day = new DateOnly(2027, 1, 5),
+            BannerId = 1,
+            ZoneId = 1,
+            Impressions = 1,
+        });
+
+        string stored = db.ExecuteScalar<string>("SELECT CAST(\"Day\" AS VARCHAR(30)) FROM meresoftBannersDailyStat");
+        Assert.That(stored, Is.EqualTo("2027-01-05"), "no time part is stored");
+        if (!IsSqlite())
+        {
+            // SQL Server has a real date type; SQLite stores dates as text.
+            Assert.That(
+                db.ExecuteScalar<string>("SELECT DATA_TYPE FROM INFORMATION_SCHEMA.COLUMNS WHERE TABLE_NAME = 'meresoftBannersDailyStat' AND COLUMN_NAME = 'Day'"),
+                Is.EqualTo("date"));
+        }
+    }
+
+    [Test]
     public async Task RunningThePlanAgain_ChangesNothing()
     {
         await InstallPackageAsync();

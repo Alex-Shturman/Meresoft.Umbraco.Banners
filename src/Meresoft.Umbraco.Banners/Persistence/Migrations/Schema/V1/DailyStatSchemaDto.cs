@@ -5,7 +5,7 @@ namespace Meresoft.Umbraco.Banners.Persistence.Migrations.Schema.V1;
 
 /// <summary>
 /// Frozen schema of the daily statistics table, version 1. No foreign keys: rows survive the
-/// deletion of banners and zones. The day is the UTC day, stored as midnight.
+/// deletion of banners and zones. The day is the UTC day, a SQL date column (no time part).
 /// </summary>
 [TableName(TableName)]
 [PrimaryKey("Day,BannerId,ZoneId", AutoIncrement = false)]
@@ -16,7 +16,7 @@ internal sealed class DailyStatSchemaDto
 
     [Column("Day")]
     [PrimaryKeyColumn(AutoIncrement = false, Name = "PK_meresoftBannersDailyStat", OnColumns = "Day, BannerId, ZoneId")]
-    public DateTime Day { get; set; }
+    public DateOnly Day { get; set; }
 
     [Column("BannerId")]
     [Index(IndexTypes.NonClustered, ForColumns = "BannerId,Day", Name = "IX_meresoftBannersDailyStat_BannerId_Day")]
