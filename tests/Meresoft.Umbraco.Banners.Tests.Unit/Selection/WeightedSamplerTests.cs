@@ -86,4 +86,47 @@ public class WeightedSamplerTests
 
         Assert.That(picked.Select(b => b.BannerId), Is.EquivalentTo(new[] { 1, 2, 3 }));
     }
+
+    [TestCase(0)]
+    [TestCase(-5)]
+    public void AWeightBelowOne_IsStillPicked_AndNeverThrows(int weight)
+    {
+        WeightedSampler sampler = Sampler();
+        SnapshotBanner[] candidates = [Candidate(1, weight), Candidate(2, weight)];
+
+        var seen = new HashSet<int>();
+        for (int i = 0; i < 200; i++)
+        {
+            seen.Add(sampler.Pick(candidates, 1)[0].BannerId);
+        }
+
+        Assert.That(seen, Is.EquivalentTo(new[] { 1, 2 }), "a bad weight counts as 1, so both can show");
+    }
+
+    [TestCase(0)]
+    [TestCase(-1)]
+    public void ACountBelowOne_GivesAnEmptyList(int count)
+    {
+        Assert.That(Sampler().Pick([Candidate(1), Candidate(2)], count), Is.Empty);
+    }
+
+    [Test]
+    public void WeightsOneAndThree_ShowCountTwo_AlwaysGiveBoth()
+    {
+        WeightedSampler sampler = Sampler();
+        SnapshotBanner[] candidates = [Candidate(1, 1), Candidate(2, 3)];
+
+        for (int i = 0; i < 200; i++)
+        {
+            Assert.That(sampler.Pick(candidates, 2).Select(b => b.BannerId), Is.EquivalentTo(new[] { 1, 2 }));
+        }
+    }
+
+    [Test]
+    public void TwoBannersWithWeightsBelowOne_ShowCountTwo_GiveBoth()
+    {
+        SnapshotBanner[] candidates = [Candidate(1, 0), Candidate(2, -5)];
+
+        Assert.That(Sampler().Pick(candidates, 2).Select(b => b.BannerId), Is.EquivalentTo(new[] { 1, 2 }));
+    }
 }
