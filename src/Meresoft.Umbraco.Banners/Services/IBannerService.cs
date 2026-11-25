@@ -7,8 +7,9 @@ namespace Meresoft.Umbraco.Banners.Services;
 
 /// <summary>
 /// Creates, saves, publishes and deletes banners. Every call runs in its own Umbraco scope. The
-/// HTML permission is checked by the management API layer, not here, so a site's own code (for
-/// example an importer) can create html banners. A failed attempt for invalid data carries a
+/// HTML permission is checked here for the acting user (<c>userKey</c>): creating an Html banner or
+/// changing html needs a user who has the permission, so site code such as an importer passes the key of
+/// such a user (for example an administrator). A failed attempt for invalid data carries a
 /// <see cref="BannerValidationException"/> in its <c>Exception</c>.
 /// </summary>
 public interface IBannerService

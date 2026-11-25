@@ -117,7 +117,7 @@ public class ZoneRenderingTests : BannersServiceTestBase
     }
 
     [Test]
-    public async Task AnHtmlBannerInsertedDirectly_IsNeverRendered()
+    public async Task APublishedHtmlBanner_IsRenderedAsStored_InsideTheHtmlBox()
     {
         BannerZone zone = await NewZoneAsync("home-top");
         var banner = new Banner
@@ -142,7 +142,8 @@ public class ZoneRenderingTests : BannersServiceTestBase
         await GetRequiredService<ILiveSnapshotAccessor>().RebuildAsync();
         string html = await RenderTagHelperAsync(new DefaultHttpContext(), "home-top");
 
-        Assert.That(html, Is.Empty);
+        Assert.That(html, Does.Contain("<div class=\"mb-banner mb-html\" data-mbb=\"" + banner.Id + "\"><script>invented()</script></div>"));
+        Assert.That(html, Does.Not.Contain("<a href"));
     }
 
     [Test]

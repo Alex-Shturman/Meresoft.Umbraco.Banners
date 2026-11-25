@@ -62,7 +62,7 @@ public class OpenApiDocumentTests : UmbracoTestServerTestBase
             Is.EquivalentTo(new[]
             {
                 "listZones", "getZone", "createZone", "updateZone", "deleteZone",
-                "listRequestedZones", "dismissRequestedZone",
+                "listRequestedZones", "dismissRequestedZone", "getBannerHistory", "getZoneHistory",
                 "listBanners", "getBanner", "createBanner", "updateBanner", "publishBanner", "unpublishBanner", "copyBanner", "deleteBanner",
                 "getReport", "getReportCsv",
             }));

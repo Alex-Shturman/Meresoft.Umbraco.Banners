@@ -20,7 +20,6 @@ public class CreateBannerController : BannersManagementApiControllerBase
     [HttpPost("banners")]
     [ProducesResponseType(StatusCodes.Status201Created)]
     [ProducesResponseType<ProblemDetails>(StatusCodes.Status400BadRequest)]
-    [ProducesResponseType<ProblemDetails>(StatusCodes.Status403Forbidden)]
     public async Task<IActionResult> Create(BannerRequestModel model)
     {
         // The service refuses an Html banner or any html value without the HTML permission (403 html-permission-required).

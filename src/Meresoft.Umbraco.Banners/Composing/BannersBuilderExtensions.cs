@@ -5,6 +5,7 @@ using Meresoft.Umbraco.Banners.Counting;
 using Meresoft.Umbraco.Banners.Delivery;
 using Meresoft.Umbraco.Banners.Domain;
 using Meresoft.Umbraco.Banners.ManagementApi.Authorization;
+using Meresoft.Umbraco.Banners.ManagementApi.History;
 using Meresoft.Umbraco.Banners.ManagementApi.Banners;
 using Meresoft.Umbraco.Banners.ManagementApi.OpenApi;
 using Meresoft.Umbraco.Banners.Persistence.Repositories;
@@ -98,6 +99,7 @@ public static class BannersBuilderExtensions
         builder.Services.AddTransient<BannerAuditWriter>();
         builder.Services.AddSingleton<IAuthorizationHandler, SectionAccessHandler>();
         builder.Services.AddSingleton<HtmlPermissionChecker>();
+        builder.Services.AddSingleton<BannerHistoryReader>();
         builder.Services.AddAuthorizationBuilder().AddPolicy(BannersConstants.SectionAccessPolicy, policy =>
         {
             policy.AuthenticationSchemes.Add(OpenIddictValidationAspNetCoreDefaults.AuthenticationScheme);
