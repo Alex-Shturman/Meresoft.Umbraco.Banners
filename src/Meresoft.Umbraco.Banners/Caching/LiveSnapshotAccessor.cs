@@ -34,7 +34,7 @@ internal sealed class LiveSnapshotAccessor : ILiveSnapshotAccessor
 
     public LiveSnapshot Current => _current;
 
-    public async Task RebuildAsync()
+    public async Task RebuildAsync(IReadOnlySet<Guid>? mediaKeysTreatedAsMissing = null)
     {
         await _rebuildLock.WaitAsync();
         try
@@ -47,7 +47,7 @@ internal sealed class LiveSnapshotAccessor : ILiveSnapshotAccessor
                 banners = _banners.GetAllPublished();
             }
 
-            _current = await _builder.BuildAsync(zones, banners);
+            _current = await _builder.BuildAsync(zones, banners, mediaKeysTreatedAsMissing);
             _logger.LogDebug("Banner snapshot rebuilt: {ZoneCount} zones, {MissingImageCount} banners with a missing image.", zones.Count, _current.ImageMissingBannerIds.Count);
         }
         finally

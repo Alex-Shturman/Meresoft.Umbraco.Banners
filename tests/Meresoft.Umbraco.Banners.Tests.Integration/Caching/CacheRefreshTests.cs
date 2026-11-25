@@ -156,6 +156,37 @@ public class CacheRefreshTests : BannersServiceTestBase
     }
 
     [Test]
+    public async Task DeletingAFolderWithAReferencedImage_DropsTheBanner_EvenThoughOnlyTheFolderKeyIsSent()
+    {
+        IMediaService mediaService = GetRequiredService<IMediaService>();
+        IMedia folder = TestMedia.CreateFolder(mediaService);
+        IMedia inside = TestMedia.CreateImage(mediaService, "Inside the folder", folder.Id);
+        Banner inFolder = await NewBannerAsync(ImageDraft(inside.Key, _zone.Key));
+        await BannerService.PublishAsync(inFolder.Key, User);
+        await EventuallyAsync(s => Shows(s, inFolder.Id), "shown");
+
+        mediaService.Delete(folder);
+        GetRequiredService<DistributedCache>().RefreshByPayload(
+            MediaCacheRefresher.UniqueId,
+            [new MediaCacheRefresher.JsonPayload(folder.Id, folder.Key, TreeChangeTypes.Remove)]);
+
+        await EventuallyAsync(s => !Shows(s, inFolder.Id) && s.ImageMissingBannerIds.Contains(inFolder.Id), "banner dropped, image missing");
+    }
+
+    [Test]
+    public async Task ARemovedMediaKey_IsTreatedAsMissingWithoutAskingTheMediaCache()
+    {
+        await BannerService.PublishAsync(_banner.Key, User);
+        await EventuallyAsync(s => Shows(s, _banner.Id), "shown");
+
+        // The media item still exists in the database and the cache, but the message says it was removed.
+        await Accessor.RebuildAsync(new HashSet<Guid> { _media.Key });
+
+        Assert.That(Shows(Accessor.Current, _banner.Id), Is.False);
+        Assert.That(Accessor.Current.ImageMissingBannerIds, Does.Contain(_banner.Id));
+    }
+
+    [Test]
     public async Task SafetyReload_RebuildsTheSnapshot_WhenNoMessageArrived()
     {
         await BannerService.PublishAsync(_banner.Key, User);

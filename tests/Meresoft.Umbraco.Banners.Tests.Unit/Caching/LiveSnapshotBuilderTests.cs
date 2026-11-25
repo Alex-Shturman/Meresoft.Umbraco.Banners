@@ -167,4 +167,17 @@ public class LiveSnapshotBuilderTests
         Assert.That(snapshot.Zones["home-top"].Candidates.Single().ImageUrl, Is.EqualTo("/media/a/summer.png"));
         Assert.That(snapshot.Zones["sidebar"].Candidates.Single().ImageUrl, Does.Contain("width=300"));
     }
+
+    [Test]
+    public async Task MediaKeysTreatedAsMissing_AreLeftOutAndReported_EvenWhenTheMediaCacheStillHasThem()
+    {
+        LiveSnapshot snapshot = await _builder.BuildAsync(
+            [Zone(1, "home-top")],
+            [Published(10, MediaA, 1), Published(11, MediaB, 1)],
+            new HashSet<Guid> { MediaA });
+
+        Assert.That(snapshot.Zones["home-top"].Candidates.Select(c => c.BannerId), Is.EqualTo(new[] { 11 }));
+        Assert.That(snapshot.ImageMissingBannerIds, Is.EquivalentTo(new[] { 10 }));
+        Assert.That(snapshot.MediaKeys, Does.Contain(MediaA), "the key stays known, so a later change to it is noticed");
+    }
 }

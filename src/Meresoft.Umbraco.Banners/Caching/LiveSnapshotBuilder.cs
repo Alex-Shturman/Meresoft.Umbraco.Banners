@@ -25,7 +25,10 @@ internal sealed class LiveSnapshotBuilder
     }
 
     /// <summary>Builds the snapshot. Banners that are not published, have no live version or no zone are skipped.</summary>
-    public async Task<LiveSnapshot> BuildAsync(IReadOnlyList<BannerZone> zones, IReadOnlyList<Banner> banners)
+    public async Task<LiveSnapshot> BuildAsync(
+        IReadOnlyList<BannerZone> zones,
+        IReadOnlyList<Banner> banners,
+        IReadOnlySet<Guid>? mediaKeysTreatedAsMissing = null)
     {
         ArgumentNullException.ThrowIfNull(zones);
         ArgumentNullException.ThrowIfNull(banners);
@@ -42,7 +45,7 @@ internal sealed class LiveSnapshotBuilder
             Guid mediaKey = banner.Live!.MediaKey ?? Guid.Empty;
             if (!baseUrls.TryGetValue(mediaKey, out string? url))
             {
-                url = await ResolveMediaUrlAsync(mediaKey);
+                url = mediaKeysTreatedAsMissing?.Contains(mediaKey) == true ? null : await ResolveMediaUrlAsync(mediaKey);
                 baseUrls[mediaKey] = url;
             }
 
