@@ -4,11 +4,10 @@ using Meresoft.Umbraco.Banners.ManagementApi.OpenApi;
 using Meresoft.Umbraco.Banners.Persistence.Repositories;
 using Meresoft.Umbraco.Banners.Services.Audit;
 using Microsoft.AspNetCore.Authorization;
-using OpenIddict.Validation.AspNetCore;
-using Swashbuckle.AspNetCore.SwaggerGen;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.DependencyInjection.Extensions;
 using Microsoft.Extensions.Options;
+using OpenIddict.Validation.AspNetCore;
 using Umbraco.Cms.Core.DependencyInjection;
 
 namespace Meresoft.Umbraco.Banners.Composing;
