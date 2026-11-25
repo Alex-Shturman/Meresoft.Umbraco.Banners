@@ -14,8 +14,8 @@ using Umbraco.Cms.Infrastructure.Scoping;
 namespace Meresoft.Umbraco.Banners.Tests.Integration.Services;
 
 /// <summary>
-/// A save looks the user up only when the request could touch html, so ordinary image banner saves do not load a user
-/// and its groups. The lookup must still happen, and fail closed, whenever html could change.
+/// A save looks the user up only when the request names the Html type or carries html text, so ordinary image banner
+/// saves do not load a user and its groups. The lookup must still happen, and fail closed, whenever html could change.
 /// </summary>
 [TestFixture]
 public class HtmlPermissionLookupTests : BannersServiceTestBase
@@ -96,7 +96,7 @@ public class HtmlPermissionLookupTests : BannersServiceTestBase
     }
 
     [Test]
-    public async Task SavingAnHtmlBanner_WithItsHtmlUnchanged_DoesNotLookTheUserUp()
+    public async Task SavingAnHtmlBanner_WithItsHtmlUnchanged_Succeeds_EvenWhenTheUserLacksThePermission()
     {
         // The administrator (the super user group holds the verb) creates the Html banner with the real checker.
         var created = await BannerService.CreateAsync(
@@ -107,11 +107,7 @@ public class HtmlPermissionLookupTests : BannersServiceTestBase
 
         var attempt = await _service.SaveDraftAsync(created.Result.Key, change, User);
 
-        Assert.Multiple(() =>
-        {
-            Assert.That(attempt.Success, Is.True, attempt.Status.ToString());
-            Assert.That(_checker.Lookups, Is.EqualTo(0));
-        });
+        Assert.That(attempt.Success, Is.True, attempt.Status.ToString());
     }
 
     [Test]
