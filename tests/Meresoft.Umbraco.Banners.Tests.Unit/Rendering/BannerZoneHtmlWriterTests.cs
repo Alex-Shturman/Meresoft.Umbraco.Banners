@@ -240,7 +240,7 @@ public class BannerZoneHtmlWriterTests
         string html = Render("side", null, [HtmlBanner(15, stored)]);
 
         Assert.That(html, Is.EqualTo(
-            "<div class=\"mb-zone\" data-mbz=\"side\" data-mb-base=\"/_banners\">"
+            "<div class=\"mb-zone\" data-mbz=\"side\" data-mb-base=\"/_banners\" data-mbz-token=\"token-3-15\">"
             + "<div class=\"mb-banner mb-html\" data-mbb=\"15\">" + stored + "</div></div>"
             + ScriptTag));
         Assert.That(html, Does.Not.Contain("/c/15"), "no click redirect for html banners");
