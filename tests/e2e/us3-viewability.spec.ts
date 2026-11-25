@@ -221,6 +221,9 @@ test("scenario 10: the report and the CSV match what was counted", async () => {
     await admin.getByRole("button", { name: "Today" }).click();
   }
 
+  // The totals cover everything counted today, also by banners of earlier runs on this database (deleted banners keep
+  // their statistics), so they are read for this banner only.
+  await admin.locator('uui-select[label^="Banner"]').locator("select").selectOption({ label: BANNER_NAME });
   await expect(admin.locator('[data-total="impressions"]')).toHaveText(String(impressions));
   await expect(admin.locator('[data-total="clicks"]')).toHaveText(String(clicksCounted));
   await expect(admin.locator('[data-total="ctr"]')).toHaveText("100.0 %");
