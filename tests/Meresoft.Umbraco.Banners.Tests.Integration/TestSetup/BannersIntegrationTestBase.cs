@@ -3,6 +3,7 @@ using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Time.Testing;
 using Umbraco.Cms.Core.Configuration.Models;
 using Umbraco.Cms.Core.DependencyInjection;
+using Umbraco.Cms.Core.Sync;
 using Umbraco.Cms.Infrastructure.Install;
 using Umbraco.Cms.Tests.Common.Testing;
 using Umbraco.Cms.Tests.Integration.Testing;
@@ -17,12 +18,15 @@ namespace Meresoft.Umbraco.Banners.Tests.Integration.TestSetup;
 public abstract class BannersIntegrationTestBase : UmbracoIntegrationTest
 {
     /// <summary>The clock of the package services in tests; move it to separate saves by more than the 10 ms timestamp resolution.</summary>
-    protected FakeTimeProvider Clock { get; } = new(new DateTimeOffset(2027, 3, 1, 10, 0, 0, TimeSpan.Zero));
+    protected FakeTimeProvider Clock { get; private set; } = null!;
 
     protected override void CustomTestSetup(IUmbracoBuilder builder)
     {
+        // A fresh clock for every test: one fixture instance runs all its tests, so a field would keep moving.
+        Clock = new FakeTimeProvider(new DateTimeOffset(2027, 3, 1, 10, 0, 0, TimeSpan.Zero));
         builder.AddMeresoftBanners();
         builder.Services.AddSingleton<TimeProvider>(Clock);
+        builder.Services.AddSingleton<IServerMessenger, LocalServerMessenger>();
         builder.Services.Configure<UnattendedSettings>(options => options.PackageMigrationsUnattended = false);
     }
 

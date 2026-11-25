@@ -8,10 +8,12 @@ using Meresoft.Umbraco.Banners.Tests.Integration.TestSetup;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Options;
 using NUnit.Framework;
+using Umbraco.Cms.Core.Cache;
 using Umbraco.Cms.Core.DependencyInjection;
 using Umbraco.Cms.Core.Events;
 using Umbraco.Cms.Core.Models;
 using Umbraco.Cms.Core.Services;
+using Umbraco.Cms.Core.Services.Changes;
 using Umbraco.Cms.Infrastructure.Scoping;
 
 namespace Meresoft.Umbraco.Banners.Tests.Integration.Caching;
@@ -125,6 +127,11 @@ public class CacheRefreshTests : BannersServiceTestBase
         await EventuallyAsync(s => Shows(s, _banner.Id), "shown");
 
         GetRequiredService<IMediaService>().Delete(_media);
+        // A real site binds media events to the distributed cache; the test host does not, so the
+        // message Umbraco would send for a deleted media item is sent here.
+        GetRequiredService<DistributedCache>().RefreshByPayload(
+            MediaCacheRefresher.UniqueId,
+            [new MediaCacheRefresher.JsonPayload(_media.Id, _media.Key, TreeChangeTypes.Remove)]);
 
         await EventuallyAsync(s => !Shows(s, _banner.Id) && s.ImageMissingBannerIds.Contains(_banner.Id), "banner dropped, image missing");
     }
