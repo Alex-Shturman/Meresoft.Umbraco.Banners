@@ -16,6 +16,8 @@ namespace Meresoft.Umbraco.Banners.Tests.Integration.Caching;
 /// Umbraco's batched database messenger does not send inside QueueRefresh: it enlists its own instruction batch in the
 /// scope context and sends when the scope completes. The package must queue its message in a way that still reaches
 /// such a messenger, so this messenger does the same.
+/// This is a regression guard. It does not fail on the earlier implementation that enlisted in the scope context
+/// itself: that implementation also reached this messenger. It protects the notification pattern that replaced it.
 /// </summary>
 [TestFixture]
 public class EnlistingMessengerTests : BannersServiceTestBase
