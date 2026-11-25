@@ -53,7 +53,7 @@ delivered by client mode.
 - [x] T011 Add an MSBuild target `BuildClientAssets` in `src/Meresoft.Umbraco.Banners/Meresoft.Umbraco.Banners.csproj` that runs `npm ci` and `npm run build` in `Client/` before build and pack, with Inputs and Outputs so it is incremental and skippable with `-p:SkipClientBuild=true`
 - [x] T012 [P] Create `tests/e2e/` with `package.json` (Playwright), `tsconfig.json` and `playwright.config.ts` whose `webServer` starts the sample site; credentials come from environment variables
 - [x] T013 [P] Create `.github/workflows/ci.yml` skeleton: checkout, .NET 10 and Node 22, `dotnet build` of the solution, unit tests
-- [ ] T014 Create `src/Meresoft.Umbraco.Banners/Composing/BannersComposer.cs` (`IComposer`) calling `builder.AddMeresoftBanners()` from `src/Meresoft.Umbraco.Banners/Composing/BannersBuilderExtensions.cs` (empty for now); check that the sample site starts with the package installed
+- [x] T014 Create `src/Meresoft.Umbraco.Banners/Composing/BannersComposer.cs` (`IComposer`) calling `builder.AddMeresoftBanners()` from `src/Meresoft.Umbraco.Banners/Composing/BannersBuilderExtensions.cs` (empty for now); check that the sample site starts with the package installed
 
 **Checkpoint**: `dotnet build Meresoft.Umbraco.Banners.slnx` and `dotnet test` of the unit project pass; the sample site starts.
 
