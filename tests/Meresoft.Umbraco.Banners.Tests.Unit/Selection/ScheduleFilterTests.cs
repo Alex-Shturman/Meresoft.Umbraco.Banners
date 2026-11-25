@@ -32,7 +32,12 @@ public class ScheduleFilterTests
         EndUtc = end,
     };
 
-    private void At(DateTime utc) => _time.SetUtcNow(new DateTimeOffset(utc));
+    // A fake clock cannot move backwards, so each moment gets a fresh clock and filter.
+    private void At(DateTime utc)
+    {
+        _time = new FakeTimeProvider(new DateTimeOffset(utc));
+        _filter = new ScheduleFilter(_time);
+    }
 
     [Test]
     public void InsideTheWindow_IsActive() => Assert.That(_filter.IsActive(Banner(1, Start, End)), Is.True);
