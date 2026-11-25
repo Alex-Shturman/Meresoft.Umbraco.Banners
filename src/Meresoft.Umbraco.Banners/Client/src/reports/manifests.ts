@@ -1,6 +1,6 @@
 import { SECTION_ALIAS } from "../section/manifests.js";
 
-// The reports view and its own localization entry (the Umbraco localization registry merges entries of one culture).
+// The reports view. Its texts are in lang/en.ts with the others.
 export const manifests: Array<UmbExtensionManifest> = [
   {
     type: "sectionRoute",
@@ -10,14 +10,4 @@ export const manifests: Array<UmbExtensionManifest> = [
     meta: { path: "reports" },
     conditions: [{ alias: "Umb.Condition.SectionAlias", match: SECTION_ALIAS }],
   } as unknown as UmbExtensionManifest,
-  {
-    type: "localization",
-    alias: "Meresoft.Banners.Localization.Reports.En",
-    name: "English Meresoft Banners Reports Localization",
-    weight: 100,
-    meta: {
-      culture: "en",
-    },
-    js: () => import("./reports-lang-en.js"),
-  },
 ];

@@ -5,6 +5,7 @@ import { getReport, getReportCsv, listBanners, listZones } from "../api/sdk.gen.
 import type { BannerPageModel, ReportResponseModel, ZoneResponseModel } from "../api/types.gen.js";
 import { configureBannersClient } from "../api/client-setup.js";
 import { client, send } from "../shared/api.js";
+import { loadAllPages } from "../shared/paging.js";
 import "./daily-chart.element.js";
 
 type Preset = "today" | "last7" | "last30" | "thisMonth" | "lastMonth" | "custom";
@@ -61,10 +62,11 @@ export class MeresoftReportsViewElement extends UmbLitElement {
   async #start() {
     const [zones, banners] = await Promise.all([
       send<ZoneResponseModel[]>(listZones()),
-      send<BannerPageModel>(listBanners({ query: { take: 100 } })),
+      // Every banner, not only the first page, so the filter offers them all.
+      loadAllPages(async (skip, take) => (await send<BannerPageModel>(listBanners({ query: { skip, take } }))).data),
     ]);
     this._zones = zones.data ?? [];
-    this._banners = (banners.data?.items ?? []).map((b) => ({ key: b.key, name: b.name }));
+    this._banners = (banners ?? []).map((b) => ({ key: b.key, name: b.name }));
     await this.#load();
   }
 
