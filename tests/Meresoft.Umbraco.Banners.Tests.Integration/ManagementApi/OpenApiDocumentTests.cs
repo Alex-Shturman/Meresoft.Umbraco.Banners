@@ -64,6 +64,7 @@ public class OpenApiDocumentTests : UmbracoTestServerTestBase
                 "listZones", "getZone", "createZone", "updateZone", "deleteZone",
                 "listRequestedZones", "dismissRequestedZone",
                 "listBanners", "getBanner", "createBanner", "updateBanner", "publishBanner", "unpublishBanner", "copyBanner", "deleteBanner",
+                "getReport", "getReportCsv",
             }));
     }
 

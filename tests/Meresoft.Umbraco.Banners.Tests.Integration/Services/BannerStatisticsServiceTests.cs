@@ -27,7 +27,9 @@ public class BannerStatisticsServiceTests : BannersServiceTestBase
         _home = await NewZoneAsync("home-top");
         _side = await NewZoneAsync("sidebar");
         _summer = await NewBannerAsync(ImageDraft(NewMediaKey(), _home.Key, _side.Key));
-        _winter = await NewBannerAsync(ImageDraft(NewMediaKey(), _home.Key) with { Name = "Winter sale" });
+        BannerDraftModel winterDraft = ImageDraft(NewMediaKey(), _home.Key);
+        winterDraft.Name = "Winter sale";
+        _winter = await NewBannerAsync(winterDraft);
     }
 
     private void Stat(DateOnly day, int bannerId, int zoneId, long impressions, long clicks, bool imported = false)
@@ -169,7 +171,7 @@ public class BannerStatisticsServiceTests : BannersServiceTestBase
         Stat(March1.AddDays(5), _summer.Id, _side.Id, 50, 1, imported: true);
 
         using IScope scope = ScopeProvider.CreateScope(autoComplete: true);
-        IReadOnlyDictionary<int, BannerTotals> totals = GetRequiredService<Persistence.Repositories.IStatisticsRepository>().GetTotals([_summer.Id, _winter.Id]);
+        IReadOnlyDictionary<int, BannerTotals> totals = GetRequiredService<Meresoft.Umbraco.Banners.Persistence.Repositories.IStatisticsRepository>().GetTotals([_summer.Id, _winter.Id]);
 
         Assert.That(totals[_summer.Id], Is.EqualTo(new BannerTotals(150, 4)));
         Assert.That(totals.ContainsKey(_winter.Id), Is.False);
