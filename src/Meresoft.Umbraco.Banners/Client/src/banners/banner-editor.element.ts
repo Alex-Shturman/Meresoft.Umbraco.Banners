@@ -154,7 +154,8 @@ export class MeresoftBannerEditorElement extends UmbLitElement {
       linkUrl: this._linkUrl || null,
       openInNewWindow: this._openInNewWindow,
       altText: this._altText,
-      title: this._title || null,
+      // The title is the link title of an image banner; an HTML banner has no link of its own to put it on.
+      title: this._type === "Image" ? this._title || null : null,
       // The real number goes to the server, or null when the field is empty or not a number, so the server's
       // error for the weight field shows instead of a silent 1.
       weight: this._weight.trim() === "" || Number.isNaN(Number(this._weight)) ? null : Number(this._weight),
@@ -330,7 +331,6 @@ export class MeresoftBannerEditorElement extends UmbLitElement {
           ${this.#textField("name", "meresoftBanners_name", this._name, (v) => (this._name = v))}
           ${!banner ? this.#renderTypeChoice() : nothing}
           ${this._type === "Html" ? this.#renderHtmlField() : this.#renderImageFields()}
-          ${this.#textField("title", "meresoftBanners_bannerTitle", this._title, (v) => (this._title = v))}
           ${this.#textField("weight", "meresoftBanners_bannerWeight", this._weight, (v) => (this._weight = v), "meresoftBanners_bannerWeightDescription", "number")}
           ${this.#textField("startUtc", "meresoftBanners_bannerStart", this._start, (v) => (this._start = v), "meresoftBanners_bannerScheduleDescription", "datetime-local")}
           ${this.#textField("endUtc", "meresoftBanners_bannerEnd", this._end, (v) => (this._end = v), undefined, "datetime-local")}
@@ -421,6 +421,7 @@ export class MeresoftBannerEditorElement extends UmbLitElement {
               @change=${(e: Event) => (this._openInNewWindow = (e.target as HTMLInputElement).checked)}></uui-toggle>
           </uui-form-layout-item>
           ${this.#textField("altText", "meresoftBanners_bannerAltText", this._altText, (v) => (this._altText = v), "meresoftBanners_bannerAltTextDescription")}
+          ${this.#textField("title", "meresoftBanners_bannerTitle", this._title, (v) => (this._title = v))}
     `;
   }
 
