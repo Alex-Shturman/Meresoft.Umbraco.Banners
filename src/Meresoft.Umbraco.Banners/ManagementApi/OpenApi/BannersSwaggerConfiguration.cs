@@ -1,3 +1,4 @@
+using Meresoft.Umbraco.Banners.ManagementApi.Banners.Models;
 using Microsoft.AspNetCore.Mvc.Controllers;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Options;
@@ -27,6 +28,30 @@ public sealed class BannersSwaggerConfiguration : IConfigureOptions<SwaggerGenOp
 
         options.OperationFilter<BannersBackOfficeSecurityFilter>();
         options.OperationFilter<BannersOperationIdFilter>();
+        options.SchemaFilter<BannersWeightSchemaFilter>();
+    }
+
+    /// <summary>
+    /// Writes the 1 to 100 range of a banner's weight into the schema. It is done here and not with a validation
+    /// attribute, because an attribute makes the framework validate the body itself and answer with its own error
+    /// shape; the package validator is the only source of the weight error.
+    /// </summary>
+    public sealed class BannersWeightSchemaFilter : ISchemaFilter
+    {
+        /// <inheritdoc />
+        public void Apply(IOpenApiSchema schema, SchemaFilterContext context)
+        {
+            if (context.Type != typeof(BannerRequestModel) || schema.Properties is null)
+            {
+                return;
+            }
+
+            if (schema.Properties.TryGetValue("weight", out IOpenApiSchema? weight) && weight is OpenApiSchema writable)
+            {
+                writable.Minimum = "1";
+                writable.Maximum = "100";
+            }
+        }
     }
 
     /// <summary>Declares the back office bearer security of the package operations.</summary>

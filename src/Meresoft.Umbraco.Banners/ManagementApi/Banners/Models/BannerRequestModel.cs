@@ -35,7 +35,6 @@ public class BannerRequestModel
     /// fractional, so a wrong value reaches the validator and comes back as an error on the weight field, not as a
     /// failed read of the whole body.
     /// </summary>
-    [System.ComponentModel.DataAnnotations.Range(1, 100)]
     public double? Weight { get; set; } = 1;
 
     /// <summary>First moment the banner may show, UTC.</summary>

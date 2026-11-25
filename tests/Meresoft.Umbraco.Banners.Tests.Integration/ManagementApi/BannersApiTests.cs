@@ -68,7 +68,14 @@ public class BannersApiTests : BannersApiTestBase
 
         Assert.That(response.StatusCode, Is.EqualTo(HttpStatusCode.BadRequest));
         JsonElement body = await ReadAsync(response);
-        Assert.That(body.GetProperty("errors").EnumerateArray().Any(e => e.TryGetProperty("$.weight", out _)), Is.True, body.ToString());
+        string[] fields = body.GetProperty("errors").EnumerateArray().SelectMany(e => e.EnumerateObject().Select(f => f.Name)).ToArray();
+        Assert.Multiple(() =>
+        {
+            // One shape for every bad weight: the package validator's list of one field error, keyed "$.weight".
+            Assert.That(fields, Is.EqualTo(new[] { "$.weight" }), body.ToString());
+            Assert.That(body.GetProperty("status").GetInt32(), Is.EqualTo(400));
+            Assert.That(body.GetProperty("title").GetString(), Is.EqualTo("Invalid data"), "the package's own title, not the framework's model validation title");
+        });
     }
 
     [Test]
