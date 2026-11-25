@@ -74,10 +74,10 @@ internal sealed class BannerQueryBuilder
                 BannerState.Unpublished => $"{Live("Id")} IS NOT NULL AND {Banner("IsPublished")} = 0",
                 BannerState.Published =>
                     $"{Live("Id")} IS NOT NULL AND {Banner("IsPublished")} = 1 AND " +
-                    $"({Draft("Id")} IS NULL OR {Banner("PublishDate")} IS NULL OR {Draft("SavedDate")} <= {Banner("PublishDate")})",
+                    $"({Draft("Id")} IS NULL OR {Draft("SavedDate")} = {Live("SavedDate")})",
                 BannerState.PublishedWithChanges =>
                     $"{Live("Id")} IS NOT NULL AND {Banner("IsPublished")} = 1 AND " +
-                    $"{Draft("Id")} IS NOT NULL AND {Banner("PublishDate")} IS NOT NULL AND {Draft("SavedDate")} > {Banner("PublishDate")}",
+                    $"{Draft("Id")} IS NOT NULL AND {Draft("SavedDate")} <> {Live("SavedDate")}",
                 _ => throw new ArgumentOutOfRangeException(nameof(filter), "Unknown banner state."),
             });
         }

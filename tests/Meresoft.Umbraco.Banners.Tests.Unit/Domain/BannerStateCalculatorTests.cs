@@ -46,57 +46,44 @@ public class BannerStateCalculatorTests
     }
 
     [Test]
-    public void State_Published_WhenDraftNotNewerThanPublishDate()
+    public void State_Published_WhenDraftAndLiveWereSavedAtTheSameTime()
     {
-        DateTime published = Now.UtcDateTime;
+        DateTime saved = Now.UtcDateTime;
         Banner banner = Banner(
-            Version(BannerVersionKind.Draft, published, 1),
-            Version(BannerVersionKind.Live, published, 1),
+            Version(BannerVersionKind.Draft, saved, 1),
+            Version(BannerVersionKind.Live, saved, 1),
             true,
-            published);
+            saved.AddMinutes(1));
 
         Assert.That(_calculator.GetState(banner), Is.EqualTo(BannerState.Published));
     }
 
     [Test]
-    public void State_Published_WhenDraftOlderThanPublishDate()
+    public void State_PublishedWithChanges_WhenTheSavedDatesDiffer_WhateverThePublishDateSays()
     {
-        DateTime published = Now.UtcDateTime;
+        DateTime saved = Now.UtcDateTime;
         Banner banner = Banner(
-            Version(BannerVersionKind.Draft, published.AddMinutes(-5), 1),
-            Version(BannerVersionKind.Live, published, 1),
+            Version(BannerVersionKind.Draft, saved.AddMilliseconds(10), 1),
+            Version(BannerVersionKind.Live, saved, 1),
             true,
-            published);
+            saved.AddHours(1));
 
-        Assert.That(_calculator.GetState(banner), Is.EqualTo(BannerState.Published));
+        Assert.That(_calculator.GetState(banner), Is.EqualTo(BannerState.PublishedWithChanges));
     }
 
     [Test]
-    public void State_TruncationBoundary_SameInstantIsPublished_OneStepLaterIsPublishedWithChanges()
+    public void State_IgnoresThePublishDate_SoClockSkewBetweenServersDoesNotMatter()
     {
-        // Timestamps are stored at 10 ms resolution (UtcTimestamp). Compare after truncation, as the repository stores them.
-        DateTime published = UtcTimestamp.Truncate(new DateTime(2027, 5, 10, 12, 0, 0, 5, DateTimeKind.Utc));
-        DateTime sameInstant = UtcTimestamp.Truncate(published.AddMilliseconds(4));
-        DateTime oneStepLater = UtcTimestamp.Truncate(published.AddMilliseconds(10));
-
-        Banner unchanged = Banner(
-            Version(BannerVersionKind.Draft, sameInstant, 1),
-            Version(BannerVersionKind.Live, published, 1),
+        // Publish ran on a server whose clock is two minutes behind the server that saved the draft:
+        // the publish date is earlier than the draft's saved date, yet the draft was published unchanged.
+        DateTime saved = Now.UtcDateTime;
+        Banner skewed = Banner(
+            Version(BannerVersionKind.Draft, saved, 1),
+            Version(BannerVersionKind.Live, saved, 1),
             true,
-            published);
-        Banner changed = Banner(
-            Version(BannerVersionKind.Draft, oneStepLater, 1),
-            Version(BannerVersionKind.Live, published, 1),
-            true,
-            published);
+            saved.AddMinutes(-2));
 
-        Assert.Multiple(() =>
-        {
-            Assert.That(sameInstant, Is.EqualTo(published));
-            Assert.That(_calculator.GetState(unchanged), Is.EqualTo(BannerState.Published));
-            Assert.That(oneStepLater, Is.EqualTo(published.AddMilliseconds(10)));
-            Assert.That(_calculator.GetState(changed), Is.EqualTo(BannerState.PublishedWithChanges));
-        });
+        Assert.That(_calculator.GetState(skewed), Is.EqualTo(BannerState.Published));
     }
 
     [Test]

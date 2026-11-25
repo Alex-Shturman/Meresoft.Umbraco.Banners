@@ -27,9 +27,10 @@ public sealed class BannerStateCalculator
             return BannerState.Unpublished;
         }
 
-        bool hasUnpublishedChanges = banner.Draft is not null
-            && banner.PublishDate is { } published
-            && banner.Draft.SavedDate > published;
+        // Publish copies the draft, saved date included, so the two differ exactly when the draft was saved
+        // after the last publish. The publish date is not used: it comes from the clock of whichever server
+        // published, and clocks of servers differ.
+        bool hasUnpublishedChanges = banner.Draft is not null && banner.Draft.SavedDate != banner.Live.SavedDate;
         return hasUnpublishedChanges ? BannerState.PublishedWithChanges : BannerState.Published;
     }
 

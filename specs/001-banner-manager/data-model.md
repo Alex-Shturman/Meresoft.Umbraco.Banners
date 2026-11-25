@@ -106,8 +106,8 @@ alias is created.
 | State | Rule |
 |---|---|
 | Draft | no Live version |
-| Published | Live version exists, `IsPublished`, draft equal to live (`Draft.SavedDate <= PublishDate`) |
-| Published with unpublished changes | Live version exists, `IsPublished`, `Draft.SavedDate > PublishDate` |
+| Published | Live version exists, `IsPublished`, draft equal to live (`Draft.SavedDate = Live.SavedDate`) |
+| Published with unpublished changes | Live version exists, `IsPublished`, `Draft.SavedDate <> Live.SavedDate` |
 | Unpublished | Live version exists, not `IsPublished` |
 
 Transitions:
