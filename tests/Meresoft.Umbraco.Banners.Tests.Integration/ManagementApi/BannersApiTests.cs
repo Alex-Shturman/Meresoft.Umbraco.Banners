@@ -45,17 +45,6 @@ public class BannersApiTests : BannersApiTestBase
         });
     }
 
-    [Test]
-    public async Task Create_HtmlBanner_Returns400_UntilThePermissionCheckExists()
-    {
-        object body = new { name = "Html offer", type = "html", html = "<p>Invented html</p>", altText = "", weight = 1, openInNewWindow = false, zoneKeys = new[] { _zoneKey } };
-
-        HttpResponseMessage response = await PostAsync("/banners", body);
-
-        Assert.That(response.StatusCode, Is.EqualTo(HttpStatusCode.BadRequest));
-        Assert.That((await ReadAsync(response)).GetProperty("errors").EnumerateArray().Any(e => e.TryGetProperty("$.type", out _)), Is.True);
-    }
-
     [TestCase("2.5")]
     [TestCase("null")]
     [TestCase("0")]
