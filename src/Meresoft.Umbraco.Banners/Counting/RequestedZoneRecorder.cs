@@ -8,6 +8,7 @@ namespace Meresoft.Umbraco.Banners.Counting;
 /// The flush job writes them to the database. Only valid aliases are kept and the set is capped, so
 /// a template that builds aliases from user input cannot grow it without limit.
 /// </summary>
+/// <remarks>Public for dependency injection only; not part of the stable API and not covered by SemVer.</remarks>
 public sealed class RequestedZoneRecorder
 {
     private const int MaxEntries = 500;

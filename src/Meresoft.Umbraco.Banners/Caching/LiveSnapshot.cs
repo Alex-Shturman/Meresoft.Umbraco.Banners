@@ -7,6 +7,7 @@ namespace Meresoft.Umbraco.Banners.Caching;
 /// The in-memory view of the live banners, read by every page request. It is immutable: a new one
 /// is built on publish and unpublish and swapped in atomically (research R8).
 /// </summary>
+/// <remarks>Public for dependency injection only; not part of the stable API and not covered by SemVer.</remarks>
 public sealed class LiveSnapshot
 {
     /// <summary>A snapshot with no zones.</summary>
@@ -46,6 +47,7 @@ public sealed class LiveSnapshot
 /// <param name="ImageWidth">Fixed image width, if any.</param>
 /// <param name="ImageHeight">Fixed image height, if any.</param>
 /// <param name="Candidates">Published banners assigned to the zone.</param>
+/// <remarks>Public for dependency injection only; not part of the stable API and not covered by SemVer.</remarks>
 public sealed record SnapshotZone(
     int Id,
     string Alias,
@@ -56,6 +58,7 @@ public sealed record SnapshotZone(
     IReadOnlyList<SnapshotBanner> Candidates);
 
 /// <summary>A banner that can be shown in a zone, with everything the page needs pre-computed.</summary>
+/// <remarks>Public for dependency injection only; not part of the stable API and not covered by SemVer.</remarks>
 public sealed record SnapshotBanner
 {
     /// <summary>Internal banner id.</summary>

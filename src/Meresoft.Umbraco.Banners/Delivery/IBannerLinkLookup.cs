@@ -6,6 +6,7 @@ namespace Meresoft.Umbraco.Banners.Delivery;
 public sealed record ClickTarget(string LinkUrl, bool Countable);
 
 /// <summary>Finds the stored link of a banner for the click endpoint.</summary>
+/// <remarks>Public for dependency injection only; not part of the stable API and not covered by SemVer.</remarks>
 public interface IBannerLinkLookup
 {
     /// <summary>

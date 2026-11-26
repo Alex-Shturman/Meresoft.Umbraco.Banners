@@ -5,6 +5,7 @@ using Microsoft.Extensions.Options;
 namespace Meresoft.Umbraco.Banners.Counting;
 
 /// <summary>Decides whether a user agent belongs to an automated client, using plain substring patterns.</summary>
+/// <remarks>Public for dependency injection only; not part of the stable API and not covered by SemVer.</remarks>
 public sealed class BotMatcher
 {
     private readonly SearchValues<string> _patterns;

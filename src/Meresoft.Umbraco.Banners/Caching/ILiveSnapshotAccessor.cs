@@ -1,6 +1,7 @@
 namespace Meresoft.Umbraco.Banners.Caching;
 
 /// <summary>Gives access to the current <see cref="LiveSnapshot"/> and rebuilds it.</summary>
+/// <remarks>Public for dependency injection only; not part of the stable API and not covered by SemVer.</remarks>
 public interface ILiveSnapshotAccessor
 {
     /// <summary>The current snapshot; an empty one until the first build. Never queries the database.</summary>

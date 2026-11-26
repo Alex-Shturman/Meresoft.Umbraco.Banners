@@ -19,6 +19,7 @@ namespace Meresoft.Umbraco.Banners.Tokens;
 /// bot filter and the viewability rule are the defences there.
 /// </para>
 /// </summary>
+/// <remarks>Public for dependency injection only; not part of the stable API and not covered by SemVer.</remarks>
 public sealed class ReplaySet
 {
     private const int NonceLength = 12;

@@ -125,3 +125,25 @@ accepts only a valid token (FR-011).
   throws; any bad, tampered or expired token gives false.
 - `ViewTokenPayload(byte Version, int ZoneId, IReadOnlyList<int> BannerIds, byte[] Nonce)`: carries
   no visitor data.
+
+### Rendering types (namespace `Meresoft.Umbraco.Banners.Rendering`)
+
+The 1.0 surface, 1.0.0 being unpublished:
+
+- `BannerZoneTagHelper` (`<banner-zone alias="...">`).
+- `BannerZoneViewComponent`: `Task<IViewComponentResult> InvokeAsync(string alias, string? cssClass = null)`,
+  called as `@await Component.InvokeAsync("BannerZone", new { alias = "search-top" })`.
+- `BannerZoneRenderer.Render(requestItems, selection, cssClass, fallbackHtml, PathString pathBase = default)` and
+  `BannerZoneHtmlWriter.Render(view, requestItems, PathString pathBase = default)`: the optional `pathBase` is
+  `Request.PathBase`; every public address written (data-mb-base, click link, script src) starts with it.
+
+### Plumbing types: public for DI only, not covered by SemVer
+
+Every other public type is public only so that the dependency injection container, the Umbraco
+composition, the controllers and the test projects can reach it. They are not extension points and
+can change in any release: `ILiveSnapshotAccessor`, `LiveSnapshot`, `SnapshotZone`, `SnapshotBanner`,
+the cache refresher types (`Caching`); `CounterBuffer`, `BotMatcher`, `RequestedZoneRecorder`
+(`Counting`); `ReplaySet`, `ViewTokenProtector` (`Tokens`); `IBannerLinkLookup`, `ClickTarget`,
+`SeenBodyParser`, the public endpoint controllers and models (`Delivery`); the management API
+controllers and models (`ManagementApi`); migrations (`Persistence`). The main ones carry an XML
+doc remark saying so.

@@ -9,6 +9,7 @@ using Microsoft.Extensions.Options;
 namespace Meresoft.Umbraco.Banners.Tokens;
 
 /// <summary>View tokens protected with ASP.NET Core data protection, limited in time by <c>ViewTokenLifetime</c>.</summary>
+/// <remarks>Public for dependency injection only; not part of the stable API and not covered by SemVer.</remarks>
 public sealed class ViewTokenProtector : IViewTokenProtector
 {
     private const int NonceLength = 12;

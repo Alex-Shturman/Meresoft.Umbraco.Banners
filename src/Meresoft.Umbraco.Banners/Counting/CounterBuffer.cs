@@ -9,6 +9,7 @@ public readonly record struct CounterEntry(DateOnly Day, int BannerId, int ZoneI
 /// Lock free in memory counters. The dictionary is never replaced and counters are only changed with
 /// Interlocked operations, so a swap running next to writers never loses a count.
 /// </summary>
+/// <remarks>Public for dependency injection only; not part of the stable API and not covered by SemVer.</remarks>
 public sealed class CounterBuffer
 {
     private readonly ConcurrentDictionary<(DateOnly Day, int BannerId, int ZoneId), Counter> _counters = new();

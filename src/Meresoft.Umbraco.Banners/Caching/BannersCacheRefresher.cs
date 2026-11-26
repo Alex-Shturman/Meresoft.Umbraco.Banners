@@ -8,6 +8,7 @@ namespace Meresoft.Umbraco.Banners.Caching;
 /// Distributes "banners changed" messages to all servers. Each server then rebuilds its live
 /// snapshot through <see cref="SnapshotRebuildHandler"/>.
 /// </summary>
+/// <remarks>Public for dependency injection only; not part of the stable API and not covered by SemVer.</remarks>
 public sealed class BannersCacheRefresher : PayloadCacheRefresherBase<BannersCacheRefresherNotification, BannersCacheRefresherPayload>
 {
     /// <summary>Fixed, unique id of this refresher.</summary>
