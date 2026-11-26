@@ -26,6 +26,7 @@ import { client, fieldErrors, keyFromLocation, navigate, send, type ApiProblem }
 import { resolveUtc, userTimeZone, utcToLocalInput } from "../shared/date-time.js";
 import { STATE_DISPLAY, activeFlags, limitToText, parseLimit, showsClickLimit } from "./banner-state.js";
 import { createAndPublish } from "./create-and-publish.js";
+import { PendingProblemStore } from "./pending-problem.js";
 import { canEditHtml, htmlFieldAccess, offeredBannerTypes } from "./html-permission.js";
 import "./banner-history.element.js";
 
@@ -40,19 +41,8 @@ void UmbInputMediaElement;
 
 const BANNERS_PATH = "section/meresoft-banners/banners";
 
-/** What the editor shows on a banner's edit page after Publish on a new banner created it but could not publish it. */
-interface PendingProblem {
-  key: string;
-  errors: Record<string, string>;
-  problem: string;
-  conflict: boolean;
-}
-
-/**
- * Module level, because the router may build a new editor for the edit address; whichever editor loads that banner
- * next shows the problem once.
- */
-let pendingProblem: PendingProblem | undefined;
+/** Carries a publish failure of a new banner to its edit page, which the router may build as a new editor. */
+const pendingProblems = new PendingProblemStore();
 
 /** What differs between the editor's text fields. The range is stated by each field; nothing is assumed. */
 interface TextFieldOptions {
@@ -102,6 +92,8 @@ export class MeresoftBannerEditorElement extends UmbLitElement {
   @state() private _errors: Record<string, string> = {};
   @state() private _problem = "";
   @state() private _conflict = false;
+  /** A save or publish is running; both buttons are off so a double click cannot create two banners. */
+  @state() private _busy = false;
 
   #bannerKey?: string;
   #ready = false;
@@ -145,17 +137,18 @@ export class MeresoftBannerEditorElement extends UmbLitElement {
     const result = await send<BannerResponseModel>(
       getBanner({ path: { key: this.#bannerKey } }),
     );
+    // Taken after every load, so a problem nobody showed is gone and cannot appear later.
+    const pending = pendingProblems.take(this.#bannerKey);
     if (result.data) {
       this.#show(result.data);
-      if (pendingProblem?.key === this.#bannerKey) {
-        this._errors = pendingProblem.errors;
-        this._problem = pendingProblem.problem;
-        this._conflict = pendingProblem.conflict;
+      if (pending) {
+        this._errors = pending.errors;
+        this._problem = pending.problem;
+        this._conflict = pending.conflict;
       }
     } else {
       this._missing = true;
     }
-    pendingProblem = undefined;
     this._loading = false;
   }
 
@@ -280,6 +273,22 @@ export class MeresoftBannerEditorElement extends UmbLitElement {
     this.#fail(status, problem);
     if (problem?.type === "no-zone-assigned") {
       this._errors = { zoneKeys: problem.detail ?? "" };
+    } else if (!this._missing && !this._conflict && !this._problem && Object.keys(this._errors).length === 0) {
+      // Nothing the server said can be shown (a 500, a lost connection): the editor still has to be told.
+      this._problem = this.localize.term("meresoftBanners_bannerPublishFailed");
+    }
+  }
+
+  /** Runs a save or publish once at a time. */
+  async #exclusive(action: () => Promise<void>) {
+    if (this._busy) {
+      return;
+    }
+    this._busy = true;
+    try {
+      await action();
+    } finally {
+      this._busy = false;
     }
   }
 
@@ -332,16 +341,24 @@ export class MeresoftBannerEditorElement extends UmbLitElement {
       this.#fail(outcome.result.status, outcome.result.problem);
       return;
     }
+    if (outcome.kind === "created-without-key") {
+      // Saved, but the editor cannot tell where: the list shows it as a Draft.
+      this.#toast("meresoftBanners_bannerSavedNotOpened");
+      navigate(BANNERS_PATH);
+      return;
+    }
     if (outcome.kind === "published") {
       this.#toast("meresoftBanners_bannerPublished");
     } else {
       this.#failPublish(outcome.result.status, outcome.result.problem);
-      pendingProblem = {
+      // A failed load of the new banner (a 404 included) is not a missing page here; the edit page loads it again.
+      this._missing = false;
+      pendingProblems.set({
         key: outcome.key,
         errors: this._errors,
         problem: this._problem,
         conflict: this._conflict,
-      };
+      });
     }
     navigate(`${BANNERS_PATH}/edit/${outcome.key}`);
   }
@@ -474,8 +491,8 @@ export class MeresoftBannerEditorElement extends UmbLitElement {
           ${isPublished
             ? html`<uui-button slot="actions" look="secondary" label=${this.localize.term("meresoftBanners_unpublish")} @click=${() => this.#unpublish()}></uui-button>`
             : nothing}
-          <uui-button slot="actions" look="secondary" label=${this.localize.term("meresoftBanners_save")} @click=${() => this.#save()}></uui-button>
-          <uui-button slot="actions" look="primary" color="positive" label=${this.localize.term("meresoftBanners_publish")} @click=${() => this.#publish()}></uui-button>
+          <uui-button slot="actions" look="secondary" label=${this.localize.term("meresoftBanners_save")} ?disabled=${this._busy} @click=${() => this.#exclusive(async () => void (await this.#save()))}></uui-button>
+          <uui-button slot="actions" look="primary" color="positive" label=${this.localize.term("meresoftBanners_publish")} ?disabled=${this._busy} @click=${() => this.#exclusive(() => this.#publish())}></uui-button>
         </umb-footer-layout>
       </umb-body-layout>
     `;

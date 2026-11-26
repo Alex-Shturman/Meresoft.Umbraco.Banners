@@ -177,5 +177,7 @@ test("scenario 15b: Publish on a new banner without a zone keeps it as a draft o
   await expect(page).toHaveURL(/\/banners\/edit\/[0-9a-f-]{36}$/);
   await expect(page.getByText("Draft", { exact: true })).toBeVisible();
   await expect(toast("Banner published")).toHaveCount(0);
+  // The zone field shows the server's no-zone error, as it does when Publish fails on the edit page.
+  await expect(page.locator(".field-error")).toBeVisible();
   await deleteOpenBanner();
 });

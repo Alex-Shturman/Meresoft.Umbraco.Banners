@@ -54,6 +54,8 @@ export default {
     createBanner: "Create banner",
     bannerSaved: "Banner saved",
     bannerPublished: "Banner published",
+    bannerPublishFailed: "The banner could not be published. Try again.",
+    bannerSavedNotOpened: "The banner was saved as a draft, but it could not be opened. Find it in the list.",
     bannerUnpublished: "Banner unpublished",
     bannerCopied: "Banner copied",
     bannerDeleted: "Banner deleted",

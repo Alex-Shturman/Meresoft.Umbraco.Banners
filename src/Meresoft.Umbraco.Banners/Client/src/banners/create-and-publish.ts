@@ -14,15 +14,20 @@ export interface CreateAndPublishSteps {
  */
 export type CreateAndPublishOutcome =
   | { kind: "create-failed"; result: ApiResult<unknown> }
+  /** The banner was created (201) but the response did not say where, so it cannot be opened or published here. */
+  | { kind: "created-without-key" }
   | { kind: "published"; key: string; banner: BannerResponseModel }
   | { kind: "publish-failed"; key: string; result: ApiResult<unknown> };
 
 /** Creates the banner, then publishes it with the key and `updateDate` of what was created. It has no DOM. */
 export async function createAndPublish(steps: CreateAndPublishSteps): Promise<CreateAndPublishOutcome> {
   const created = await steps.create();
-  const key = created.status === 201 ? keyFromLocation(created.location) : undefined;
-  if (!key) {
+  if (created.status !== 201) {
     return { kind: "create-failed", result: created };
+  }
+  const key = keyFromLocation(created.location);
+  if (!key) {
+    return { kind: "created-without-key" };
   }
 
   const loaded = await steps.load(key);

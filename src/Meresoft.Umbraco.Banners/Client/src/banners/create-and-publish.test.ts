@@ -47,6 +47,13 @@ describe("createAndPublish", () => {
     expect(outcome).toEqual({ kind: "published", key: KEY, banner: published });
   });
 
+  it.each([undefined, ""])("reports a created banner whose Location is %j as created without a key", async (location) => {
+    const fake = steps({ create: { status: 201, location } });
+    const outcome = await createAndPublish(fake.steps);
+    expect(fake.calls).toEqual(["create"]);
+    expect(outcome).toEqual({ kind: "created-without-key" });
+  });
+
   it("does not load or publish when the create fails", async () => {
     const create = { status: 400, problem: { detail: "bad" } };
     const fake = steps({ create });
