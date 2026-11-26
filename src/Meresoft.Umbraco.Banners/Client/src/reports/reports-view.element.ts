@@ -8,6 +8,7 @@ import { client, send } from "../shared/api.js";
 import { loadAllPages } from "../shared/paging.js";
 import "./daily-chart.element.js";
 import { presetRange, type Preset } from "./presets.js";
+import { reportBodyKind } from "./report-body.js";
 
 const PRESETS: Preset[] = ["today", "last7", "last30", "thisMonth", "lastMonth", "custom"];
 
@@ -171,13 +172,17 @@ export class MeresoftReportsViewElement extends UmbLitElement {
   }
 
   #renderBody() {
-    if (this._failed) {
+    const report = this._report;
+    const kind = reportBodyKind({ periodInvalid: this._periodError !== undefined, failed: this._failed, hasReport: report !== undefined });
+    if (kind === "none") {
+      return nothing; // the refused period's error is shown with the filters
+    }
+    if (kind === "failed") {
       return html`<uui-alert color="danger">
         ${this.localize.term("meresoftBanners_loadFailed")}
         <uui-button look="secondary" label=${this.localize.term("meresoftBanners_reload")} @click=${() => this.#load()}></uui-button>
       </uui-alert>`;
     }
-    const report = this._report;
     if (!report) {
       return html`<uui-loader></uui-loader>`;
     }
