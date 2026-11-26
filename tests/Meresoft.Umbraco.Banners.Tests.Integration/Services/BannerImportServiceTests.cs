@@ -138,6 +138,29 @@ public class BannerImportServiceTests : BannersServiceTestBase
     }
 
     [Test]
+    public async Task AnEmptyEntryInTheList_IsRejected_AndTheRowAfterItIsStillImported()
+    {
+        BannerImportResult result = await Import.ImportStatisticsAsync([null!, Row(March1, 10, 1)], StatisticImportMode.Add);
+
+        Assert.That((result.Inserted, result.Updated, result.Rejected), Is.EqualTo((1, 0, 1)));
+    }
+
+    [Test]
+    public async Task AnAddImportThatReachesALimit_TakesTheBannerOffTheSiteAtOnce()
+    {
+        BannerDraftModel draft = ImageDraft(NewMediaKey(), _home.Key);
+        draft.ImpressionLimit = 100;
+        Banner limited = await NewBannerAsync(draft);
+        Assert.That((await BannerService.PublishAsync(limited.Key, User)).Success, Is.True);
+        await Snapshot.RebuildAsync();
+        Assert.That(Snapshot.Current.Zones["home-top"].Candidates.Any(c => c.BannerId == limited.Id), Is.True, "shows below its limit");
+
+        await Import.ImportStatisticsAsync([Row(March1, 150, 0, banner: limited.Key)], StatisticImportMode.Add);
+
+        Assert.That(Snapshot.Current.Zones["home-top"].Candidates.Any(c => c.BannerId == limited.Id), Is.False, "the import reloaded the limits");
+    }
+
+    [Test]
     public void NullRows_Throw() =>
         Assert.ThrowsAsync<ArgumentNullException>(() => Import.ImportStatisticsAsync(null!, StatisticImportMode.Add));
 }

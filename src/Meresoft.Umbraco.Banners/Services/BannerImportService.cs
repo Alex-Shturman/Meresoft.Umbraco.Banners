@@ -74,10 +74,19 @@ internal sealed class BannerImportService : IBannerImportService
             scope.Complete();
         }
 
-        // Limit reloads only remove banners. A Replace can lower totals, so rebuild to bring banners back (no scope is held here).
-        if (replace && inserted + updated > 0)
+        // No scope is held from here on. Limit reloads only remove banners, so a Replace (totals can go down) rebuilds
+        // everything to bring banners back; any other import that wrote rows reloads the limits, so a banner that the
+        // imported counts pushed over its limit leaves the site at once instead of after the next flush.
+        if (inserted + updated > 0)
         {
-            await _snapshot.RebuildAsync();
+            if (replace)
+            {
+                await _snapshot.RebuildAsync();
+            }
+            else
+            {
+                await _snapshot.ReloadLimitsAsync();
+            }
         }
 
         return new BannerImportResult(inserted, updated, rejected);
