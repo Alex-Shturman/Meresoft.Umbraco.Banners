@@ -75,7 +75,8 @@ public static class BannersBuilderExtensions
         builder.Services.AddSingleton<BotMatcher>();
         builder.Services.AddSingleton<CounterBuffer>();
         builder.Services.AddSingleton<CounterFlusher>();
-        builder.Services.AddSingleton<IBannerLinkLookup, BannerLinkLookup>();
+        builder.Services.AddSingleton<BannerLinkLookup>();
+        builder.Services.AddSingleton<IBannerLinkLookup>(provider => provider.GetRequiredService<BannerLinkLookup>());
         builder.Services.AddTransient<IStartupFilter, PublicCookieGuardStartupFilter>();
         builder.Services.AddOptions<MvcOptions>().Configure<IOptions<BannersOptions>>(
             (mvc, options) => mvc.Conventions.Add(new PublicPathRouteConvention(options.Value.PublicPath)));
@@ -93,6 +94,7 @@ public static class BannersBuilderExtensions
 
         builder
             .AddNotificationHandler<BannersChangedNotification, BannersChangedNotificationHandler>()
+            .AddNotificationHandler<BannersChangedNotification, LinkLookupChangedHandler>()
             .AddNotificationAsyncHandler<BannersCacheRefresherNotification, SnapshotRebuildHandler>()
             .AddNotificationAsyncHandler<MediaCacheRefresherNotification, MediaChangedHandler>()
             .AddNotificationAsyncHandler<UmbracoApplicationStartedNotification, SnapshotStartupHandler>()

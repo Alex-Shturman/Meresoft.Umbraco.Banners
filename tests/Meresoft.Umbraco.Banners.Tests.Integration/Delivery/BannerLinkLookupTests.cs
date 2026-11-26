@@ -137,4 +137,63 @@ public class BannerLinkLookupTests : BannersServiceTestBase
         Assert.That(Queries(() => lookup.Find(c.Id, _zone.Id)), Is.GreaterThan(0), "a and b expired, so there is room for c");
         Assert.That(Queries(() => lookup.Find(c.Id, _zone.Id)), Is.EqualTo(0), "and c is kept now");
     }
+
+    // A flood of ids at or below the highest id: ids without a live link are remembered briefly, in a small bounded set.
+
+    private async Task<Banner> NeverPublishedBannerAsync() => await NewBannerAsync(ImageDraft(NewMediaKey(), _zone.Key));
+
+    [Test]
+    public async Task AnIdWithoutALiveLink_IsRemembered_SoTheSecondClickReadsNothing()
+    {
+        Banner draft = await NeverPublishedBannerAsync();
+        Banner known = await UnpublishedBannerAsync();
+        Assert.That(known.Id, Is.GreaterThan(draft.Id), "the draft id is below the highest id");
+        Assert.That(Lookup.Find(draft.Id, _zone.Id), Is.Null);
+
+        Assert.That(Queries(() => Lookup.Find(draft.Id, _zone.Id)), Is.EqualTo(0));
+    }
+
+    [Test]
+    public async Task TheRememberedMissingIds_AreBounded_AndForgottenAfterAShortTime()
+    {
+        Banner a = await NeverPublishedBannerAsync();
+        Banner b = await NeverPublishedBannerAsync();
+        Banner c = await NeverPublishedBannerAsync();
+        await UnpublishedBannerAsync();
+        IBannerLinkLookup lookup = ActivatorUtilities.CreateInstance<BannerLinkLookup>(Services, 2000, 2);
+        lookup.Find(a.Id, _zone.Id);
+        lookup.Find(b.Id, _zone.Id);
+        lookup.Find(c.Id, _zone.Id);
+
+        Assert.That(Queries(() => lookup.Find(a.Id, _zone.Id)), Is.EqualTo(0));
+        Assert.That(Queries(() => lookup.Find(b.Id, _zone.Id)), Is.EqualTo(0));
+        Assert.That(Queries(() => lookup.Find(c.Id, _zone.Id)), Is.GreaterThan(0), "the set holds 2 ids, c was not kept");
+
+        Clock.Advance(TimeSpan.FromSeconds(11));
+
+        Assert.That(Queries(() => lookup.Find(a.Id, _zone.Id)), Is.GreaterThan(0), "the short lifetime is over, so a is read again");
+    }
+
+    [Test]
+    public async Task ABannerPublishedAfterItWasRememberedAsMissing_IsFoundAtOnce()
+    {
+        Banner banner = await NeverPublishedBannerAsync();
+        await UnpublishedBannerAsync();
+        Assert.That(Lookup.Find(banner.Id, _zone.Id), Is.Null, "no live link yet");
+
+        Assert.That((await BannerService.PublishAsync(banner.Key, User)).Success, Is.True);
+
+        Assert.That(Lookup.Find(banner.Id, _zone.Id), Is.Not.Null, "BannersChangedNotification cleared the remembered ids");
+    }
+
+    [Test]
+    public async Task ARememberedMissingId_IsBypassed_WhenTheSnapshotChanged()
+    {
+        Banner banner = await NeverPublishedBannerAsync();
+        await UnpublishedBannerAsync();
+        Assert.That(Lookup.Find(banner.Id, _zone.Id), Is.Null);
+        await GetRequiredService<ILiveSnapshotAccessor>().RebuildAsync();
+
+        Assert.That(Queries(() => Lookup.Find(banner.Id, _zone.Id)), Is.GreaterThan(0), "a new snapshot (a change on any server) ends the memory");
+    }
 }

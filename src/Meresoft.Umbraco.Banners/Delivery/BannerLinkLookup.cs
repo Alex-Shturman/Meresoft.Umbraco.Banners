@@ -15,6 +15,8 @@ namespace Meresoft.Umbraco.Banners.Delivery;
 internal sealed class BannerLinkLookup : IBannerLinkLookup
 {
     private const int DefaultMaxCachedBanners = 2_000;
+    private const int DefaultMaxMissingIds = 1_000;
+    private static readonly TimeSpan MissingLifetime = TimeSpan.FromSeconds(10);
     private static readonly TimeSpan CacheLifetime = TimeSpan.FromSeconds(30);
 
     private readonly ILiveSnapshotAccessor _snapshot;
@@ -23,6 +25,8 @@ internal sealed class BannerLinkLookup : IBannerLinkLookup
     private readonly TimeProvider _timeProvider;
     private readonly int _maxCachedBanners;
     private readonly ConcurrentDictionary<int, CachedLink> _cache = new();
+    private readonly int _maxMissingIds;
+    private volatile MissingIds _missing = new(null);
     private volatile KnownMaxId? _knownMaxId;
 
     public BannerLinkLookup(
@@ -30,13 +34,15 @@ internal sealed class BannerLinkLookup : IBannerLinkLookup
         IScopeProvider scopeProvider,
         IBannerRepository banners,
         TimeProvider timeProvider,
-        int maxCachedBanners = DefaultMaxCachedBanners)
+        int maxCachedBanners = DefaultMaxCachedBanners,
+        int maxMissingIds = DefaultMaxMissingIds)
     {
         _snapshot = snapshot;
         _scopeProvider = scopeProvider;
         _banners = banners;
         _timeProvider = timeProvider;
         _maxCachedBanners = maxCachedBanners;
+        _maxMissingIds = maxMissingIds;
     }
 
     public ClickTarget? Find(int bannerId, int? zoneId)
@@ -48,6 +54,11 @@ internal sealed class BannerLinkLookup : IBannerLinkLookup
 
         // A random id from outside is most likely above every banner there is: no need to read for it.
         if (bannerId > MaxKnownBannerId())
+        {
+            return null;
+        }
+
+        if (IsRememberedMissing(bannerId))
         {
             return null;
         }
@@ -116,6 +127,12 @@ internal sealed class BannerLinkLookup : IBannerLinkLookup
         }
 
         LiveLink? link = ReadFromDatabase(bannerId);
+        if (link is null)
+        {
+            RememberMissing(bannerId, now);
+            return null;
+        }
+
         if (_cache.Count >= _maxCachedBanners)
         {
             // Drop only what has expired. If the cache is still full of live entries, this one is simply not kept:
@@ -138,6 +155,54 @@ internal sealed class BannerLinkLookup : IBannerLinkLookup
         return link;
     }
 
+    /// <summary>
+    /// Forgets the ids remembered as having no live link. Called when a banner changed on this server; a change on another
+    /// server shows as a new snapshot, which ends the memory too, so a banner published later is never hidden by it.
+    /// </summary>
+    internal void ForgetMissing() => _missing = new MissingIds(_snapshot.Current);
+
+    private bool IsRememberedMissing(int bannerId)
+    {
+        MissingIds missing = CurrentMissing();
+        return missing.Ids.TryGetValue(bannerId, out long at) && _timeProvider.GetElapsedTime(at, _timeProvider.GetTimestamp()) < MissingLifetime;
+    }
+
+    /// <summary>Remembers an id without a live link for a short time. Bounded: expired ids are dropped, and when the set is still full the id is not kept.</summary>
+    private void RememberMissing(int bannerId, long now)
+    {
+        MissingIds missing = CurrentMissing();
+        if (missing.Ids.Count >= _maxMissingIds)
+        {
+            foreach (KeyValuePair<int, long> entry in missing.Ids)
+            {
+                if (_timeProvider.GetElapsedTime(entry.Value, now) >= MissingLifetime)
+                {
+                    missing.Ids.TryRemove(entry);
+                }
+            }
+
+            if (missing.Ids.Count >= _maxMissingIds)
+            {
+                return;
+            }
+        }
+
+        missing.Ids[bannerId] = now;
+    }
+
+    /// <summary>The remembered ids, or a fresh empty set when the snapshot changed since they were remembered.</summary>
+    private MissingIds CurrentMissing()
+    {
+        LiveSnapshot current = _snapshot.Current;
+        MissingIds missing = _missing;
+        if (!ReferenceEquals(missing.Snapshot, current))
+        {
+            missing = _missing = new MissingIds(current);
+        }
+
+        return missing;
+    }
+
     private LiveLink? ReadFromDatabase(int bannerId)
     {
         using IScope scope = _scopeProvider.CreateScope(autoComplete: true);
@@ -153,6 +218,13 @@ internal sealed class BannerLinkLookup : IBannerLinkLookup
     private sealed record LiveLink(string LinkUrl, bool IsPublished, HashSet<int> LiveZoneIds);
 
     private sealed record CachedLink(LiveLink? Link, long At);
+
+    private sealed class MissingIds(LiveSnapshot? snapshot)
+    {
+        public LiveSnapshot? Snapshot { get; } = snapshot;
+
+        public ConcurrentDictionary<int, long> Ids { get; } = new();
+    }
 
     private sealed record KnownMaxId(int Id, long At, LiveSnapshot Snapshot);
 }
