@@ -33,6 +33,9 @@ public class SectionAccessTests : ManagementApiTest<SectionProbeController>
     protected override void CustomMvcSetup(IMvcBuilder mvcBuilder) =>
         mvcBuilder.AddApplicationPart(typeof(SectionProbeController).Assembly);
 
+    [SetUp]
+    public async Task WaitForRuntime() => await RuntimeReady.WaitForRunLevelAsync(GetRequiredService<IRuntimeState>());
+
     [Test]
     public async Task Anonymous_Gets401()
     {

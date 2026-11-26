@@ -42,8 +42,11 @@ public abstract class BannersApiTestBase : ManagementApiTest<SectionProbeControl
         builder.Services.AddSingleton<IServerMessenger, LocalServerMessenger>();
 
     [SetUp]
-    public async Task SignIn() =>
+    public async Task SignIn()
+    {
+        await RuntimeReady.WaitForRunLevelAsync(GetRequiredService<IRuntimeState>());
         await AuthenticateClientAsync(Client, "banners-admin@test.invalid", "1234567890", Constants.Security.AdminGroupKey);
+    }
 
     /// <summary>The database is shared by the tests of a fixture, so each test removes what it created.</summary>
     [TearDown]
