@@ -1,4 +1,5 @@
 using Meresoft.Umbraco.Banners.Caching;
+using Meresoft.Umbraco.Banners.Counting;
 using Meresoft.Umbraco.Banners.Domain;
 using Meresoft.Umbraco.Banners.Persistence.Repositories;
 using Microsoft.Extensions.Logging.Abstractions;
@@ -30,8 +31,7 @@ public class LiveSnapshotAccessorCoalescingTests
         _currentAlias = "v0";
         _builds = 0;
 
-        IZoneRepository zones = Substitute.For<IZoneRepository>();
-        zones.GetAll().Returns(_ =>
+        var zones = new FakeZoneRepository(() =>
         {
             // What the build reads is fixed at this moment; the first build then stays inside the read.
             string alias = _currentAlias;
@@ -41,11 +41,10 @@ public class LiveSnapshotAccessorCoalescingTests
                 _releaseFirstRead.Wait(TimeSpan.FromSeconds(20));
             }
 
-            return (IReadOnlyList<BannerZone>)[new BannerZone { Id = 1, Key = Guid.NewGuid(), Alias = alias, Name = alias }];
+            return [new BannerZone { Id = 1, Key = Guid.NewGuid(), Alias = alias, Name = alias }];
         });
-        IBannerRepository banners = Substitute.For<IBannerRepository>();
-        banners.GetAllPublished().Returns((IReadOnlyList<Banner>)[]);
-        IStatisticsRepository statistics = Substitute.For<IStatisticsRepository>();
+        var banners = new FakeBannerRepository();
+        var statistics = new FakeStatisticsRepository();
         IScopeProvider scopes = Substitute.For<IScopeProvider>();
         var builder = new LiveSnapshotBuilder(
             Substitute.For<IPublishedMediaCache>(),
@@ -90,18 +89,73 @@ public class LiveSnapshotAccessorCoalescingTests
     [Test]
     public async Task AFailedBuild_FailsTheCallersWaitingForIt_AndTheNextRequestStillBuilds()
     {
-        IZoneRepository zones = Substitute.For<IZoneRepository>();
-        zones.GetAll().Returns(_ => throw new InvalidOperationException("database down"));
+        var zones = new FakeZoneRepository(() => throw new InvalidOperationException("database down"));
         var accessor = new LiveSnapshotAccessor(
             Substitute.For<IScopeProvider>(),
             zones,
-            Substitute.For<IBannerRepository>(),
-            Substitute.For<IStatisticsRepository>(),
+            new FakeBannerRepository(),
+            new FakeStatisticsRepository(),
             new LiveSnapshotBuilder(Substitute.For<IPublishedMediaCache>(), new MediaUrlProviderCollection(() => []), Substitute.For<IImageUrlGenerator>()),
             NullLogger<LiveSnapshotAccessor>.Instance);
 
         Assert.That(async () => await accessor.RebuildAsync(), Throws.InvalidOperationException);
         Assert.That(async () => await accessor.RebuildAsync(), Throws.InvalidOperationException, "the running flag was reset");
         await Task.CompletedTask;
+    }
+
+    // Hand written fakes: the repository interfaces are internal and the package does not open them to the proxy generator.
+    private sealed class FakeZoneRepository(Func<IReadOnlyList<BannerZone>> getAll) : IZoneRepository
+    {
+        public IReadOnlyList<BannerZone> GetAll() => getAll();
+
+        public BannerZone Add(BannerZone zone) => throw new NotSupportedException();
+
+        public bool Update(BannerZone zone, DateTime expectedUpdateDate) => throw new NotSupportedException();
+
+        public void Delete(int id) => throw new NotSupportedException();
+
+        public BannerZone? GetByKey(Guid key) => throw new NotSupportedException();
+
+        public BannerZone? GetByAlias(string alias) => throw new NotSupportedException();
+
+        public BannerZone? GetById(int id) => throw new NotSupportedException();
+
+        public IReadOnlyList<Guid> GetAssignedBannerKeys(int zoneId) => throw new NotSupportedException();
+    }
+
+    private sealed class FakeBannerRepository : IBannerRepository
+    {
+        public IReadOnlyList<Banner> GetAllPublished() => [];
+
+        public Banner Add(Banner banner) => throw new NotSupportedException();
+
+        public Banner? GetByKey(Guid key) => throw new NotSupportedException();
+
+        public Banner? GetById(int id) => throw new NotSupportedException();
+
+        public bool SaveDraft(Banner banner, DateTime expectedUpdateDate) => throw new NotSupportedException();
+
+        public bool CopyDraftOverLive(int bannerId, DateTime publishDateUtc, DateTime expectedUpdateDate) => throw new NotSupportedException();
+
+        public void SetPublished(int bannerId, bool isPublished) => throw new NotSupportedException();
+
+        public void Delete(int id) => throw new NotSupportedException();
+
+        public IReadOnlyDictionary<int, (Guid Key, string Name)> GetNames(IReadOnlyCollection<int> ids) => throw new NotSupportedException();
+
+        public int GetMaxId() => throw new NotSupportedException();
+
+        public (IReadOnlyList<Banner> Items, long Total) GetPaged(BannerFilter filter) => throw new NotSupportedException();
+    }
+
+    private sealed class FakeStatisticsRepository : IStatisticsRepository
+    {
+        public IReadOnlyDictionary<int, BannerTotals> GetTotals(IReadOnlyCollection<int> bannerIds) => new Dictionary<int, BannerTotals>();
+
+        public void AddDelta(CounterEntry delta) => throw new NotSupportedException();
+
+        public bool Import(DateOnly day, int bannerId, int zoneId, long impressions, long clicks, bool replace) => throw new NotSupportedException();
+
+        public IReadOnlyList<DailyStatRow> GetDailyRows(DateOnly from, DateOnly to, int? zoneId, int? bannerId) => throw new NotSupportedException();
     }
 }
