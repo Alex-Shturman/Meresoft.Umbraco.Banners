@@ -47,6 +47,8 @@
     <InternalsVisibleTo Include="Meresoft.Umbraco.Banners.Tests.Unit" />
     <InternalsVisibleTo Include="Meresoft.Umbraco.Banners.Tests.Integration" />
     <InternalsVisibleTo Include="Meresoft.Umbraco.Banners.Benchmarks" />
+    <!-- NSubstitute creates proxies of internal interfaces (the repositories) in unit tests. -->
+    <InternalsVisibleTo Include="DynamicProxyGenAssembly2" />
   </ItemGroup>
 
   <!--

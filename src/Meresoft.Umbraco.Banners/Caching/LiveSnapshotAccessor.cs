@@ -16,12 +16,16 @@ internal sealed class LiveSnapshotAccessor : ILiveSnapshotAccessor
     private readonly LiveSnapshotBuilder _builder;
     private readonly ILogger<LiveSnapshotAccessor> _logger;
 
-    // Rebuilds run one at a time so an older read can never replace a newer one.
+    // Rebuilds run one at a time so an older read can never replace a newer one; the lock also orders them against limit reloads.
     private readonly SemaphoreSlim _rebuildLock = new(1, 1);
     private volatile LiveSnapshot _current = LiveSnapshot.Empty;
     private volatile bool _built;
     private volatile bool _startupBuildFinished;
     private readonly TaskCompletionSource _buildSignal = new(TaskCreationOptions.RunContinuationsAsynchronously);
+    private readonly object _rebuildState = new();
+    private bool _rebuildRunning;
+    private TaskCompletionSource? _followUp;
+    private HashSet<Guid>? _followUpMissing;
     private int _warnedBeforeFirstBuild;
     private int _notedStartupWindow;
 
@@ -107,6 +111,76 @@ internal sealed class LiveSnapshotAccessor : ILiveSnapshotAccessor
     }
 
     public async Task RebuildAsync(IReadOnlySet<Guid>? mediaKeysTreatedAsMissing = null)
+    {
+        // Requests that arrive while a rebuild runs set a dirty flag (a shared follow-up) instead of each rebuilding: all of
+        // them are answered by one more rebuild that starts after the running one, so it reads the latest data.
+        Task? joined = null;
+        lock (_rebuildState)
+        {
+            if (_rebuildRunning)
+            {
+                _followUp ??= new TaskCompletionSource(TaskCreationOptions.RunContinuationsAsynchronously);
+                if (mediaKeysTreatedAsMissing is { Count: > 0 })
+                {
+                    (_followUpMissing ??= []).UnionWith(mediaKeysTreatedAsMissing);
+                }
+
+                joined = _followUp.Task;
+            }
+            else
+            {
+                _rebuildRunning = true;
+            }
+        }
+
+        if (joined is not null)
+        {
+            await joined;
+            return;
+        }
+
+        IReadOnlySet<Guid>? missing = mediaKeysTreatedAsMissing;
+        TaskCompletionSource? owed = null;
+        while (true)
+        {
+            try
+            {
+                await BuildOnceAsync(missing);
+                owed?.TrySetResult();
+            }
+            catch (Exception ex)
+            {
+                TaskCompletionSource? waiting;
+                lock (_rebuildState)
+                {
+                    waiting = _followUp;
+                    _followUp = null;
+                    _followUpMissing = null;
+                    _rebuildRunning = false;
+                }
+
+                owed?.TrySetException(ex);
+                waiting?.TrySetException(ex);
+                throw;
+            }
+
+            lock (_rebuildState)
+            {
+                if (_followUp is null)
+                {
+                    _rebuildRunning = false;
+                    return;
+                }
+
+                owed = _followUp;
+                missing = _followUpMissing;
+                _followUp = null;
+                _followUpMissing = null;
+            }
+        }
+    }
+
+    private async Task BuildOnceAsync(IReadOnlySet<Guid>? mediaKeysTreatedAsMissing)
     {
         await _rebuildLock.WaitAsync();
         try
