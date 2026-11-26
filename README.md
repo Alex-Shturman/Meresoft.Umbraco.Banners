@@ -148,6 +148,10 @@ the site at start with a message that names the key.
 - **UTC days.** Statistics are grouped by UTC day, not by the day of the visitor or the site.
 - **Limits can be overshot a little.** Impression and click limits are checked after each flush, so a banner can pass
   its limit by up to one flush interval of views (a minute by default). On several servers each server flushes by itself.
+- **Writes are one flush pass per interval.** Each server writes its counts in one flush pass per flush interval. Inside
+  a pass every counted row (one banner in one zone for one day) is written in its own short transaction, so a failure on
+  one row, for example two servers inserting the same new row at once, does not roll back or lose the others; a row that
+  cannot be written is kept for the next pass. So "one write batch per interval" means one pass, not one transaction.
 - **The same banner in two zones** is counted per zone and per banner; a report row is one banner in one zone.
 
 The sections [Clicks and click rate](#clicks-and-click-rate), [View tokens on several servers and after a restart](#view-tokens-on-several-servers-and-after-a-restart)

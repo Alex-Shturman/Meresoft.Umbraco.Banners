@@ -57,5 +57,6 @@ The sample site is an Umbraco 17 site on SQLite with unattended install, a home 
   `dotnet run -c Release --project tests/Meresoft.Umbraco.Banners.Benchmarks` measures the same render with
   BenchmarkDotNet for local profiling.
 - Integration test `CountingLoadTests`: 100 views per second with 4 zones for 60 s across two
-  in-process "servers"; flushed totals equal reported totals, at most one write batch per server per
-  flush interval, counted as real write transactions through a counting scope provider, at the buffer and flusher level (SC-004, SC-005).
+  in-process "servers"; flushed totals equal reported totals, at most one flush pass per server per
+  flush interval (inside a pass one short transaction per counted row, for failure isolation), counted as real write
+  transactions through a counting scope provider, at the buffer and flusher level (SC-004, SC-005).

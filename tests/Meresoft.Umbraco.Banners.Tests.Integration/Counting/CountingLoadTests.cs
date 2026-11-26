@@ -21,8 +21,10 @@ namespace Meresoft.Umbraco.Banners.Tests.Integration.Counting;
 /// from several threads and the flush of each interval runs next to the writers of the next second.
 /// Scope of the write check: the buffer and flusher level. Every database write scope of a server goes through a
 /// counting scope provider, so the test counts real write transactions (not calls it makes itself) and proves that
-/// none opens while views are only being reported, and that all the writes of an interval belong to one flush and
-/// stay within one transaction per counted row. What it does not drive is the timer of <c>BannersFlushJob</c>, which
+/// none opens while views are only being reported, and that all the writes of an interval belong to one flush pass.
+/// "At most one write batch per server per flush interval" therefore means exactly: one flush pass per interval, and
+/// inside a pass one short transaction per counted row (for failure isolation: a failing row does not roll back the
+/// others), not one transaction per pass. What it does not drive is the timer of <c>BannersFlushJob</c>, which
 /// belongs to Umbraco's background job runner; the test calls the flush at each interval boundary of its virtual clock.
 /// </summary>
 [TestFixture]
