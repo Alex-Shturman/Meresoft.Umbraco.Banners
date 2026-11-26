@@ -31,18 +31,29 @@
 Options are validated on start (`ValidateOnStart`); an invalid value stops the site with a clear
 message naming the key.
 
-## Public C# services (namespace `Meresoft.Umbraco.Banners.Services`)
+## Public C# services
 
-Registered by the package composer; part of the stable public surface (constitution VI). All
-methods are async and run inside an Umbraco scope.
+Registered by the package composer; part of the stable public surface (constitution VI). The
+signatures below are those of the interfaces in `Services/`, `Selection/` and `Tokens/`. Service
+methods are async and each call runs in its own Umbraco scope.
 
-### `IBannerZoneService`
+### `IBannerZoneService` (namespace `Meresoft.Umbraco.Banners.Services`)
 
-- `Task<IReadOnlyList<BannerZone>> GetAllAsync()`
-- `Task<BannerZone?> GetByAliasAsync(string alias)`
-- `Task<Attempt<BannerZone, BannerOperationStatus>> CreateAsync(BannerZoneModel model, Guid userKey)`
-- `Task<Attempt<BannerZone, BannerOperationStatus>> UpdateAsync(Guid key, BannerZoneModel model, Guid userKey)`
-- `Task<BannerOperationStatus> DeleteAsync(Guid key, Guid userKey)`
+- `Task<IReadOnlyList<BannerZone>> GetAllAsync()`: all zones ordered by name.
+- `Task<BannerZone?> GetAsync(Guid key)`: a zone by its management API key.
+- `Task<BannerZone?> GetByAliasAsync(string alias)`: the alias is normalised first.
+- `Task<Attempt<BannerZone, BannerOperationStatus>> CreateAsync(BannerZoneModel model, Guid userKey)`:
+  also removes the matching requested zone.
+- `Task<Attempt<BannerZone, BannerOperationStatus>> UpdateAsync(Guid key, BannerZoneModel model, Guid userKey)`:
+  `BannerZoneModel.UpdateDate` guards against a concurrent change.
+- `Task<BannerOperationStatus> DeleteAsync(Guid key, Guid userKey)`: `ZoneInUse` while any banner
+  version is assigned to the zone.
+- `Task<IReadOnlyList<RequestedZone>> GetRequestedZonesAsync()`: aliases that templates asked for
+  but that do not exist yet.
+- `Task DismissRequestedZoneAsync(string alias)`: removes an alias from the requested zones; it
+  comes back when a template asks for it again.
+- `Task<IReadOnlyList<Guid>> GetAssignedBannerKeysAsync(Guid zoneKey)`: keys of the banners with a
+  draft or live version assigned to the zone.
 
 ### `IBannerService`
 
@@ -50,34 +61,67 @@ methods are async and run inside an Umbraco scope.
 - `Task<PagedModel<BannerListItem>> GetPagedAsync(BannerQuery query)`
 - `Task<Attempt<Banner, BannerOperationStatus>> CreateAsync(BannerCreateModel model, Guid userKey)`
 - `Task<Attempt<Banner, BannerOperationStatus>> SaveDraftAsync(Guid key, BannerDraftModel model, Guid userKey)`
-- `Task<Attempt<Banner, BannerOperationStatus>> PublishAsync(Guid key, Guid userKey)`
+- `Task<Attempt<Banner, BannerOperationStatus>> PublishAsync(Guid key, Guid userKey, DateTime? expectedUpdateDate = null)`:
+  a stored update date that differs from `expectedUpdateDate` gives `ChangedByAnotherUser`; null
+  skips the check.
 - `Task<Attempt<Banner, BannerOperationStatus>> UnpublishAsync(Guid key, Guid userKey)`
 - `Task<Attempt<Banner, BannerOperationStatus>> CopyAsync(Guid key, string? newName, Guid userKey)`
-- `Task<BannerOperationStatus> DeleteAsync(Guid key, Guid userKey)`
+- `Task<BannerOperationStatus> DeleteAsync(Guid key, Guid userKey)`: statistics stay.
 
-The HTML permission is checked by the management API layer, not by the service, so a site's own
-code (for example an importer) can create Html banners.
+The HTML permission is checked by the service for the acting user (`userKey`): creating an Html
+banner or changing its html needs a user who has the permission. Site code such as an importer
+passes the key of such a user (for example an administrator). A failed attempt for invalid data
+carries a `BannerValidationException` in its `Exception`.
 
 ### `IBannerStatisticsService`
 
-- `Task<BannerReport> GetReportAsync(BannerReportQuery query)`
-- `Task WriteCsvAsync(BannerReportQuery query, Stream output)`
+Only flushed counts are included, so they can be about a minute behind.
+
+- `Task<Attempt<BannerReport, BannerOperationStatus>> GetReportAsync(BannerReportQuery query)`:
+  `InvalidData` when the end is before the start or the period is longer than 366 days.
+- `Task<Attempt<string, BannerOperationStatus>> GetCsvAsync(BannerReportQuery query)`: the same
+  period as CSV text, one line per banner per zone per day; same failure statuses.
 
 ### `IBannerImportService` (FR-016)
 
 - `Task<BannerImportResult> ImportStatisticsAsync(IEnumerable<DailyStatisticImport> rows, StatisticImportMode mode)`
-  - `DailyStatisticImport`: `DateOnly Day`, `Guid BannerKey`, `Guid ZoneKey`, `long Impressions`,
-    `long Clicks`.
-  - `StatisticImportMode.Add` adds to existing rows; `Replace` overwrites the row's counts. Both set
-    `IsImported = true`. Runs in batches of 1,000 rows per transaction; returns counts of inserted,
-    updated and rejected rows (unknown banner or zone key, negative numbers).
+  - `DailyStatisticImport` (a class with settable properties): `DateOnly Day` (UTC), `Guid BannerKey`,
+    `Guid ZoneKey`, `long Impressions`, `long Clicks`.
+  - `StatisticImportMode.Add` adds to existing rows; `Replace` overwrites the row's counts. Imported
+    rows are marked as imported in reports.
+  - Runs in batches of 1,000 rows, one transaction per batch. Returns
+    `BannerImportResult(int Inserted, int Updated, int Rejected)`; rows with an unknown banner or
+    zone key or a negative count are skipped and counted as rejected. If the database fails the
+    exception is thrown; batches already committed stay.
+  - After a `Replace` import the live banners are rebuilt, so a banner whose totals went down below
+    its limit shows again.
 - Banners and zones are imported with `IBannerZoneService` and `IBannerService` (create, save
   draft, publish), so validation and audit are the same as in the back office.
 
 The package ships no importer for any specific CMS (constitution I).
 
-### `IBannerSelector` (advanced use)
+### `IBannerSelector` (advanced use; namespace `Meresoft.Umbraco.Banners.Selection`)
 
-- `IReadOnlyList<SelectedBanner> Select(string zoneAlias)`: the same weighted choice the zone uses,
-  for sites that render banners themselves. Callers must render the returned view token for
-  impressions to count.
+- `IReadOnlyList<SelectedBanner> Select(string zoneAlias)`: up to the zone's show count of different
+  banners, chosen from the in-memory snapshot only; empty when the zone is unknown or has no
+  candidate. The alias is trimmed and lowercased first.
+- `SelectedBanner` (record): `int BannerId`, `int ZoneId`, `string ImageUrl`, `int? Width`,
+  `int? Height`, `string AltText`, `string? Title`, `string LinkUrl`, `bool OpenInNewWindow`,
+  `string? Html` (stored markup of an Html banner, null for an image banner).
+
+`Select` returns no token. A site that renders banners itself gets one from `IViewTokenProtector`.
+
+### `IViewTokenProtector` (namespace `Meresoft.Umbraco.Banners.Tokens`)
+
+The signed, expiring token that proves a banner was rendered; the public impression endpoint
+accepts only a valid token (FR-011).
+
+- `string Issue(int zoneId, IReadOnlyList<int> bannerIds)`: a token for the banners rendered in one
+  zone. A custom renderer calls it once per zone view with `SelectedBanner.ZoneId` and the
+  `BannerId` of every banner it writes, and puts the result in the `data-mbz-token` attribute of
+  the zone element, as the built-in markup does (see `markup.md`). Without the token the
+  package script reports nothing and no impression counts.
+- `bool TryValidate(string? token, [NotNullWhen(true)] out ViewTokenPayload? payload)`: never
+  throws; any bad, tampered or expired token gives false.
+- `ViewTokenPayload(byte Version, int ZoneId, IReadOnlyList<int> BannerIds, byte[] Nonce)`: carries
+  no visitor data.
