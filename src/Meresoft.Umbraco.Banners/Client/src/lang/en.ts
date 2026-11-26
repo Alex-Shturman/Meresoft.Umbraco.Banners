@@ -6,7 +6,6 @@ export default {
     banners: "Banners",
     zones: "Zones",
     reports: "Reports",
-    emptyState: "Nothing here yet. Create your first item to get started.",
 
     // Shared actions and messages
     save: "Save",
