@@ -7,6 +7,7 @@ export const manifests: Array<UmbExtensionManifest> = [
     alias: "Meresoft.Banners.SectionRoute.Reports",
     name: "Meresoft Banners Reports Route",
     element: () => import("./reports-view.element.js"),
+    api: () => import("../section/section-route.api.js"),
     meta: { path: "reports" },
     conditions: [{ alias: "Umb.Condition.SectionAlias", match: SECTION_ALIAS }],
   } as unknown as UmbExtensionManifest,
