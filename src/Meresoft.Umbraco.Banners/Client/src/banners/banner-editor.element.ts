@@ -45,13 +45,14 @@ const BANNERS_PATH = "section/meresoft-banners/banners";
 /** Carries a publish failure of a new banner to its edit page, which the router may build as a new editor. */
 const pendingProblems = new PendingProblemStore();
 
-/** What differs between the editor's text fields. The range is stated by each field; nothing is assumed. */
+/**
+ * What differs between the editor's text fields. No min, max or step is passed to the input on purpose: the browser
+ * would add its own validation message (in its own language) below the package's message. The ranges are checked by
+ * #limitErrors in the editor and by the server, and their messages are the only ones shown.
+ */
 interface TextFieldOptions {
   descriptionKey?: string;
   type?: "text" | "number" | "datetime-local";
-  min?: number;
-  max?: number;
-  step?: number;
 }
 
 /** Creates and edits one banner (image or HTML): save the draft, publish, unpublish, copy and delete, and see its history. */
@@ -464,12 +465,12 @@ export class MeresoftBannerEditorElement extends UmbLitElement {
           ${this.#textField("name", "meresoftBanners_name", this._name, (v) => (this._name = v))}
           ${!banner ? this.#renderTypeChoice() : nothing}
           ${this._type === "Html" ? this.#renderHtmlField() : this.#renderImageFields()}
-          ${this.#textField("weight", "meresoftBanners_bannerWeight", this._weight, (v) => (this._weight = v), { descriptionKey: "meresoftBanners_bannerWeightDescription", type: "number", min: 1, max: 100 })}
+          ${this.#textField("weight", "meresoftBanners_bannerWeight", this._weight, (v) => (this._weight = v), { descriptionKey: "meresoftBanners_bannerWeightDescription", type: "number" })}
           ${this.#textField("startUtc", "meresoftBanners_bannerStart", this._start, (v) => (this._start = v), { descriptionKey: "meresoftBanners_bannerScheduleDescription", type: "datetime-local" })}
           ${this.#textField("endUtc", "meresoftBanners_bannerEnd", this._end, (v) => (this._end = v), { type: "datetime-local" })}
-          ${this.#textField("impressionLimit", "meresoftBanners_bannerImpressionLimit", this._impressionLimit, (v) => (this._impressionLimit = v), { descriptionKey: "meresoftBanners_bannerImpressionLimitDescription", type: "number", min: 1, step: 1 })}
+          ${this.#textField("impressionLimit", "meresoftBanners_bannerImpressionLimit", this._impressionLimit, (v) => (this._impressionLimit = v), { descriptionKey: "meresoftBanners_bannerImpressionLimitDescription", type: "number" })}
           ${showsClickLimit(this._type)
-            ? this.#textField("clickLimit", "meresoftBanners_bannerClickLimit", this._clickLimit, (v) => (this._clickLimit = v), { descriptionKey: "meresoftBanners_bannerClickLimitDescription", type: "number", min: 1, step: 1 })
+            ? this.#textField("clickLimit", "meresoftBanners_bannerClickLimit", this._clickLimit, (v) => (this._clickLimit = v), { descriptionKey: "meresoftBanners_bannerClickLimitDescription", type: "number" })
             : nothing}
           <uui-form-layout-item>
             <uui-label slot="label">${this.localize.term("meresoftBanners_bannerZones")}</uui-label>
@@ -581,13 +582,13 @@ export class MeresoftBannerEditorElement extends UmbLitElement {
     set: (value: string) => void,
     options: TextFieldOptions = {},
   ) {
-    const { descriptionKey, type = "text", min, max, step } = options;
+    const { descriptionKey, type = "text" } = options;
     const label = this.localize.term(labelKey);
     return html`
       <uui-form-layout-item>
         <uui-label slot="label" for=${field}>${label}</uui-label>
         ${descriptionKey ? html`<span slot="description">${this.localize.term(descriptionKey, userTimeZone())}</span>` : nothing}
-        <uui-input id=${field} type=${type} min=${min ?? nothing} max=${max ?? nothing} step=${step ?? nothing} label=${label} .value=${value} @input=${(e: Event) => set((e.target as HTMLInputElement).value)}></uui-input>
+        <uui-input id=${field} type=${type} label=${label} .value=${value} @input=${(e: Event) => set((e.target as HTMLInputElement).value)}></uui-input>
         ${this.#error(field)}
       </uui-form-layout-item>
     `;
