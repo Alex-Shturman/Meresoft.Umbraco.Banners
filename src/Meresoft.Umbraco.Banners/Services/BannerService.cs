@@ -206,7 +206,7 @@ internal sealed class BannerService : IBannerService
 
             DateTime loadedUpdateDate = banner.UpdateDate;
             DateTime now = UtcTimestamp.Truncate(_timeProvider.GetUtcNow().UtcDateTime);
-            string unchangedBefore = ContentFingerprint(banner, banner.Draft);
+            DraftContent contentBefore = DraftContent.Of(banner, banner.Draft);
             FieldValidationResult validation = ApplyDraft(banner, model, banner.Draft, now, userKey);
             AddMediaProblem(validation, mediaProblem);
             if (!validation.IsValid)
@@ -215,20 +215,18 @@ internal sealed class BannerService : IBannerService
             }
 
             // Nothing changed (the editor's Publish saves first): no write, no new update date, no audit entry. The
-            // scope is not completed, and the stored banner is read back below.
-            if (unchangedBefore == ContentFingerprint(banner, banner.Draft))
+            // scope ends without completing, and the stored banner is read back after it, outside the scope.
+            if (!contentBefore.Equals(DraftContent.Of(banner, banner.Draft)))
             {
-                return await SucceedAsync(key);
-            }
+                // The write is guarded by the update date read above, so a save by someone else in between is not overwritten.
+                if (!_banners.SaveDraft(banner, loadedUpdateDate))
+                {
+                    return Attempt.FailWithStatus(BannerOperationStatus.ChangedByAnotherUser, banner);
+                }
 
-            // The write is guarded by the update date read above, so a save by someone else in between is not overwritten.
-            if (!_banners.SaveDraft(banner, loadedUpdateDate))
-            {
-                return Attempt.FailWithStatus(BannerOperationStatus.ChangedByAnotherUser, banner);
+                await _audit.WriteBannerAsync(BannerAuditAction.Save, userKey, banner.Id);
+                scope.Complete();
             }
-
-            await _audit.WriteBannerAsync(BannerAuditAction.Save, userKey, banner.Id);
-            scope.Complete();
         }
 
         return await SucceedAsync(key);
@@ -401,22 +399,45 @@ internal sealed class BannerService : IBannerService
         return HtmlPermissionChecker.ChangesHtml(storedHtml, model.Html) || (model.Type == BannerType.Html && banner.Type != BannerType.Html);
     }
 
-    /// <summary>The editable content of a draft and the banner name, without the save date and user, to tell a real change from a repeat.</summary>
-    private static string ContentFingerprint(Banner banner, BannerVersion draft) => string.Join(
-        "\u001f",
-        banner.Name,
-        draft.MediaKey,
-        draft.Html,
-        draft.LinkUrl,
-        draft.OpenInNewWindow,
-        draft.AltText,
-        draft.Title,
-        draft.Weight,
-        draft.StartUtc?.Ticks,
-        draft.EndUtc?.Ticks,
-        draft.ImpressionLimit,
-        draft.ClickLimit,
-        string.Join(',', draft.ZoneIds.Order()));
+    /// <summary>The editable content of a banner and its draft, without the save date and user, to tell a real change from a repeat.</summary>
+    private readonly record struct DraftContent(
+        string Name,
+        Guid? MediaKey,
+        string? Html,
+        string? LinkUrl,
+        bool OpenInNewWindow,
+        string AltText,
+        string? Title,
+        int Weight,
+        DateTime? StartUtc,
+        DateTime? EndUtc,
+        long? ImpressionLimit,
+        long? ClickLimit,
+        int[] SortedZoneIds)
+    {
+        public static DraftContent Of(Banner banner, BannerVersion draft) => new(
+            banner.Name,
+            draft.MediaKey,
+            draft.Html,
+            draft.LinkUrl,
+            draft.OpenInNewWindow,
+            draft.AltText,
+            draft.Title,
+            draft.Weight,
+            draft.StartUtc,
+            draft.EndUtc,
+            draft.ImpressionLimit,
+            draft.ClickLimit,
+            [.. draft.ZoneIds.Order()]);
+
+        // Zone ids are an array, which a record compares by reference; the order of the zones does not matter.
+        public bool Equals(DraftContent other) =>
+            (Name, MediaKey, Html, LinkUrl, OpenInNewWindow, AltText, Title, Weight, StartUtc, EndUtc, ImpressionLimit, ClickLimit)
+            == (other.Name, other.MediaKey, other.Html, other.LinkUrl, other.OpenInNewWindow, other.AltText, other.Title, other.Weight, other.StartUtc, other.EndUtc, other.ImpressionLimit, other.ClickLimit)
+            && SortedZoneIds.AsSpan().SequenceEqual(other.SortedZoneIds);
+
+        public override int GetHashCode() => HashCode.Combine(Name, MediaKey, Html, LinkUrl, Weight, SortedZoneIds.Length);
+    }
 
     private static bool IsStale(DateTime? loaded, Banner banner) =>
         loaded is { } value && UtcTimestamp.Truncate(value) != banner.UpdateDate;
