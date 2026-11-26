@@ -50,6 +50,23 @@ internal sealed class ScheduleFilter
         return candidates;
     }
 
+    /// <summary>How many candidates are active at <paramref name="nowUtc"/>; allocates nothing.</summary>
+    public static int CountActive(IReadOnlyList<SnapshotBanner> candidates, DateTime nowUtc)
+    {
+        ArgumentNullException.ThrowIfNull(candidates);
+
+        int count = 0;
+        for (int i = 0; i < candidates.Count; i++)
+        {
+            if (IsActive(candidates[i], nowUtc))
+            {
+                count++;
+            }
+        }
+
+        return count;
+    }
+
     private static bool IsActive(SnapshotBanner banner, DateTime nowUtc) =>
         Schedule.IsActive(banner.StartUtc, banner.EndUtc, nowUtc);
 }
