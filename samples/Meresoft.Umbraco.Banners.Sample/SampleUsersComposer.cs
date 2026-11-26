@@ -94,8 +94,8 @@ public sealed class SampleEditorCreator : INotificationAsyncHandler<UmbracoAppli
 }
 
 /// <summary>
-/// Creates an invented banner editor: a user in a group that has the Banners section but not the HTML banner
-/// permission. Credentials come from MB_SAMPLE_BANNER_EDITOR_EMAIL and MB_SAMPLE_BANNER_EDITOR_PASSWORD (environment
+/// Creates an invented banner editor: a user in a group that has the Content, Media and Banners sections but not the
+/// HTML banner permission. Credentials come from MB_SAMPLE_BANNER_EDITOR_EMAIL and MB_SAMPLE_BANNER_EDITOR_PASSWORD (environment
 /// or user-secrets); nothing is created when they are not set.
 /// </summary>
 public sealed class SampleBannerEditorCreator : INotificationAsyncHandler<UmbracoApplicationStartedNotification>
@@ -133,15 +133,31 @@ public sealed class SampleBannerEditorCreator : INotificationAsyncHandler<Umbrac
 
     public async Task HandleAsync(UmbracoApplicationStartedNotification notification, CancellationToken cancellationToken)
     {
-        string? email = _configuration["MB_SAMPLE_BANNER_EDITOR_EMAIL"];
-        string? password = _configuration["MB_SAMPLE_BANNER_EDITOR_PASSWORD"];
-        if (_runtimeState.Level != RuntimeLevel.Run || string.IsNullOrWhiteSpace(email) || string.IsNullOrWhiteSpace(password)
-            || _userService.GetByEmail(email) is not null)
+        if (_runtimeState.Level != RuntimeLevel.Run)
         {
             return;
         }
 
+        // A sample site created before the group had the Media section keeps the old group in its database; bring it up to
+        // date on every start. This is the sample's own invented group; the package itself never changes group permissions.
         IUserGroup? group = await _userGroupService.GetAsync(GroupAlias);
+        if (group is not null && !group.AllowedSections.Contains(Constants.Applications.Media))
+        {
+            group.AddAllowedSection(Constants.Applications.Media);
+            var updated = await _userGroupService.UpdateAsync(group, Constants.Security.SuperUserKey);
+            if (!updated.Success)
+            {
+                _logger.LogWarning("Sample banner editor group could not be updated: {Status}", updated.Status);
+            }
+        }
+
+        string? email = _configuration["MB_SAMPLE_BANNER_EDITOR_EMAIL"];
+        string? password = _configuration["MB_SAMPLE_BANNER_EDITOR_PASSWORD"];
+        if (string.IsNullOrWhiteSpace(email) || string.IsNullOrWhiteSpace(password) || _userService.GetByEmail(email) is not null)
+        {
+            return;
+        }
+
         if (group is null)
         {
             var created = new UserGroup(_shortStringHelper)
@@ -151,6 +167,8 @@ public sealed class SampleBannerEditorCreator : INotificationAsyncHandler<Umbrac
                 HasAccessToAllLanguages = true,
             };
             created.AddAllowedSection(Constants.Applications.Content);
+            // Media is needed to pick or upload an image; the HTML permission is deliberately not given.
+            created.AddAllowedSection(Constants.Applications.Media);
             created.AddAllowedSection(BannersConstants.SectionAlias);
             var attempt = await _userGroupService.CreateAsync(created, Constants.Security.SuperUserKey, null);
             if (!attempt.Success)

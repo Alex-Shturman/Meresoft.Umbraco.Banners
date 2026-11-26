@@ -543,6 +543,7 @@ export class MeresoftBannerEditorElement extends UmbLitElement {
     return html`
           <uui-form-layout-item>
             <uui-label slot="label">${this.localize.term("meresoftBanners_bannerImage")}</uui-label>
+            <span slot="description">${this.localize.term("meresoftBanners_bannerImageDescription")}</span>
             <umb-input-media
               max="1"
               .selection=${this._mediaKey ? [this._mediaKey] : []}

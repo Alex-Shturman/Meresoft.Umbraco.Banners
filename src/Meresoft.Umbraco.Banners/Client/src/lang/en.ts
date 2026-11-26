@@ -62,6 +62,7 @@ export default {
     bannerNotFound: "This banner no longer exists.",
     noBanners: "No banners match. Create a banner, or change the filters.",
     bannerImage: "Image",
+    bannerImageDescription: "Picking or uploading an image needs access to Media: the Media section or a media start node.",
     bannerLink: "Link",
     bannerLinkDescription: "Where visitors go when they click the banner. An address starting with http or https.",
     bannerOpenInNewWindow: "Open in a new window",
