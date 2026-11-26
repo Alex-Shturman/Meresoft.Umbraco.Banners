@@ -25,7 +25,7 @@ import { configureBannersClient } from "../api/client-setup.js";
 import { client, fieldErrors, keyFromLocation, navigate, send, type ApiProblem } from "../shared/api.js";
 import { resolveUtc, userTimeZone, utcToLocalInput } from "../shared/date-time.js";
 import { STATE_DISPLAY, activeFlags, limitToText, parseLimit, showsClickLimit } from "./banner-state.js";
-import { createAndPublish } from "./create-and-publish.js";
+import { createAndPublish, createdBanner } from "./create-and-publish.js";
 import { PendingProblemStore } from "./pending-problem.js";
 import { canEditHtml, htmlFieldAccess, offeredBannerTypes } from "./html-permission.js";
 import "./banner-history.element.js";
@@ -242,15 +242,21 @@ export class MeresoftBannerEditorElement extends UmbLitElement {
     }
 
     if (!this.#bannerKey) {
-      const created = await send(createBanner({ body: this.#body() }));
-      if (created.status === 201) {
+      const created = createdBanner(await send(createBanner({ body: this.#body() })));
+      if (created.kind === "created") {
         if (showToast) {
           this.#toast("meresoftBanners_bannerSaved");
         }
-        navigate(`${BANNERS_PATH}/edit/${keyFromLocation(created.location)}`);
+        navigate(`${BANNERS_PATH}/edit/${created.key}`);
         return true;
       }
-      this.#fail(created.status, created.problem);
+      if (created.kind === "created-without-key") {
+        // Saved, but the editor cannot tell where: the list shows it as a Draft.
+        this.#toast("meresoftBanners_bannerSavedNotOpened");
+        navigate(BANNERS_PATH);
+        return true;
+      }
+      this.#fail(created.result.status, created.result.problem);
       return false;
     }
 

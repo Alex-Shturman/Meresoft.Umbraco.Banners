@@ -1,7 +1,7 @@
 import { describe, expect, it } from "vitest";
 import type { BannerResponseModel } from "../api/types.gen.js";
 import type { ApiResult } from "../shared/api.js";
-import { createAndPublish } from "./create-and-publish.js";
+import { createAndPublish, createdBanner } from "./create-and-publish.js";
 
 const KEY = "11111111-2222-3333-4444-555555555555";
 const loaded = { key: KEY, updateDate: "2026-01-02T03:04:05Z" } as unknown as BannerResponseModel;
@@ -37,6 +37,21 @@ function steps(
     },
   };
 }
+
+describe("createdBanner", () => {
+  it("gives the key at the end of the Location of a 201", () => {
+    expect(createdBanner({ status: 201, location: `/umbraco/api/banners/${KEY}` })).toEqual({ kind: "created", key: KEY });
+  });
+
+  it.each([undefined, ""])("reports a 201 whose Location is %j as created without a key", (location) => {
+    expect(createdBanner({ status: 201, location })).toEqual({ kind: "created-without-key" });
+  });
+
+  it("reports any other status as failed", () => {
+    const result = { status: 400, problem: { detail: "bad" } };
+    expect(createdBanner(result)).toEqual({ kind: "create-failed", result });
+  });
+});
 
 describe("createAndPublish", () => {
   it("creates, loads the banner by the created key, then publishes with its updateDate", async () => {

@@ -19,16 +19,28 @@ export type CreateAndPublishOutcome =
   | { kind: "published"; key: string; banner: BannerResponseModel }
   | { kind: "publish-failed"; key: string; result: ApiResult<unknown> };
 
+/** What a create call came to: the key of the new banner, a 201 that did not say where it is, or a failure. */
+export type CreatedBanner =
+  | { kind: "created"; key: string }
+  | { kind: "created-without-key" }
+  | { kind: "create-failed"; result: ApiResult<unknown> };
+
+/** Reads the answer of a create call; Save and Publish on a new banner both use it. */
+export function createdBanner(result: ApiResult<unknown>): CreatedBanner {
+  if (result.status !== 201) {
+    return { kind: "create-failed", result };
+  }
+  const key = keyFromLocation(result.location);
+  return key ? { kind: "created", key } : { kind: "created-without-key" };
+}
+
 /** Creates the banner, then publishes it with the key and `updateDate` of what was created. It has no DOM. */
 export async function createAndPublish(steps: CreateAndPublishSteps): Promise<CreateAndPublishOutcome> {
-  const created = await steps.create();
-  if (created.status !== 201) {
-    return { kind: "create-failed", result: created };
+  const created = createdBanner(await steps.create());
+  if (created.kind !== "created") {
+    return created;
   }
-  const key = keyFromLocation(created.location);
-  if (!key) {
-    return { kind: "created-without-key" };
-  }
+  const key = created.key;
 
   const loaded = await steps.load(key);
   if (!loaded.data) {
