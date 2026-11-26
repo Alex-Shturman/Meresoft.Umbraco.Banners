@@ -1,3 +1,4 @@
+using Meresoft.Umbraco.Banners.Persistence;
 using Umbraco.Cms.Core.Models;
 using Umbraco.Cms.Core.Services;
 
@@ -25,7 +26,7 @@ internal sealed class BannerAuditWriter
         WriteAsync(action, userKey, zoneId, BannersConstants.ZoneEntityType, "zone");
 
     private Task WriteAsync(BannerAuditAction action, Guid userKey, int id, string entityType, string noun) =>
-        _auditService.AddAsync(ToAuditType(action), userKey, id, entityType, $"{action.ToString().ToLowerInvariant()} {noun} {id}", null);
+        _auditService.AddAsync(ToAuditType(action), userKey, AuditNodeId.FromEntityId(id), entityType, $"{action.ToString().ToLowerInvariant()} {noun} {id}", null);
 
     private static AuditType ToAuditType(BannerAuditAction action) => action switch
     {

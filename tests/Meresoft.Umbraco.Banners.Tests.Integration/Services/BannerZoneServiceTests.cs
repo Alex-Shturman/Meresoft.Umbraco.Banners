@@ -1,4 +1,5 @@
 using Meresoft.Umbraco.Banners.Domain;
+using Meresoft.Umbraco.Banners.Persistence;
 using Meresoft.Umbraco.Banners.Persistence.Dtos;
 using Meresoft.Umbraco.Banners.Services;
 using Meresoft.Umbraco.Banners.Services.Models;
@@ -25,9 +26,8 @@ public class BannerZoneServiceTests : BannersServiceTestBase
         RenderMode = ZoneRenderMode.Server,
     };
 
-    private async Task<int> AuditCountAsync(int zoneId) =>
-        (await GetRequiredService<IAuditService>().GetItemsByEntityAsync(zoneId, 0, 50)).Items
-            .Count(i => i.EntityType == BannersConstants.ZoneEntityType);
+    private Task<int> AuditCountAsync(int zoneId) =>
+        Task.FromResult(StoredAudit.For(ScopeProvider, zoneId, BannersConstants.ZoneEntityType).Length);
 
     [Test]
     public async Task Create_StoresTheZoneWithANormalisedAlias_AndWritesAnAuditEntry()

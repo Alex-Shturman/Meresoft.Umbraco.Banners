@@ -19,8 +19,8 @@ internal interface IAuditHistoryRepository
 
 /// <inheritdoc cref="IAuditHistoryRepository" />
 /// <remarks>
-/// Umbraco's audit service filters by entity id only, and banners, zones and content nodes share the id space, so
-/// the entity type is part of the query here. The database filters, orders (newest first, then by id, so equal
+/// Umbraco's audit service filters by node id only, and banners, zones and content nodes share the id space, so
+/// the rows of the package use the mapped node id of <see cref="AuditNodeId"/> and the entity type is part of the query too. The database filters, orders (newest first, then by id, so equal
 /// timestamps never reorder between pages) and pages, and nothing is written.
 /// </remarks>
 internal sealed class AuditHistoryRepository : RepositoryBase, IAuditHistoryRepository
@@ -36,8 +36,10 @@ internal sealed class AuditHistoryRepository : RepositoryBase, IAuditHistoryRepo
         ArgumentOutOfRangeException.ThrowIfNegative(skip);
         ArgumentOutOfRangeException.ThrowIfLessThan(take, 1);
 
+        int nodeId = AuditNodeId.FromEntityId(entityId);
+
         long total = Database.ExecuteScalar<long>(
-            NewSql().SelectCount().From<AuditLogRowDto>().Where<AuditLogRowDto>(l => l.NodeId == entityId && l.EntityType == entityType));
+            NewSql().SelectCount().From<AuditLogRowDto>().Where<AuditLogRowDto>(l => l.NodeId == nodeId && l.EntityType == entityType));
 
         List<AuditLogRowDto> rows = Database.SkipTake<AuditLogRowDto>(
             skip,
@@ -45,7 +47,7 @@ internal sealed class AuditHistoryRepository : RepositoryBase, IAuditHistoryRepo
             NewSql()
                 .Select<AuditLogRowDto>()
                 .From<AuditLogRowDto>()
-                .Where<AuditLogRowDto>(l => l.NodeId == entityId && l.EntityType == entityType)
+                .Where<AuditLogRowDto>(l => l.NodeId == nodeId && l.EntityType == entityType)
                 .OrderByDescending<AuditLogRowDto>(l => l.Datestamp)
                 .OrderByDescending<AuditLogRowDto>(l => l.Id));
 

@@ -217,11 +217,13 @@ The package has no automatic uninstall. In this order:
    ```sql
    DELETE FROM umbracoUserGroup2App WHERE app = 'Meresoft.Banners.Section';
    DELETE FROM umbracoUserGroup2Permission WHERE permission = 'Meresoft.Banners.Html';
-   DELETE FROM umbracoLog WHERE entityType IN ('meresoft-banner', 'meresoft-banner-zone');
+   DELETE FROM umbracoLog WHERE entityType IN ('meresoft-banner', 'meresoft-banner-zone') AND NodeId < -1000000000;
    ```
 
    The first two are the section access and the "Edit HTML banners" permission of the user groups. The last one is the
-   audit history of banners and zones; keep it if you want to keep that record.
+   audit history of banners and zones; keep it if you want to keep that record. The package stores these rows with a
+   node id below -1,000,000,000 (the banner id counted down from there), so they never show in the history of a
+   document or media item that has the same number as a banner.
 
 ## Reporting issues
 

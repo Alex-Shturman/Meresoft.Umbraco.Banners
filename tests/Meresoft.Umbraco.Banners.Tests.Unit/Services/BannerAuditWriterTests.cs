@@ -1,3 +1,4 @@
+using Meresoft.Umbraco.Banners.Persistence;
 using Meresoft.Umbraco.Banners.Services.Audit;
 using NSubstitute;
 using NUnit.Framework;
@@ -37,7 +38,7 @@ public class BannerAuditWriterTests
         await _audit.Received(1).AddAsync(
             expectedType,
             User,
-            12,
+            AuditNodeId.FromEntityId(12),
             "meresoft-banner",
             Arg.Is<string>(c => c.Contains(word) && c.Contains("12")),
             Arg.Any<string?>());
@@ -51,7 +52,7 @@ public class BannerAuditWriterTests
         await _audit.Received(1).AddAsync(
             AuditType.Save,
             User,
-            3,
+            AuditNodeId.FromEntityId(3),
             "meresoft-banner-zone",
             Arg.Is<string>(c => c.Contains("save") && c.Contains("3")),
             Arg.Any<string?>());

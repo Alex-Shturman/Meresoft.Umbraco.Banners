@@ -1,5 +1,6 @@
 using System.Net;
 using System.Text.Json;
+using Meresoft.Umbraco.Banners.Persistence;
 using Meresoft.Umbraco.Banners.Services;
 using Meresoft.Umbraco.Banners.Tests.Integration.TestSetup;
 using NUnit.Framework;
@@ -36,11 +37,9 @@ public class AuditTests : BannersApiTestBase
 
     private async Task<int> TotalAsync(string kind, Guid key) => (await HistoryAsync(kind, key)).GetProperty("total").GetInt32();
 
-    /// <summary>The audit rows written for one entity, read straight from Umbraco's audit service.</summary>
-    private async Task<IAuditItem[]> StoredAsync(int entityId, string entityType) =>
-        (await GetRequiredService<IAuditService>().GetItemsByEntityAsync(entityId, 0, 100)).Items
-            .Where(i => i.EntityType == entityType)
-            .ToArray();
+    /// <summary>The audit rows written for one entity, read from the audit table.</summary>
+    private Task<StoredAuditRow[]> StoredAsync(int entityId, string entityType) =>
+        Task.FromResult(StoredAudit.For(ScopeProvider, entityId, entityType));
 
     private async Task<int> BannerIdAsync(Guid key) => (await GetRequiredService<IBannerService>().GetAsync(key))!.Id;
 
@@ -98,7 +97,7 @@ public class AuditTests : BannersApiTestBase
         Guid key = await CreateBannerAsync(_media, _zoneKey);
         int id = await BannerIdAsync(key);
 
-        IAuditItem entry = (await StoredAsync(id, BannersConstants.BannerEntityType)).Single();
+        StoredAuditRow entry = (await StoredAsync(id, BannersConstants.BannerEntityType)).Single();
 
         IUser admin = GetRequiredService<IUserService>().GetByEmail("banners-admin@test.invalid")!;
         Assert.Multiple(() =>
@@ -159,13 +158,15 @@ public class AuditTests : BannersApiTestBase
         Assert.That((await GetAsync($"/zones/{_zoneKey}/history")).StatusCode, Is.EqualTo(HttpStatusCode.Forbidden));
     }
 
-    /// <summary>Writes audit rows straight to Umbraco's audit service, as other parts of Umbraco do for content with the same id.</summary>
+    /// <summary>Writes audit rows straight to Umbraco's audit service. Rows of other entity types use the plain id, as Umbraco does for content with the same id; package rows use the mapped node id.</summary>
     private async Task AddAuditRowsAsync(int count, int entityId, string entityType, AuditType type = AuditType.Save)
     {
         IAuditService audit = GetRequiredService<IAuditService>();
+        bool isPackageRow = entityType is BannersConstants.BannerEntityType or BannersConstants.ZoneEntityType;
+        int nodeId = isPackageRow ? AuditNodeId.FromEntityId(entityId) : entityId;
         for (int i = 0; i < count; i++)
         {
-            await audit.AddAsync(type, Constants.Security.SuperUserKey, entityId, entityType, "invented row", null);
+            await audit.AddAsync(type, Constants.Security.SuperUserKey, nodeId, entityType, "invented row", null);
         }
     }
 

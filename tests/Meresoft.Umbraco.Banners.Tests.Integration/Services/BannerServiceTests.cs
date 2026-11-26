@@ -1,5 +1,6 @@
 using Meresoft.Umbraco.Banners.Caching;
 using Meresoft.Umbraco.Banners.Domain;
+using Meresoft.Umbraco.Banners.Persistence;
 using Meresoft.Umbraco.Banners.Persistence.Dtos;
 using Meresoft.Umbraco.Banners.Services.Models;
 using Meresoft.Umbraco.Banners.Tests.Integration.TestSetup;
@@ -25,9 +26,8 @@ public class BannerServiceTests : BannersServiceTestBase
     }
 
     // Banner and zone ids can be equal, so the entries are told apart by their entity type.
-    private async Task<int> AuditCountAsync(int bannerId) =>
-        (await GetRequiredService<IAuditService>().GetItemsByEntityAsync(bannerId, 0, 50)).Items
-            .Count(i => i.EntityType == BannersConstants.BannerEntityType);
+    private Task<int> AuditCountAsync(int bannerId) =>
+        Task.FromResult(StoredAudit.For(ScopeProvider, bannerId, BannersConstants.BannerEntityType).Length);
 
     private async Task<Banner> PublishedBannerAsync()
     {
