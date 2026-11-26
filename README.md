@@ -346,3 +346,9 @@ zone of the site, so a rerun on a used sample database starts like a fresh one. 
 **The guard.** The run refuses to start (nothing is started, not even the sample site) unless `MB_SAMPLE_BASE_URL` is
 on this machine: `localhost`, `127.0.0.1` or `[::1]`. A remote sample site needs the explicit override
 `MB_E2E_ALLOW_REMOTE_RESET=1`. Never point the tests at a site whose banners you want to keep.
+
+**One site instance per database.** Never run two instances of the sample site on the same database and folder. A second
+instance, also one that Playwright starts because `MB_SAMPLE_BASE_URL` points where no site runs, takes over Umbraco's
+main domain. The first site then keeps serving pages, but its background jobs stop (the flush job that writes requested
+zones and counts), and the specs that wait for those time out. The configuration refuses to load without the
+administrator variables, so a mistyped run starts nothing.
