@@ -3,6 +3,7 @@ using System.Text.Json;
 using Meresoft.Umbraco.Banners.Tests.Integration.TestSetup;
 using Microsoft.Extensions.DependencyInjection;
 using NUnit.Framework;
+using Umbraco.Cms.Core.Services;
 using Umbraco.Cms.Tests.Common.Testing;
 using Umbraco.Cms.Tests.Integration.TestServerTest;
 
@@ -16,6 +17,9 @@ public class OpenApiDocumentTests : UmbracoTestServerTestBase
 
     protected override void CustomMvcSetup(IMvcBuilder mvcBuilder) =>
         mvcBuilder.AddApplicationPart(typeof(SectionProbeController).Assembly);
+
+    [SetUp]
+    public async Task WaitForRuntime() => await RuntimeReady.WaitForRunLevelAsync(GetRequiredService<IRuntimeState>());
 
     [Test]
     public async Task Document_IsServed()
