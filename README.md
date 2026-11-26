@@ -153,6 +153,11 @@ the site at start with a message that names the key.
   one row, for example two servers inserting the same new row at once, does not roll back or lose the others; a row that
   cannot be written is kept for the next pass. So "one write batch per interval" means one pass, not one transaction.
 - **The same banner in two zones** is counted per zone and per banner; a report row is one banner in one zone.
+- **Counts can be faked.** Anyone can get fresh valid view tokens for free, from any page view or from the zone
+  address that client mode uses, and the click address is a plain GET. The replay set stops accidental repeats; it
+  does not defend against token farming. The defences are the bot filter and the viewability rule (one second on
+  screen, reported by the script), and none of them stops a determined person. Treat the numbers as a measure for
+  honest traffic, not as proof for billing.
 
 The sections [Clicks and click rate](#clicks-and-click-rate), [View tokens on several servers and after a restart](#view-tokens-on-several-servers-and-after-a-restart)
 and [Cached pages](#cached-pages) below say what the counts can and cannot tell you.
@@ -192,7 +197,9 @@ The package does not store or log IP addresses, user agents, cookies, member or 
 cookies. Request headers (user agent, fetch metadata) are read in memory to filter bots and prefetches and are
 not kept. What is stored: per day, banner and zone, the number of impressions and clicks. The audit log holds the
 user, time and action of back office changes, and no banner content. The view token on a page is signed with the
-site's data protection keys and carries no visitor data.
+site's data protection keys and carries no visitor data. The server keeps, in memory only and until the token
+expires, a random token number and which of its banners were counted; this holds no visitor data and is never
+written to disk or to the log.
 
 ## Upgrade notes
 
@@ -264,15 +271,21 @@ are not, because a click must work without JavaScript and on cached pages.
 ### View tokens on several servers and after a restart
 
 An impression is reported with a signed view token that the page carries. Each server remembers, in
-memory only, which token and banner pairs it has counted, so a repeated report counts once. That memory
+memory only, which banners of which tokens it has counted (one entry per token, with a small bit mask for
+its banners), so a repeated report counts once. That memory
 has three consequences:
 
 - A report replayed to a different server is counted once more per server. Replaying needs deliberate
   effort and is bounded by the number of servers and the token lifetime (10 minutes by default).
 - A restart empties the memory. A token that was already counted can be counted again after the
   restart, as long as it has not expired. The same bound applies.
-- The memory holds at most 250,000 pairs. When it is full it refuses new reports until entries expire,
-  and the log gets one warning (counts only) each time it fills up.
+- The memory holds at most 100,000 tokens, which is a few megabytes. When it is full, the entries closest to
+  expiry are dropped to make room, so a flood of tokens cannot keep real impressions out. The price is that a
+  dropped token that is replayed before it expires can be counted once more. This is a deliberate trade: fresh
+  tokens are free, so replaying a dropped one gives an attacker nothing they could not get anyway, while refusing
+  new tokens when the memory is full would let the same attacker suppress every real impression. Only the entries
+  that expire soonest are dropped, never the newest. The log gets one warning (counts
+  only) each time the memory fills up.
 
 Tokens are checked with the site's data protection keys, so servers behind a load balancer must share
 the key ring, which Umbraco needs for back office sign-in anyway.

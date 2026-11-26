@@ -23,6 +23,13 @@ public class ReplaySetTests
 
     private static byte[] Nonce(byte seed) => Enumerable.Repeat(seed, 12).ToArray();
 
+    private static byte[] Token(int number)
+    {
+        byte[] nonce = new byte[12];
+        BitConverter.TryWriteBytes(nonce, number);
+        return nonce;
+    }
+
     [Test]
     public void TheFirstPairIsAccepted_TheSecondIsRefused()
     {
@@ -33,7 +40,7 @@ public class ReplaySetTests
     }
 
     [Test]
-    public void ADifferentBannerWithTheSameNonce_IsAccepted()
+    public void ADifferentPositionWithTheSameNonce_IsAccepted()
     {
         ReplaySet set = Create();
         set.TryAdd(Nonce(1), 12);
@@ -64,18 +71,98 @@ public class ReplaySetTests
     }
 
     [Test]
-    public void TheSetIsBounded_ExpiredEntriesAreMadeRoomFor_ButAFullSetOfLiveEntriesRefuses()
+    public void ATokenWithManyBanners_HoldsOneEntry_AndEachPositionCountsOnce()
+    {
+        ReplaySet set = Create();
+
+        for (int position = 0; position < 10; position++)
+        {
+            Assert.That(set.TryAdd(Nonce(1), position), Is.True, $"position {position}");
+        }
+
+        Assert.That(set.Count, Is.EqualTo(1), "memory per token does not grow with its banners");
+        for (int position = 0; position < 10; position++)
+        {
+            Assert.That(set.TryAdd(Nonce(1), position), Is.False, $"replay of position {position}");
+        }
+    }
+
+    [Test]
+    public void APositionBeyondTheMask_IsRefused()
+    {
+        ReplaySet set = Create();
+
+        Assert.That(set.TryAdd(Nonce(1), 32), Is.False);
+        Assert.That(set.TryAdd(Nonce(1), -1), Is.False);
+        Assert.That(set.Count, Is.EqualTo(0));
+    }
+
+    [Test]
+    public void AFullSet_StillAcceptsNewTokens_ByEvictingTheOnesClosestToExpiry()
+    {
+        ReplaySet set = Create(maxEntries: 100);
+
+        // A flood of tokens, one second apart so their expiry differs, fills the set.
+        for (int i = 0; i < 100; i++)
+        {
+            Assert.That(set.TryAdd(Token(i), 0), Is.True);
+            _clock.Advance(TimeSpan.FromMilliseconds(10));
+        }
+
+        // Real tokens arriving at a full set are accepted, and the set stays bounded.
+        for (int i = 1000; i < 1050; i++)
+        {
+            Assert.That(set.TryAdd(Token(i), 0), Is.True, $"new token {i} must be accepted");
+        }
+
+        Assert.That(set.Count, Is.LessThanOrEqualTo(100));
+        Assert.That(set.TryAdd(Token(1049), 0), Is.False, "the newest token is still remembered, a replay is refused");
+        Assert.That(set.TryAdd(Token(0), 0), Is.True, "the oldest entry was evicted first");
+    }
+
+    [Test]
+    public void AfterAFloodFillsTheSet_AReplayOfATokenStillPresentIsRefused()
+    {
+        ReplaySet set = Create(maxEntries: 100);
+        for (int i = 0; i < 1_000; i++)
+        {
+            set.TryAdd(Token(i), 0);
+            _clock.Advance(TimeSpan.FromMilliseconds(1));
+        }
+
+        // The newest tokens expire last, so they are present and a replay of them is refused.
+        for (int i = 990; i < 1_000; i++)
+        {
+            Assert.That(set.TryAdd(Token(i), 0), Is.False, $"replay of present token {i}");
+        }
+    }
+
+    [Test]
+    public void AFlood_KeepsTheSetBounded()
+    {
+        ReplaySet set = Create(maxEntries: 500);
+
+        for (int i = 0; i < 20_000; i++)
+        {
+            set.TryAdd(Token(i), 0);
+        }
+
+        Assert.That(set.Count, Is.LessThanOrEqualTo(500));
+    }
+
+    [Test]
+    public void ExpiredEntriesAreMadeRoomFor_BeforeAnyLiveEntryIsEvicted()
     {
         ReplaySet set = Create(maxEntries: 3);
-        Assert.That(set.TryAdd(Nonce(1), 1), Is.True);
-        Assert.That(set.TryAdd(Nonce(2), 1), Is.True);
-        Assert.That(set.TryAdd(Nonce(3), 1), Is.True);
+        set.TryAdd(Nonce(1), 0);
+        set.TryAdd(Nonce(2), 0);
+        _clock.Advance(Lifetime - TimeSpan.FromSeconds(30));
+        set.TryAdd(Nonce(3), 0);
 
-        Assert.That(set.TryAdd(Nonce(4), 1), Is.False, "full of live entries");
+        _clock.Advance(TimeSpan.FromSeconds(45));
+        Assert.That(set.TryAdd(Nonce(4), 0), Is.True);
 
-        _clock.Advance(Lifetime + TimeSpan.FromSeconds(1));
-        Assert.That(set.TryAdd(Nonce(4), 1), Is.True, "the old entries were purged");
-        Assert.That(set.Count, Is.LessThanOrEqualTo(3));
+        Assert.That(set.TryAdd(Nonce(3), 0), Is.False, "the live token was kept");
     }
 
     [Test]
@@ -95,10 +182,10 @@ public class ReplaySetTests
         Assert.That(accepted, Is.EqualTo(1));
     }
 
-    // Review 5: a full set refuses new impressions, so it says so once, with counts only.
+    // A full set evicts the entries closest to expiry, so it says so once, with counts only.
 
     [Test]
-    public void AFullSet_LogsOneWarningWithCountsOnly_NotOnePerRefusedReport()
+    public void AFullSet_LogsOneWarningWithCountsOnly_NotOnePerEviction()
     {
         var logger = new CapturingLogger();
         ReplaySet set = Create(maxEntries: 2, logger);
@@ -107,7 +194,7 @@ public class ReplaySetTests
 
         for (byte i = 3; i < 20; i++)
         {
-            Assert.That(set.TryAdd(Nonce(i), 7), Is.False);
+            Assert.That(set.TryAdd(Nonce(i), 7), Is.True);
         }
 
         Assert.That(logger.Entries, Has.Count.EqualTo(1));
@@ -126,7 +213,7 @@ public class ReplaySetTests
 
         _clock.Advance(Lifetime + TimeSpan.FromMinutes(1));
         Assert.That(set.TryAdd(Nonce(3), 7), Is.True, "room again");
-        Assert.That(set.TryAdd(Nonce(4), 7), Is.False, "full again");
+        Assert.That(set.TryAdd(Nonce(4), 7), Is.True, "full again, the oldest is evicted");
 
         Assert.That(logger.Entries, Has.Count.EqualTo(2));
     }

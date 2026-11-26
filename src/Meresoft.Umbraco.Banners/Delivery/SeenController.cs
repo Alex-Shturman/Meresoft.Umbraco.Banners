@@ -75,13 +75,27 @@ public sealed class SeenController : ControllerBase
                 validated[line.Token] = payload;
             }
 
-            if (payload is not null && payload.BannerIds.Contains(line.BannerId) && _replay.TryAdd(payload.Nonce, line.BannerId))
+            if (payload is not null && PositionOf(payload.BannerIds, line.BannerId) is var position and >= 0 && _replay.TryAdd(payload.Nonce, position))
             {
                 _buffer.AddImpression(today, line.BannerId, payload.ZoneId);
             }
         }
 
         return NoContent();
+    }
+
+    /// <summary>The index of the banner in the token's banner list (the replay set keys a bit on it), or -1 when the token does not carry it.</summary>
+    private static int PositionOf(IReadOnlyList<int> bannerIds, int bannerId)
+    {
+        for (int i = 0; i < bannerIds.Count; i++)
+        {
+            if (bannerIds[i] == bannerId)
+            {
+                return i;
+            }
+        }
+
+        return -1;
     }
 
     /// <summary>The body as text, or null when it is larger than the limit. Reads at most one byte more than the limit.</summary>
