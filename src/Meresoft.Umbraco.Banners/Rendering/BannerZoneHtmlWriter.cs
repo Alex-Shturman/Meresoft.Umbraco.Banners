@@ -4,6 +4,7 @@ using Meresoft.Umbraco.Banners.Configuration;
 using Meresoft.Umbraco.Banners.Domain;
 using Meresoft.Umbraco.Banners.Selection;
 using Meresoft.Umbraco.Banners.Tokens;
+using Microsoft.AspNetCore.Http;
 using Microsoft.Extensions.Options;
 
 namespace Meresoft.Umbraco.Banners.Rendering;
@@ -28,16 +29,17 @@ public sealed class BannerZoneHtmlWriter
 
     /// <summary>
     /// Writes the zone. With no banner it gives the fallback, or nothing. The package script tag is
-    /// added once per request, tracked in <paramref name="requestItems"/> (<c>HttpContext.Items</c>).
+    /// added once per request, tracked in <paramref name="requestItems"/> (<c>HttpContext.Items</c>). <paramref name="pathBase"/> is the
+    /// <c>Request.PathBase</c> of a site in a virtual directory; every public address written (base address, click link, script) starts with it.
     /// </summary>
-    public string Render(BannerZoneView view, IDictionary<object, object?> requestItems)
+    public string Render(BannerZoneView view, IDictionary<object, object?> requestItems, PathString pathBase = default)
     {
         ArgumentNullException.ThrowIfNull(view);
         ArgumentNullException.ThrowIfNull(requestItems);
 
         if (view.Mode == ZoneRenderMode.Client)
         {
-            return RenderPlaceholder(view, requestItems);
+            return RenderPlaceholder(view, requestItems, pathBase);
         }
 
         if (view.Banners.Count == 0)
@@ -48,6 +50,7 @@ public sealed class BannerZoneHtmlWriter
         // Everything from here runs for every zone of every page view. Keep the work per render minimal: no database,
         // no allocation beyond the markup, and the token (one data protection call) is the only crypto. Anything that
         // can be prepared when the snapshot is built belongs there, not here.
+        string prefix = pathBase.HasValue ? pathBase.ToUriComponent() : string.Empty;
         var html = new StringBuilder(512);
         html.Append("<div class=\"mb-zone");
         if (!string.IsNullOrWhiteSpace(view.CssClass))
@@ -56,20 +59,20 @@ public sealed class BannerZoneHtmlWriter
         }
 
         html.Append("\" data-mbz=\"").Append(Encode(view.Alias))
-            .Append("\" data-mb-base=\"").Append(Encode(_basePath))
+            .Append("\" data-mb-base=\"").Append(Encode(prefix + _basePath))
             .Append("\" data-mbz-token=\"").Append(_tokens.Issue(view.Banners[0].ZoneId, [.. view.Banners.Select(b => b.BannerId)]))
             .Append("\">");
 
         foreach (SelectedBanner banner in view.Banners)
         {
-            AppendBanner(html, banner);
+            AppendBanner(html, banner, prefix);
         }
 
         html.Append("</div>");
 
         if (requestItems.TryAdd(ScriptWrittenKey, true))
         {
-            html.Append(PackageScript.Tag);
+            html.Append(PackageScript.TagFor(prefix));
         }
 
         return html.ToString();
@@ -80,8 +83,9 @@ public sealed class BannerZoneHtmlWriter
     /// page can be cached. It is always written, because the server does not know which banners the browser will get, and
     /// carries no token. With the delivery endpoint switched off the script could not fill it, so only the fallback is written.
     /// </summary>
-    private string RenderPlaceholder(BannerZoneView view, IDictionary<object, object?> requestItems)
+    private string RenderPlaceholder(BannerZoneView view, IDictionary<object, object?> requestItems, PathString pathBase)
     {
+        string prefix = pathBase.HasValue ? pathBase.ToUriComponent() : string.Empty;
         if (!_deliveryEnabled)
         {
             return view.FallbackHtml ?? string.Empty;
@@ -95,18 +99,18 @@ public sealed class BannerZoneHtmlWriter
         }
 
         html.Append("\" data-mbz=\"").Append(Encode(view.Alias))
-            .Append("\" data-mb-base=\"").Append(Encode(_basePath))
+            .Append("\" data-mb-base=\"").Append(Encode(prefix + _basePath))
             .Append("\" data-mbz-mode=\"client\">").Append(view.FallbackHtml).Append("</div>");
 
         if (requestItems.TryAdd(ScriptWrittenKey, true))
         {
-            html.Append(PackageScript.Tag);
+            html.Append(PackageScript.TagFor(prefix));
         }
 
         return html.ToString();
     }
 
-    private void AppendBanner(StringBuilder html, SelectedBanner banner)
+    private void AppendBanner(StringBuilder html, SelectedBanner banner, string prefix)
     {
         if (banner.Html is not null)
         {
@@ -118,7 +122,7 @@ public sealed class BannerZoneHtmlWriter
 
         html.Append("<div class=\"mb-banner\" data-mbb=\"").Append(banner.BannerId).Append("\">");
         // The link goes through the click endpoint, which counts the click and redirects to the stored address.
-        html.Append("<a href=\"").Append(Encode($"{_basePath}/c/{banner.BannerId}?z={banner.ZoneId}")).Append("\" rel=\"sponsored noopener\"");
+        html.Append("<a href=\"").Append(Encode($"{prefix}{_basePath}/c/{banner.BannerId}?z={banner.ZoneId}")).Append("\" rel=\"sponsored noopener\"");
         if (banner.OpenInNewWindow)
         {
             html.Append(" target=\"_blank\"");

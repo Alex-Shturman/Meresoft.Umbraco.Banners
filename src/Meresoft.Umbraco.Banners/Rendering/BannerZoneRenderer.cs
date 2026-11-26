@@ -89,12 +89,12 @@ public sealed class BannerZoneRenderer
     /// Second half of a render: the markup of the selected banners, or the fallback (or nothing) when there are none.
     /// The caller needs the fallback only when <see cref="ZoneSelection.Banners"/> is empty.
     /// </summary>
-    public string Render(IDictionary<object, object?> requestItems, ZoneSelection selection, string? cssClass, string? fallbackHtml)
+    public string Render(IDictionary<object, object?> requestItems, ZoneSelection selection, string? cssClass, string? fallbackHtml, PathString pathBase = default)
     {
         string? fallback = string.IsNullOrWhiteSpace(fallbackHtml) ? null : fallbackHtml;
         if (selection.Mode == ZoneRenderMode.Client)
         {
-            return _writer.Render(new BannerZoneView(selection.Alias, cssClass, [], fallback, ZoneRenderMode.Client), requestItems);
+            return _writer.Render(new BannerZoneView(selection.Alias, cssClass, [], fallback, ZoneRenderMode.Client), requestItems, pathBase);
         }
 
         if (selection.Banners.Count == 0)
@@ -102,7 +102,7 @@ public sealed class BannerZoneRenderer
             return fallback ?? string.Empty;
         }
 
-        return _writer.Render(new BannerZoneView(selection.Alias, cssClass, selection.Banners, fallback), requestItems);
+        return _writer.Render(new BannerZoneView(selection.Alias, cssClass, selection.Banners, fallback), requestItems, pathBase);
     }
 }
 

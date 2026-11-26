@@ -6,15 +6,12 @@ namespace Meresoft.Umbraco.Banners.ManagementApi.History;
 /// <summary>The paging rules of the history endpoints, in one place.</summary>
 internal static class HistoryPaging
 {
-    /// <summary>The most entries one request returns.</summary>
-    public const int MaxTake = 100;
-
     /// <summary>The default page size.</summary>
     public const int DefaultTake = 50;
 
     /// <summary>
     /// Null when <paramref name="skip"/> (0 to <see cref="BannerHistoryReader.MaxSkip"/>) and <paramref name="take"/>
-    /// (1 to <see cref="MaxTake"/>) are valid; otherwise a 400 that names every bad field, not only the first.
+    /// (1 to <see cref="BannersConstants.MaxPageSize"/>) are valid; otherwise a 400 that names every bad field, not only the first.
     /// </summary>
     public static IActionResult? Validate(int skip, int take)
     {
@@ -24,9 +21,9 @@ internal static class HistoryPaging
             errors["skip"] = $"Skip must be 0 to {BannerHistoryReader.MaxSkip}.";
         }
 
-        if (take is < 1 or > MaxTake)
+        if (take is < 1 or > BannersConstants.MaxPageSize)
         {
-            errors["take"] = $"Take must be 1 to {MaxTake}.";
+            errors["take"] = $"Take must be 1 to {BannersConstants.MaxPageSize}.";
         }
 
         return errors.Count == 0 ? null : OperationStatusResults.ToProblem(BannerOperationStatus.InvalidData, errors);

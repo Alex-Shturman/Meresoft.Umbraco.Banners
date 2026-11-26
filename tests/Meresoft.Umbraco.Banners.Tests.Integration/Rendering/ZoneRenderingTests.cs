@@ -149,7 +149,7 @@ public class ZoneRenderingTests : BannersServiceTestBase
         {
             var repository = GetRequiredService<Meresoft.Umbraco.Banners.Persistence.Repositories.IBannerRepository>();
             repository.Add(banner);
-            repository.CopyDraftOverLive(banner.Id, Clock.GetUtcNow().UtcDateTime);
+            repository.CopyDraftOverLiveAtStoredDate(banner.Id, Clock.GetUtcNow().UtcDateTime);
             scope.Complete();
         }
 

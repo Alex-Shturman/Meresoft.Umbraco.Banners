@@ -42,7 +42,7 @@ public sealed class BannerZoneTagHelper : TagHelper
             fallback = child.GetContent();
         }
 
-        string html = _renderer.Render(ViewContext.HttpContext.Items!, selection, CssClass, fallback);
+        string html = _renderer.Render(ViewContext.HttpContext.Items!, selection, CssClass, fallback, ViewContext.HttpContext.Request.PathBase);
 
         output.TagName = null;
         output.Content.SetHtmlContent(html);

@@ -225,8 +225,9 @@ internal sealed class LiveSnapshotAccessor : ILiveSnapshotAccessor
             }
 
             IReadOnlyDictionary<int, BannerTotals> totals;
-            // Runs every flush interval, so it sees the flushes of other servers too. Its cost grows with the day rows of
-            // the limited banners; accepted for now.
+            // Decision: the totals are read from the database every flush interval, not kept as a running counter here, so the
+            // reload also sees the flushes of other servers and imported rows. The cost is one grouped query that grows with the
+            // day rows (one per banner, zone and day) of the banners that have a limit; banners without a limit cost nothing.
             using (_scopeProvider.CreateScope(autoComplete: true))
             {
                 totals = _statistics.GetTotals(limited);

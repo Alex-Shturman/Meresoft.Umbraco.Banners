@@ -13,7 +13,6 @@ namespace Meresoft.Umbraco.Banners.Persistence.Repositories;
 /// </summary>
 internal sealed class BannerQueryBuilder
 {
-    private const int MaxPageSize = 100;
     private readonly ISqlSyntaxProvider _syntax;
 
     public BannerQueryBuilder(ISqlSyntaxProvider syntax)
@@ -21,12 +20,9 @@ internal sealed class BannerQueryBuilder
         _syntax = syntax ?? throw new ArgumentNullException(nameof(syntax));
     }
 
-    /// <summary>Largest page the list returns.</summary>
-    public static int MaximumPageSize => MaxPageSize;
-
     /// <summary>Normalises the paging of a filter: skip is at least 0, take is 1 to the maximum page size.</summary>
     public static (int Skip, int Take) Page(BannerFilter filter) =>
-        (Math.Max(filter.Skip, 0), Math.Clamp(filter.Take, 1, MaxPageSize));
+        (Math.Max(filter.Skip, 0), Math.Clamp(filter.Take, 1, BannersConstants.MaxPageSize));
 
     /// <summary>The count statement and its arguments.</summary>
     public Sql Count(BannerFilter filter)

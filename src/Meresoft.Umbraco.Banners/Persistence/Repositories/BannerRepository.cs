@@ -47,20 +47,11 @@ internal sealed class BannerRepository : RepositoryBase, IBannerRepository
     public Banner? GetById(int id) =>
         LoadOne(Database.FirstOrDefault<BannerDto>(SelectBanners().Where<BannerDto>(b => b.Id == id)));
 
-    public void SaveDraft(Banner banner)
-    {
-        ArgumentNullException.ThrowIfNull(banner);
-        RequireRow(SaveDraftCore(banner, null) ? 1 : 0, "Banner", banner.Id);
-    }
-
     public bool SaveDraft(Banner banner, DateTime expectedUpdateDate)
     {
         ArgumentNullException.ThrowIfNull(banner);
         return SaveDraftCore(banner, UtcTimestamp.Truncate(expectedUpdateDate));
     }
-
-    public void CopyDraftOverLive(int bannerId, DateTime publishDateUtc) =>
-        RequireRow(CopyDraftOverLiveCore(bannerId, publishDateUtc, null) ? 1 : 0, "Banner", bannerId);
 
     public bool CopyDraftOverLive(int bannerId, DateTime publishDateUtc, DateTime expectedUpdateDate) =>
         CopyDraftOverLiveCore(bannerId, publishDateUtc, UtcTimestamp.Truncate(expectedUpdateDate));

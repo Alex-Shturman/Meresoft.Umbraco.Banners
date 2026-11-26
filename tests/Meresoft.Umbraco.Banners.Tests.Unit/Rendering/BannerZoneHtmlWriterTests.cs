@@ -4,6 +4,7 @@ using Meresoft.Umbraco.Banners.Rendering;
 using Meresoft.Umbraco.Banners.Selection;
 using Meresoft.Umbraco.Banners.Tokens;
 using Microsoft.Extensions.Options;
+using Microsoft.AspNetCore.Http;
 using NUnit.Framework;
 
 namespace Meresoft.Umbraco.Banners.Tests.Unit.Rendering;
@@ -186,6 +187,34 @@ public class BannerZoneHtmlWriterTests
         string html = writer.Render(new BannerZoneView("z", null, [Banner(12)], null), new Dictionary<object, object?>());
 
         Assert.That(html, Does.Contain("href=\"/ads-x/c/12?z=3\""));
+    }
+
+    [Test]
+    public void ASiteInAVirtualDirectory_GetsTheBaseAddress_TheClickAddress_AndTheScript_WithThePathBase()
+    {
+        string html = _writer.Render(new BannerZoneView("z", null, [Banner(12)], null), _requestItems, new PathString("/site"));
+
+        Assert.That(html, Does.Contain("data-mb-base=\"/site/_banners\""));
+        Assert.That(html, Does.Contain("href=\"/site/_banners/c/12?z=3\""));
+        Assert.That(html, Does.Contain("<script src=\"/site/meresoft-banners/banners.js\" defer></script>"));
+    }
+
+    [Test]
+    public void ClientMode_InAVirtualDirectory_GetsThePathBaseOnTheBaseAddressAndTheScript()
+    {
+        string html = _writer.Render(new BannerZoneView("z", null, [], null, ZoneRenderMode.Client), _requestItems, new PathString("/site"));
+
+        Assert.That(html, Does.Contain("data-mb-base=\"/site/_banners\""));
+        Assert.That(html, Does.Contain("<script src=\"/site/meresoft-banners/banners.js\" defer></script>"));
+    }
+
+    [Test]
+    public void ThePathBase_IsEncodedForTheAttribute()
+    {
+        string html = _writer.Render(new BannerZoneView("z", null, [Banner(12)], null), _requestItems, new PathString("/my site\"x"));
+
+        Assert.That(html, Does.Not.Contain("\"x"));
+        Assert.That(html, Does.Contain("data-mb-base=\"/my%20site%22x/_banners\""));
     }
 
     [Test]

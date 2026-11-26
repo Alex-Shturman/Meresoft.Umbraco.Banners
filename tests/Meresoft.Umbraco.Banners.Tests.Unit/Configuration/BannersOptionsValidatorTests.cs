@@ -78,6 +78,17 @@ public class BannersOptionsValidatorTests
     [TestCase("/umbraco")]
     [TestCase("/umbraco/banners")]
     [TestCase("/Umbraco")]
+    [TestCase("/a{b}")]
+    [TestCase("/a}")]
+    [TestCase("/ads?x=1")]
+    [TestCase("/ads#top")]
+    [TestCase("/ads%20x")]
+    [TestCase("/a b")]
+    [TestCase("/a\tb")]
+    [TestCase("/a\u00a0b")]
+    [TestCase("//ads")]
+    [TestCase("/a//b")]
+    [TestCase("/a/b/")]
     public void PublicPath_Invalid_NamesTheKey(string path)
     {
         ValidateOptionsResult result = Validate(o => o.PublicPath = path);

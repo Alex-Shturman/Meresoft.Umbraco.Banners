@@ -110,7 +110,7 @@ public class ZoneRepositoryTests : BannersIntegrationTestBase
             zone.Alias = "home-bottom";
             zone.Name = "Renamed";
             zone.ShowCount = 3;
-            Zones.Update(zone);
+            Zones.UpdateAtStoredDate(zone);
             scope.Complete();
         }
 
@@ -134,7 +134,7 @@ public class ZoneRepositoryTests : BannersIntegrationTestBase
         ghost.Id = 424242;
 
         using IScope scope = ScopeProvider.CreateScope();
-        Assert.That(() => Zones.Update(ghost), Throws.TypeOf<InvalidOperationException>());
+        Assert.That(() => Zones.UpdateAtStoredDate(ghost), Throws.TypeOf<InvalidOperationException>());
     }
 
     [Test]
@@ -149,7 +149,7 @@ public class ZoneRepositoryTests : BannersIntegrationTestBase
         }
 
         using IScope second = ScopeProvider.CreateScope();
-        Assert.That(() => Zones.Update(zone), Throws.TypeOf<InvalidOperationException>());
+        Assert.That(() => Zones.UpdateAtStoredDate(zone), Throws.TypeOf<InvalidOperationException>());
     }
 
     [Test]
@@ -215,7 +215,7 @@ public class ZoneRepositoryTests : BannersIntegrationTestBase
             Zones.Add(zone);
             banner.Draft!.ZoneIds = [zone.Id];
             Banners.Add(banner);
-            Banners.CopyDraftOverLive(banner.Id, new DateTime(2027, 2, 1, 0, 0, 0, DateTimeKind.Utc));
+            Banners.CopyDraftOverLiveAtStoredDate(banner.Id, new DateTime(2027, 2, 1, 0, 0, 0, DateTimeKind.Utc));
             scope.Complete();
         }
 

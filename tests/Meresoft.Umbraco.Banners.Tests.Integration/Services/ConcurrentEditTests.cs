@@ -142,9 +142,7 @@ public class ConcurrentEditTests : BannersServiceTestBase
 
         public Banner Add(Banner banner) => _inner.Add(banner);
         public Banner? GetById(int id) => _inner.GetById(id);
-        public void SaveDraft(Banner banner) => _inner.SaveDraft(banner);
         public bool SaveDraft(Banner banner, DateTime expectedUpdateDate) => _inner.SaveDraft(banner, expectedUpdateDate);
-        public void CopyDraftOverLive(int bannerId, DateTime publishDateUtc) => _inner.CopyDraftOverLive(bannerId, publishDateUtc);
         public bool CopyDraftOverLive(int bannerId, DateTime publishDateUtc, DateTime expectedUpdateDate) => _inner.CopyDraftOverLive(bannerId, publishDateUtc, expectedUpdateDate);
         public void SetPublished(int bannerId, bool isPublished) => _inner.SetPublished(bannerId, isPublished);
         public void Delete(int id) => _inner.Delete(id);
@@ -170,7 +168,6 @@ public class ConcurrentEditTests : BannersServiceTestBase
         }
 
         public BannerZone Add(BannerZone zone) => _inner.Add(zone);
-        public void Update(BannerZone zone) => _inner.Update(zone);
         public bool Update(BannerZone zone, DateTime expectedUpdateDate) => _inner.Update(zone, expectedUpdateDate);
         public void Delete(int id) => _inner.Delete(id);
         public BannerZone? GetByAlias(string alias) => _inner.GetByAlias(alias);

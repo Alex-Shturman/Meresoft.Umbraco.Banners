@@ -132,7 +132,7 @@ the site at start with a message that names the key.
 
 | Key | Default | Rules |
 |---|---|---|
-| `PublicPath` | `/_banners` | Starts with `/`, no trailing `/`, must not start with `/umbraco`. The click, seen and zone delivery endpoints live under it. |
+| `PublicPath` | `/_banners` | Starts with `/`, no trailing `/`, no `//`, no `{ } ? # %` and no whitespace, and must not start with `/umbraco`. The click, seen and zone delivery endpoints live under it. A site in a virtual directory (`Request.PathBase`) gets the path base in front of every public link, the script address and `data-mb-base`. |
 | `DeliveryEndpointEnabled` | `true` | `false` turns off `GET {PublicPath}/zone/{alias}`; client mode zones then show only their fallback. |
 | `FlushInterval` | 1 minute | 5 seconds to 1 minute. How often counted impressions and clicks are written to the database. |
 | `ViewTokenLifetime` | 10 minutes | 1 to 60 minutes. How long after a page was rendered an impression can still be reported. |

@@ -152,7 +152,7 @@ public class BannerRepositoryTests : BannersIntegrationTestBase
             zoneB = AddZone("zone-b");
             banner.Draft!.ZoneIds = [zoneA.Id];
             Banners.Add(banner);
-            Banners.CopyDraftOverLive(banner.Id, Saved.AddDays(1));
+            Banners.CopyDraftOverLiveAtStoredDate(banner.Id, Saved.AddDays(1));
             scope.Complete();
         }
 
@@ -163,7 +163,7 @@ public class BannerRepositoryTests : BannersIntegrationTestBase
             edit.Draft!.AltText = "Changed alt";
             edit.Draft.ZoneIds = [zoneB.Id];
             edit.Draft.SavedDate = Saved.AddDays(2);
-            Banners.SaveDraft(edit);
+            Banners.SaveDraftAtStoredDate(edit);
             scope.Complete();
         }
 
@@ -197,7 +197,7 @@ public class BannerRepositoryTests : BannersIntegrationTestBase
 
         using IScope second = ScopeProvider.CreateScope();
         banner.Draft!.ZoneIds = [zone.Id];
-        Assert.That(() => Banners.SaveDraft(banner), Throws.TypeOf<InvalidOperationException>());
+        Assert.That(() => Banners.SaveDraftAtStoredDate(banner), Throws.TypeOf<InvalidOperationException>());
         Assert.That(second.Database.ExecuteScalar<int>("SELECT COUNT(*) FROM meresoftBannersZoneAssignment"), Is.EqualTo(0));
     }
 
@@ -210,7 +210,7 @@ public class BannerRepositoryTests : BannersIntegrationTestBase
             Banners.Add(banner);
             // Another editor renames the banner directly in the database.
             scope.Database.Execute("UPDATE meresoftBannersBanner SET Name = @0 WHERE Id = @1", "Renamed elsewhere", banner.Id);
-            Banners.CopyDraftOverLive(banner.Id, Saved.AddDays(1));
+            Banners.CopyDraftOverLiveAtStoredDate(banner.Id, Saved.AddDays(1));
             Banners.SetPublished(banner.Id, false);
             scope.Complete();
         }
@@ -242,8 +242,8 @@ public class BannerRepositoryTests : BannersIntegrationTestBase
                 Banners.Add(b);
             }
 
-            Banners.CopyDraftOverLive(shown.Id, Saved);
-            Banners.CopyDraftOverLive(unpublished.Id, Saved);
+            Banners.CopyDraftOverLiveAtStoredDate(shown.Id, Saved);
+            Banners.CopyDraftOverLiveAtStoredDate(unpublished.Id, Saved);
             Banners.SetPublished(unpublished.Id, false);
             scope.Complete();
         }
@@ -348,7 +348,7 @@ public class BannerRepositoryTests : BannersIntegrationTestBase
         using (IScope scope = ScopeProvider.CreateScope())
         {
             Banners.Add(banner);
-            Banners.CopyDraftOverLive(banner.Id, Saved.AddDays(1));
+            Banners.CopyDraftOverLiveAtStoredDate(banner.Id, Saved.AddDays(1));
             scope.Complete();
         }
 
@@ -364,7 +364,7 @@ public class BannerRepositoryTests : BannersIntegrationTestBase
             Banners.SetPublished(banner.Id, false);
             stale.Name = "Edited name";
             stale.UpdateDate = Saved.AddDays(3);
-            Banners.SaveDraft(stale);
+            Banners.SaveDraftAtStoredDate(stale);
             scope.Complete();
         }
 
@@ -392,7 +392,7 @@ public class BannerRepositoryTests : BannersIntegrationTestBase
     {
         using IScope scope = ScopeProvider.CreateScope();
 
-        Assert.That(() => Banners.CopyDraftOverLive(424242, Saved), Throws.TypeOf<InvalidOperationException>());
+        Assert.That(() => Banners.CopyDraftOverLiveAtStoredDate(424242, Saved), Throws.TypeOf<InvalidOperationException>());
     }
 
     [Test]
@@ -407,7 +407,7 @@ public class BannerRepositoryTests : BannersIntegrationTestBase
         using (IScope scope = ScopeProvider.CreateScope())
         {
             Banners.Add(banner);
-            Banners.CopyDraftOverLive(banner.Id, fine.AddMilliseconds(1));
+            Banners.CopyDraftOverLiveAtStoredDate(banner.Id, fine.AddMilliseconds(1));
             scope.Complete();
         }
 
@@ -466,7 +466,7 @@ public class BannerRepositoryTests : BannersIntegrationTestBase
         DateTime publishDate = Saved.AddDays(1);
         using (IScope scope = ScopeProvider.CreateScope())
         {
-            Banners.CopyDraftOverLive(banner.Id, publishDate);
+            Banners.CopyDraftOverLiveAtStoredDate(banner.Id, publishDate);
             scope.Complete();
         }
 
@@ -501,7 +501,7 @@ public class BannerRepositoryTests : BannersIntegrationTestBase
             zoneB = AddZone("zone-b");
             banner.Draft!.ZoneIds = [zoneA.Id];
             Banners.Add(banner);
-            Banners.CopyDraftOverLive(banner.Id, Saved.AddDays(1));
+            Banners.CopyDraftOverLiveAtStoredDate(banner.Id, Saved.AddDays(1));
             scope.Complete();
         }
 
@@ -510,8 +510,8 @@ public class BannerRepositoryTests : BannersIntegrationTestBase
             Banner edit = Banners.GetById(banner.Id)!;
             edit.Draft!.AltText = "Second publish";
             edit.Draft.ZoneIds = [zoneA.Id, zoneB.Id];
-            Banners.SaveDraft(edit);
-            Banners.CopyDraftOverLive(banner.Id, Saved.AddDays(2));
+            Banners.SaveDraftAtStoredDate(edit);
+            Banners.CopyDraftOverLiveAtStoredDate(banner.Id, Saved.AddDays(2));
             scope.Complete();
         }
 
@@ -534,7 +534,7 @@ public class BannerRepositoryTests : BannersIntegrationTestBase
         using (IScope scope = ScopeProvider.CreateScope())
         {
             Banners.Add(banner);
-            Banners.CopyDraftOverLive(banner.Id, Saved.AddDays(1));
+            Banners.CopyDraftOverLiveAtStoredDate(banner.Id, Saved.AddDays(1));
             Banners.SetPublished(banner.Id, false);
             scope.Complete();
         }
@@ -560,7 +560,7 @@ public class BannerRepositoryTests : BannersIntegrationTestBase
             zone = AddZone("zone-a");
             banner.Draft!.ZoneIds = [zone.Id];
             Banners.Add(banner);
-            Banners.CopyDraftOverLive(banner.Id, Saved.AddDays(1));
+            Banners.CopyDraftOverLiveAtStoredDate(banner.Id, Saved.AddDays(1));
             scope.Complete();
         }
 
@@ -621,14 +621,14 @@ public class BannerRepositoryTests : BannersIntegrationTestBase
                 Banners.Add(b);
             }
 
-            Banners.CopyDraftOverLive(published.Id, Saved.AddDays(1));
+            Banners.CopyDraftOverLiveAtStoredDate(published.Id, Saved.AddDays(1));
 
-            Banners.CopyDraftOverLive(changed.Id, Saved.AddDays(1));
+            Banners.CopyDraftOverLiveAtStoredDate(changed.Id, Saved.AddDays(1));
             Banner edit = Banners.GetById(changed.Id)!;
             edit.Draft!.SavedDate = Saved.AddDays(2);
-            Banners.SaveDraft(edit);
+            Banners.SaveDraftAtStoredDate(edit);
 
-            Banners.CopyDraftOverLive(unpublished.Id, Saved.AddDays(1));
+            Banners.CopyDraftOverLiveAtStoredDate(unpublished.Id, Saved.AddDays(1));
             Banners.SetPublished(unpublished.Id, false);
             scope.Complete();
         }

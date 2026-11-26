@@ -93,7 +93,6 @@ public class ZoneAliasRaceTests : BannersServiceTestBase
         }
 
         public BannerZone Add(BannerZone zone) => _addAlwaysFails ? throw new TestDbException() : _inner.Add(zone);
-        public void Update(BannerZone zone) => _inner.Update(zone);
         public bool Update(BannerZone zone, DateTime expectedUpdateDate) => _inner.Update(zone, expectedUpdateDate);
         public void Delete(int id) => _inner.Delete(id);
         public BannerZone? GetByKey(Guid key) => _inner.GetByKey(key);

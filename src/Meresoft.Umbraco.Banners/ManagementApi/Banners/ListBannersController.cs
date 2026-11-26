@@ -22,11 +22,11 @@ public class ListBannersController : BannersManagementApiControllerBase
     [ProducesResponseType<ProblemDetails>(StatusCodes.Status400BadRequest)]
     public async Task<IActionResult> List(Guid? zone = null, BannerState? state = null, BannerType? type = null, int skip = 0, int take = 50)
     {
-        if (skip < 0 || take is < 1 or > BannerQuery.MaxTake)
+        if (skip < 0 || take is < 1 or > BannersConstants.MaxPageSize)
         {
             return OperationStatusResults.ToProblem(
                 BannerOperationStatus.InvalidData,
-                new Dictionary<string, string> { [take is < 1 or > BannerQuery.MaxTake ? "take" : "skip"] = $"Skip must be 0 or more and take 1 to {BannerQuery.MaxTake}." });
+                new Dictionary<string, string> { [take is < 1 or > BannersConstants.MaxPageSize ? "take" : "skip"] = $"Skip must be 0 or more and take 1 to {BannersConstants.MaxPageSize}." });
         }
 
         PagedModel<BannerListItem> page = await _banners.GetPagedAsync(

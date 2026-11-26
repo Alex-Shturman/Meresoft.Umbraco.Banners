@@ -25,12 +25,6 @@ internal sealed class ZoneRepository : RepositoryBase, IZoneRepository
         return zone;
     }
 
-    public void Update(BannerZone zone)
-    {
-        ArgumentNullException.ThrowIfNull(zone);
-        RequireRow(Database.Update(BannerMapper.ToDto(zone)), "Zone", zone.Id);
-    }
-
     public bool Update(BannerZone zone, DateTime expectedUpdateDate)
     {
         ArgumentNullException.ThrowIfNull(zone);

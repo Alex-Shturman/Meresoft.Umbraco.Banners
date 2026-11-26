@@ -5,9 +5,6 @@ namespace Meresoft.Umbraco.Banners.Services.Models;
 /// <summary>Filters and paging of the banner list.</summary>
 public class BannerQuery
 {
-    /// <summary>Largest page size.</summary>
-    public const int MaxTake = 100;
-
     /// <summary>Only banners assigned to this zone.</summary>
     public Guid? ZoneKey { get; set; }
 
@@ -20,6 +17,6 @@ public class BannerQuery
     /// <summary>Rows to skip.</summary>
     public int Skip { get; set; }
 
-    /// <summary>Rows to take, 1 to <see cref="MaxTake"/>.</summary>
+    /// <summary>Rows to take, 1 to <see cref="BannersConstants.MaxPageSize"/>.</summary>
     public int Take { get; set; } = 50;
 }

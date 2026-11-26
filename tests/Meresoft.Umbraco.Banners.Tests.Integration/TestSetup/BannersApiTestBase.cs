@@ -51,7 +51,7 @@ public abstract class BannersApiTestBase : ManagementApiTest<SectionProbeControl
     {
         IBannerService banners = GetRequiredService<IBannerService>();
         IBannerZoneService zones = GetRequiredService<IBannerZoneService>();
-        foreach (BannerListItem banner in (await banners.GetPagedAsync(new BannerQuery { Take = BannerQuery.MaxTake })).Items)
+        foreach (BannerListItem banner in (await banners.GetPagedAsync(new BannerQuery { Take = BannersConstants.MaxPageSize })).Items)
         {
             await banners.DeleteAsync(banner.Key, Constants.Security.SuperUserKey);
         }

@@ -69,6 +69,13 @@ public sealed class BannersOptionsValidator : IValidateOptions<BannersOptions>
             return;
         }
 
+        // The path becomes a route prefix and a link in pages: no route template or URL syntax, no escapes, no whitespace, no empty segment.
+        if (path.Any(c => c is '{' or '}' or '?' or '#' or '%' || char.IsWhiteSpace(c) || char.IsControl(c)) || path.Contains("//", StringComparison.Ordinal))
+        {
+            failures.Add(Message("PublicPath", "must not contain { } ? # % or whitespace, and must not contain '//'"));
+            return;
+        }
+
         if (path.Equals("/umbraco", StringComparison.OrdinalIgnoreCase)
             || path.StartsWith("/umbraco/", StringComparison.OrdinalIgnoreCase))
         {

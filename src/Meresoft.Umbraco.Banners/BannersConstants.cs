@@ -28,6 +28,9 @@ public static class BannersConstants
     /// </summary>
     public const int WriteLockId = -8_201_001;
 
+    /// <summary>The most rows one list or history request returns; the server clamps or rejects a larger page.</summary>
+    public const int MaxPageSize = 100;
+
     /// <summary>Audit entity type of a banner.</summary>
     public const string BannerEntityType = "meresoft-banner";
 

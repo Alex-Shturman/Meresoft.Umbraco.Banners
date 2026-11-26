@@ -14,21 +14,17 @@ internal interface IBannerRepository
     /// <summary>Finds a banner with both versions and their zone ids by internal id.</summary>
     Banner? GetById(int id);
 
-    /// <summary>Updates the banner row (name, update fields) and replaces its draft and the draft assignments. Never touches the live version.</summary>
-    void SaveDraft(Banner banner);
-
     /// <summary>
-    /// Like <see cref="SaveDraft(Banner)"/>, but the banner row update is the first write and only matches while the stored
-    /// update date still equals <paramref name="expectedUpdateDate"/>. Returns false, with nothing written, when it does not.
+    /// Updates the banner row (name, update fields) and replaces its draft and the draft assignments. Never touches the live version.
+    /// The banner row update is the first write and only matches while the stored update date still equals
+    /// <paramref name="expectedUpdateDate"/>. Returns false, with nothing written, when it does not.
     /// </summary>
     bool SaveDraft(Banner banner, DateTime expectedUpdateDate);
 
-    /// <summary>Copies the draft (fields and assignments) over the live version, creating it when missing, and marks the banner published.</summary>
-    void CopyDraftOverLive(int bannerId, DateTime publishDateUtc);
-
     /// <summary>
-    /// Like <see cref="CopyDraftOverLive(int, DateTime)"/>, but the banner row update is the first write and only matches
-    /// while the stored update date equals <paramref name="expectedUpdateDate"/>. Returns false, with nothing written, when it does not.
+    /// Copies the draft (fields and assignments) over the live version, creating it when missing, and marks the banner published.
+    /// The banner row update is the first write and only matches while the stored update date equals
+    /// <paramref name="expectedUpdateDate"/>. Returns false, with nothing written, when it does not.
     /// </summary>
     bool CopyDraftOverLive(int bannerId, DateTime publishDateUtc, DateTime expectedUpdateDate);
 

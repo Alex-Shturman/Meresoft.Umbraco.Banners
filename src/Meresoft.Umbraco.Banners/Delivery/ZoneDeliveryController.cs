@@ -77,7 +77,7 @@ public sealed class ZoneDeliveryController : ControllerBase
             ? new DeliveredHtmlBanner(banner.BannerId, banner.Html)
             : new DeliveredImageBanner(
                 banner.BannerId,
-                $"{_basePath}/c/{banner.BannerId}?z={banner.ZoneId}",
+                $"{Request.PathBase.ToUriComponent()}{_basePath}/c/{banner.BannerId}?z={banner.ZoneId}",
                 banner.OpenInNewWindow,
                 banner.ImageUrl,
                 banner.Width,

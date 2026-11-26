@@ -8,9 +8,6 @@ internal interface IZoneRepository
     /// <summary>Inserts a zone and sets its <see cref="BannerZone.Id"/>.</summary>
     BannerZone Add(BannerZone zone);
 
-    /// <summary>Updates all fields of a zone.</summary>
-    void Update(BannerZone zone);
-
     /// <summary>Updates all fields only while the stored update date equals <paramref name="expectedUpdateDate"/>; false when it does not.</summary>
     bool Update(BannerZone zone, DateTime expectedUpdateDate);
 

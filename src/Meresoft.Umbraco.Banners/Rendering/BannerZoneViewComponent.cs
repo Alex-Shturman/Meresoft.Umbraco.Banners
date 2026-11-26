@@ -25,6 +25,6 @@ public sealed class BannerZoneViewComponent : ViewComponent
         HttpContext? httpContext = _httpContextAccessor.HttpContext;
         IDictionary<object, object?> items = httpContext?.Items ?? new Dictionary<object, object?>();
         ZoneSelection selection = await _renderer.SelectAsync(alias, httpContext);
-        return new HtmlContentViewComponentResult(new HtmlString(_renderer.Render(items, selection, cssClass, null)));
+        return new HtmlContentViewComponentResult(new HtmlString(_renderer.Render(items, selection, cssClass, null, httpContext?.Request.PathBase ?? default)));
     }
 }
