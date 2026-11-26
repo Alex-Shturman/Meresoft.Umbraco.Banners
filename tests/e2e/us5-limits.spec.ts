@@ -137,6 +137,9 @@ test("an invalid limit is refused with a message at the field", async () => {
   await admin.getByRole("button", { name: "Save" }).click();
   await expect(admin.getByText("Enter a whole number of 1 or more, or leave the field empty.")).toBeVisible();
   await admin.getByLabel("Impression limit").fill(String(LIMIT));
+  // The tests share one page, so the "Banner saved" toast of the previous test can still be open; wait until it is
+  // gone, so the toast checked below is the one of this save.
+  await expect(toast("Banner saved")).toHaveCount(0, { timeout: 20_000 });
   await admin.getByRole("button", { name: "Save" }).click();
   await expect(toast("Banner saved")).toBeVisible();
 });
