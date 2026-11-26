@@ -25,6 +25,7 @@ import { configureBannersClient } from "../api/client-setup.js";
 import { client, fieldErrors, keyFromLocation, navigate, send, type ApiProblem } from "../shared/api.js";
 import { resolveUtc, userTimeZone, utcToLocalInput } from "../shared/date-time.js";
 import { STATE_DISPLAY, activeFlags, limitToText, parseLimit, showsClickLimit } from "./banner-state.js";
+import { createAndPublish } from "./create-and-publish.js";
 import { canEditHtml, htmlFieldAccess, offeredBannerTypes } from "./html-permission.js";
 import "./banner-history.element.js";
 
@@ -38,6 +39,20 @@ function limitValue(text: string): number | null {
 void UmbInputMediaElement;
 
 const BANNERS_PATH = "section/meresoft-banners/banners";
+
+/** What the editor shows on a banner's edit page after Publish on a new banner created it but could not publish it. */
+interface PendingProblem {
+  key: string;
+  errors: Record<string, string>;
+  problem: string;
+  conflict: boolean;
+}
+
+/**
+ * Module level, because the router may build a new editor for the edit address; whichever editor loads that banner
+ * next shows the problem once.
+ */
+let pendingProblem: PendingProblem | undefined;
 
 /** What differs between the editor's text fields. The range is stated by each field; nothing is assumed. */
 interface TextFieldOptions {
@@ -132,9 +147,15 @@ export class MeresoftBannerEditorElement extends UmbLitElement {
     );
     if (result.data) {
       this.#show(result.data);
+      if (pendingProblem?.key === this.#bannerKey) {
+        this._errors = pendingProblem.errors;
+        this._problem = pendingProblem.problem;
+        this._conflict = pendingProblem.conflict;
+      }
     } else {
       this._missing = true;
     }
+    pendingProblem = undefined;
     this._loading = false;
   }
 
@@ -254,9 +275,21 @@ export class MeresoftBannerEditorElement extends UmbLitElement {
     return false;
   }
 
+  /** Shows why publishing failed; a banner without a zone gets the error on the zone field. */
+  #failPublish(status: number, problem: ApiProblem | undefined) {
+    this.#fail(status, problem);
+    if (problem?.type === "no-zone-assigned") {
+      this._errors = { zoneKeys: problem.detail ?? "" };
+    }
+  }
+
   /** Publishing saves the edits first, so the published version is what the editor sees. */
   async #publish() {
-    if (!(await this.#save(false)) || !this.#bannerKey || !this._banner) {
+    if (!this.#bannerKey) {
+      await this.#createAndPublish();
+      return;
+    }
+    if (!(await this.#save(false)) || !this._banner) {
       return;
     }
     const published = await send<BannerResponseModel>(
@@ -270,10 +303,47 @@ export class MeresoftBannerEditorElement extends UmbLitElement {
       this.#toast("meresoftBanners_bannerPublished");
       return;
     }
-    this.#fail(published.status, published.problem);
-    if (published.problem?.type === "no-zone-assigned") {
-      this._errors = { zoneKeys: published.problem.detail ?? "" };
+    this.#failPublish(published.status, published.problem);
+  }
+
+  /**
+   * Publish on a new banner: create it, publish it, and end on its edit address. When publishing fails the banner
+   * stays a Draft and the edit page shows the problem.
+   */
+  async #createAndPublish() {
+    this._errors = {};
+    this._problem = "";
+    this._conflict = false;
+
+    const limitErrors = this.#limitErrors();
+    if (Object.keys(limitErrors).length > 0) {
+      this._errors = limitErrors;
+      return;
     }
+
+    const outcome = await createAndPublish({
+      create: () => send(createBanner({ body: this.#body() })),
+      load: (key) => send<BannerResponseModel>(getBanner({ path: { key } })),
+      publish: (key, updateDate) =>
+        send<BannerResponseModel>(publishBanner({ path: { key }, body: { updateDate } })),
+    });
+
+    if (outcome.kind === "create-failed") {
+      this.#fail(outcome.result.status, outcome.result.problem);
+      return;
+    }
+    if (outcome.kind === "published") {
+      this.#toast("meresoftBanners_bannerPublished");
+    } else {
+      this.#failPublish(outcome.result.status, outcome.result.problem);
+      pendingProblem = {
+        key: outcome.key,
+        errors: this._errors,
+        problem: this._problem,
+        conflict: this._conflict,
+      };
+    }
+    navigate(`${BANNERS_PATH}/edit/${outcome.key}`);
   }
 
   async #unpublish() {

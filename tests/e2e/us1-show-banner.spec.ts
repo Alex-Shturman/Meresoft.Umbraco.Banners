@@ -141,3 +141,41 @@ test("scenario 14: deleting a zone with assigned banners is refused with the ban
   await expect(page.getByText("Banners are still assigned to this zone")).toBeVisible();
   await expect(page.getByText("Summer promo")).toBeVisible();
 });
+
+/** Opens the create form and fills an HTML banner, so no image has to be picked. */
+async function startHtmlBanner(name: string, zoneName?: string): Promise<void> {
+  await openBannersView(page, "banners");
+  await page.getByRole("button", { name: "Create banner" }).click();
+  await page.getByLabel("Name", { exact: true }).fill(name);
+  await page.locator("uui-radio", { hasText: "HTML" }).click();
+  await page.getByLabel("HTML code").fill("<p>Invented direct publish</p>");
+  if (zoneName) {
+    await page.locator("uui-checkbox", { hasText: zoneName }).click();
+  }
+}
+
+async function deleteOpenBanner(): Promise<void> {
+  await page.getByRole("button", { name: "Delete" }).click();
+  await page.locator("umb-backoffice-modal-container").getByRole("button", { name: "Delete" }).click();
+  await expect(toast("Banner deleted")).toBeVisible();
+}
+
+test("scenario 15: pressing Publish on a new banner creates and publishes it in one go", async () => {
+  await startHtmlBanner("Direct publish", "Home page, top");
+  await page.getByRole("button", { name: "Publish" }).click();
+
+  await expect(toast("Banner published")).toBeVisible();
+  await expect(page.getByText("Published", { exact: true })).toBeVisible();
+  await expect(page).toHaveURL(/\/banners\/edit\/[0-9a-f-]{36}$/);
+  await deleteOpenBanner();
+});
+
+test("scenario 15b: Publish on a new banner without a zone keeps it as a draft on its edit page with the error", async () => {
+  await startHtmlBanner("Direct publish without zone");
+  await page.getByRole("button", { name: "Publish" }).click();
+
+  await expect(page).toHaveURL(/\/banners\/edit\/[0-9a-f-]{36}$/);
+  await expect(page.getByText("Draft", { exact: true })).toBeVisible();
+  await expect(toast("Banner published")).toHaveCount(0);
+  await deleteOpenBanner();
+});
