@@ -1058,7 +1058,8 @@ Format: **Covers** names the requirement (FR, SC), the acceptance scenario (US*n
   4. Wait 10 seconds. Zones, **Reload**.
 - **Expected**:
   1. `200` with `"zone":"cached-top"` and banners.
-  2. `404` each time.
+  2. `404` each time, except `cached%00top`: Kestrel itself refuses a NUL byte in the path with `400` before the
+     request reaches the package (the same happens for any path such as `/foo%00bar`), which is also a refusal.
   3. `200` with `"zone":"qa-junk-alias"` (and `"qa-junk-two"`), `"banners":[]` and no token (absent or null).
   4. Neither `qa-junk-alias` nor `qa-junk-two` is listed in **Placed but not set up**.
 
@@ -1250,3 +1251,30 @@ ids created earlier (see the data sheet).
 8. **Phase 7, reports, history, import, wrap-up**: TC-COUNT-05, TC-SEC-09, TC-COUNT-06, TC-IMPORT-01, TC-IMPORT-02,
    TC-HIST-01, TC-HIST-02, TC-A11Y-02, TC-A11Y-03, TC-SHOW-10.
 9. **Phase 8, optional, needs restarts** (empties the in-memory token set; run last): TC-COUNT-07, TC-SEC-11.
+
+## 5. Run journal (2026-11-26, sample site at http://localhost:5100, branch `001-banner-manager`)
+
+Run by the senior QA agent, one phase per agent, in the run order of section 4. No SQL, no database file access,
+no docker. Every FAIL was checked against the source before any fix; every fix went through a coder, a reviewer
+until no comments, a rebuild and restart of the site, and a retest.
+
+| Phase | Cases | Result | Notes |
+|---|---|---|---|
+| 0 and 1 | TC-PERM-01, TC-SHOW-01..08, TC-PERF-01, TC-SEC-01, TC-SEC-02 | 13/13 PASS | Two UI defects found on the side (fixed, retested): three console errors from the section routes (`5034278`), "Last asked for" without a time (`eae6b22`) |
+| 2 | TC-SHOW-09, TC-ROT-01..05 | 6/6 PASS | BUG-1 found: Publish on the Create banner page only saved a draft. Fixed in `b217f3e`, `08ddbdb`, `15f0fec`, `1a25dbf`; retested PASS |
+| 3 | TC-COUNT-01, TC-A11Y-01, TC-COUNT-02, TC-COUNT-03 | 4/4 PASS | |
+| 4 | TC-CLIENT-01..03, TC-COUNT-04, TC-REP-01..03, TC-SEC-03, TC-SEC-07, TC-SEC-08, TC-PERF-02, TC-PERF-03 | 13/13 PASS | TC-SEC-07: `cached%00top` answers 400 from Kestrel before the package; the expectation in this document was corrected (false alarm) |
+| 5 | TC-HTML-01..03, TC-SEC-04..06, TC-SEC-10, TC-PERM-02..04, TC-HIST-03 | 11/11 PASS after fixes | TC-HIST-03: an unchanged save or publish wrote a "Saved" entry, fixed in `3faa505` and `9036b71`. TC-PERM-03: the sample banner editor group lacked the Media section and a media start node, fixed in the sample (`470928a`, `8953576`, `e07f5a5`) and documented in the README |
+| 6 | TC-LIM-01..04 | 4/4 PASS | A second, browser native message under the limit fields was removed (`5536e21`) |
+| 7 | TC-COUNT-05, TC-SEC-09, TC-COUNT-06, TC-IMPORT-01..02, TC-HIST-01..02, TC-A11Y-02..03, TC-SHOW-10 | 10/10 PASS | TC-IMPORT-01 is partial by design (no UI or endpoint). A refused report period no longer shows the empty state under its error (`1684005`) |
+| 8 (optional) | TC-COUNT-07, TC-SEC-11 | 2/2 PASS | A clean stop flushed 5 buffered impressions (+5 after restart). All 11 bad PublicPath values stop the start with a message naming the key |
+
+Total: 61 of 61 PASS.
+
+Open points for the owner, not defects:
+
+- The click rate can be above 100 % when clicks arrive without counted views (for example scripted clicks). The
+  README describes this; whether to cap or flag it is a product decision.
+- "Published with unpublished changes" stays after a draft is edited back to the live values, because the flag
+  follows the save, not a content comparison (the same as Umbraco content).
+- A clean stop of the sample took about 30 seconds in each restart; not investigated further.
