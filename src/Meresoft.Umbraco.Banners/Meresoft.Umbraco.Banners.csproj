@@ -21,8 +21,8 @@
     <PackageLicenseExpression>MIT</PackageLicenseExpression>
     <PackageReadmeFile>README.md</PackageReadmeFile>
     <PackageIcon>icon.png</PackageIcon>
-    <PackageProjectUrl>https://github.com/meresoft/Meresoft.Umbraco.Banners</PackageProjectUrl>
-    <RepositoryUrl>https://github.com/meresoft/Meresoft.Umbraco.Banners</RepositoryUrl>
+    <PackageProjectUrl>https://github.com/Alex-Shturman/Meresoft.Umbraco.Banners</PackageProjectUrl>
+    <RepositoryUrl>https://github.com/Alex-Shturman/Meresoft.Umbraco.Banners</RepositoryUrl>
   </PropertyGroup>
 
   <ItemGroup>

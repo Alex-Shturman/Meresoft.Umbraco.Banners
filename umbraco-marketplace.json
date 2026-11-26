@@ -5,11 +5,11 @@
   "AuthorDetails": {
     "Name": "Meresoft",
     "Description": "Open source tools for Umbraco.",
-    "Url": "https://github.com/meresoft"
+    "Url": "https://github.com/Alex-Shturman"
   },
   "Category": "Editor Tools",
   "LicenseTypes": [ "Free" ],
   "PackageType": "Package",
-  "IssueTrackerUrl": "https://github.com/meresoft/Meresoft.Umbraco.Banners/issues",
-  "DocumentationUrl": "https://github.com/meresoft/Meresoft.Umbraco.Banners#readme"
+  "IssueTrackerUrl": "https://github.com/Alex-Shturman/Meresoft.Umbraco.Banners/issues",
+  "DocumentationUrl": "https://github.com/Alex-Shturman/Meresoft.Umbraco.Banners#readme"
 }

@@ -238,7 +238,7 @@ The package has no automatic uninstall. In this order:
 
 ## Reporting issues
 
-Report bugs and ask for features at <https://github.com/meresoft/Meresoft.Umbraco.Banners/issues>. Say which Umbraco
+Report bugs and ask for features at <https://github.com/Alex-Shturman/Meresoft.Umbraco.Banners/issues>. Say which Umbraco
 and package version you use, whether it is SQL Server or SQLite, and what you did and saw. Do not paste connection
 strings, keys or visitor data.
 
