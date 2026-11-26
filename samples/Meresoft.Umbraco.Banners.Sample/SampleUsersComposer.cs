@@ -142,10 +142,11 @@ public sealed class SampleBannerEditorCreator : INotificationAsyncHandler<Umbrac
         // date on every start. This is the sample's own invented group; the package itself never changes group permissions.
         IUserGroup? group = await _userGroupService.GetAsync(GroupAlias);
         // Picking an image needs the Media section AND a media start node; -1 (Constants.System.Root) is the media root.
-        if (group is not null && (!group.AllowedSections.Contains(Constants.Applications.Media) || group.StartMediaId != Constants.System.Root))
+        // Only a missing start node is filled in: one someone narrowed to a folder on purpose is left alone.
+        if (group is not null && (!group.AllowedSections.Contains(Constants.Applications.Media) || group.StartMediaId is null))
         {
             group.AddAllowedSection(Constants.Applications.Media);
-            group.StartMediaId = Constants.System.Root;
+            group.StartMediaId ??= Constants.System.Root;
             var updated = await _userGroupService.UpdateAsync(group, Constants.Security.SuperUserKey);
             if (!updated.Success)
             {
