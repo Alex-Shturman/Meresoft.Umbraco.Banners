@@ -6,6 +6,7 @@ using Microsoft.Extensions.DependencyInjection;
 using NUnit.Framework;
 using Umbraco.Cms.Core;
 using Umbraco.Cms.Core.Models.Membership;
+using Umbraco.Cms.Core.Routing;
 using Umbraco.Cms.Core.Services;
 using Umbraco.Cms.Tests.Integration.ManagementApi;
 using Umbraco.Cms.Tests.Common.Testing;
@@ -34,7 +35,7 @@ public class SectionAccessTests : ManagementApiTest<SectionProbeController>
         mvcBuilder.AddApplicationPart(typeof(SectionProbeController).Assembly);
 
     [SetUp]
-    public async Task WaitForRuntime() => await RuntimeReady.WaitForRunLevelAsync(GetRequiredService<IRuntimeState>());
+    public async Task WaitForRuntime() => await RuntimeReady.WaitForRunLevelAsync(GetRequiredService<IRuntimeState>(), GetRequiredService<IContentRoutingReadiness>());
 
     [Test]
     public async Task Anonymous_Gets401()

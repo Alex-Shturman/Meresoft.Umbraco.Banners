@@ -10,6 +10,7 @@ using Umbraco.Cms.Core;
 using Umbraco.Cms.Core.DependencyInjection;
 using Umbraco.Cms.Core.Models;
 using Umbraco.Cms.Core.Models.Membership;
+using Umbraco.Cms.Core.Routing;
 using Umbraco.Cms.Core.Services;
 using Umbraco.Cms.Core.Strings;
 using Umbraco.Cms.Core.Sync;
@@ -44,7 +45,7 @@ public abstract class BannersApiTestBase : ManagementApiTest<SectionProbeControl
     [SetUp]
     public async Task SignIn()
     {
-        await RuntimeReady.WaitForRunLevelAsync(GetRequiredService<IRuntimeState>());
+        await RuntimeReady.WaitForRunLevelAsync(GetRequiredService<IRuntimeState>(), GetRequiredService<IContentRoutingReadiness>());
         await AuthenticateClientAsync(Client, "banners-admin@test.invalid", "1234567890", Constants.Security.AdminGroupKey);
     }
 
