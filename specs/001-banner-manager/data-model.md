@@ -149,7 +149,7 @@ A banner is active in zone Z when: `IsPublished`, Live version assigned to Z, in
 | Live snapshot | immutable map zone alias -> zone settings and active candidate banners with pre-built image URL, link, alt, title, weight, schedule; plus totals for limited banners | rebuilt on publish, unpublish, zone change, media change, limit check after flush, and a safety reload interval |
 | Counter buffer | (Day, BannerId, ZoneId) -> impressions, clicks, updated with atomic increments | swapped and written at every flush and on clean shutdown |
 | Requested zone set | aliases asked for by templates with no zone | written at flush |
-| View token replay set | (token nonce, bannerId) pairs already counted | until the token expires (default 10 minutes) |
+| View token replay set | one entry per token nonce: expiry and a mask of the banner positions already counted; at most 100,000 tokens, and when full the entries closest to expiry are dropped down to 90% | until the token expires (default 10 minutes) |
 
 ## View token
 
@@ -157,5 +157,5 @@ Issued once per rendered zone view (server mode render or client mode delivery r
 data protection payload (time limited) containing: format version, zone id, the ids of the banners
 shown in that view, a random 96 bit nonce and the expiry. It carries no visitor data and is not
 stored. An impression report `(token, bannerId)` is counted only when the token is valid and not
-expired, the banner id is one of the token's banners, and the pair is not in the replay set
+expired, the banner id is one of the token's banners, and the banner position of that token nonce is not yet in the replay set
 (research R6).

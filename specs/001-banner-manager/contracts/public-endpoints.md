@@ -1,6 +1,6 @@
 # Contract: public endpoints (anonymous, front end)
 
-Base path: `Meresoft:Banners:PublicPath`, default `/_banners` (see configuration.md). All three
+Base path: `Meresoft:Banners:PublicPath`, default `/_banners` (see configuration-and-csharp.md). All three
 endpoints are part of the stable public surface (constitution VI). None of them sets cookies, reads
 cookies or logs IP addresses or user agents (FR-014). The user agent is read only in memory to apply
 the bot filter (FR-013).
@@ -32,6 +32,10 @@ Sent by the package script with `navigator.sendBeacon` (fallback `fetch` with `k
   validates and is not expired, `bannerId` is in the token's banner list, the pair (token nonce,
   bannerId) has not been counted before on this server, and the request is not from a bot.
   Everything else is ignored silently.
+- The replay set keeps one entry per token nonce (expiry plus a mask of the banner positions
+  already counted) and holds at most 100,000 tokens. When full it drops the entries closest to
+  expiry, down to 90% of capacity, so new tokens are never refused; an evicted token could be
+  replayed once more, which gives nothing that a fresh token does not.
 
 ## GET `{base}/zone/{alias}` : client mode delivery
 

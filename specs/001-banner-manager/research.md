@@ -84,8 +84,9 @@ and gets a test early in implementation.
   2 s and on `pagehide` (contracts/public-endpoints.md).
 - **Token**: `ITimeLimitedDataProtector` (purpose `Meresoft.Banners.ViewToken.v1`) protects
   {zone id, banner ids, 96 bit nonce}; lifetime 10 minutes. Validation is stateless on any server;
-  single use is enforced by an in-memory replay set per server keyed by (nonce, banner id) and
-  expiring with the token.
+  single use is enforced by an in-memory replay set per server keyed by token nonce (one entry per token, holding a mask of the banner positions already counted)
+  and expiring with the token. It holds at most 100,000 tokens; when full it drops the entries closest to
+  expiry, down to 90% of capacity.
 - **Multi-server note**: a report replayed to a different server could count once more per server.
   This needs deliberate faking, is bounded by the server count and the token lifetime, and is
   documented. Load-balanced Umbraco sites already share the data protection key ring (needed for
