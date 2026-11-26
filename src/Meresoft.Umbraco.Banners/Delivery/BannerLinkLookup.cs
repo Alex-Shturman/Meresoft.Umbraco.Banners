@@ -11,6 +11,12 @@ namespace Meresoft.Umbraco.Banners.Delivery;
 /// The database reads here are synchronous on purpose: every repository of the package works on the ambient scope and
 /// is synchronous. Only a click reaches them (never a page or a seen request), and an id that cannot exist, an id that
 /// was looked up lately and every banner of the live snapshot cost no read.
+/// <para>
+/// Accepted, bounded cost: the set of remembered missing ids holds at most <c>maxMissingIds</c> ids for 10 seconds, so a scan
+/// of more than that many distinct ids within 10 seconds is not remembered and each request reads the database once. That is
+/// one indexed primary key read per unknown id, a request starts no chain of reads, and nothing is amplified. A rate
+/// limiter is deliberately not part of the package.
+/// </para>
 /// </remarks>
 internal sealed class BannerLinkLookup : IBannerLinkLookup
 {

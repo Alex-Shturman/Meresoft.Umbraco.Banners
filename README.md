@@ -268,6 +268,12 @@ looks like a browser, or someone pasting the address many times). Such requests 
 click count and so the click rate. Impressions are protected by a signed, single use view token; clicks
 are not, because a click must work without JavaScript and on cached pages.
 
+A scan of the click address with many different ids is bounded, and this is accepted. An id above every
+banner that exists, an id of a banner in the live snapshot and an id that was looked up in the last
+seconds cost no database read. For each other id the site makes one indexed primary key read. A scan of more than 1,000 distinct ids within 10 seconds therefore still reads the
+database once per request, and no more than that: a request starts no chain of reads. There
+is no rate limiter in the package; put one in front of the site if a scan matters to you.
+
 ### View tokens on several servers and after a restart
 
 An impression is reported with a signed view token that the page carries. Each server remembers, in
