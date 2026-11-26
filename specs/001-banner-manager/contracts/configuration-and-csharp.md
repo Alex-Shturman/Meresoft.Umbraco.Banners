@@ -21,7 +21,7 @@
 
 | Key | Default | Rules |
 |---|---|---|
-| PublicPath | `/_banners` | starts with `/`, no trailing `/`, must not start with `/umbraco`; validated at startup |
+| PublicPath | `/_banners` | starts with `/`, no trailing `/`, must not start with `/umbraco`, no `//`, no `{ } ? # %`, no whitespace or control characters; validated at startup |
 | DeliveryEndpointEnabled | true | false disables `GET {base}/zone/{alias}`; client mode zones then render only their fallback |
 | FlushInterval | 1 minute | 5 seconds to 1 minute (FR-012 "at least once a minute") |
 | ViewTokenLifetime | 10 minutes | 1 to 60 minutes; how long after rendering an impression can still be reported |

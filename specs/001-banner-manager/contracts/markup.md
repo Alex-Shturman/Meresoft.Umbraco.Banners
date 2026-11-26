@@ -48,13 +48,16 @@ Same behaviour as the tag helper without fallback content.
 <script src="/meresoft-banners/banners.js" defer></script>
 ```
 
+In a site hosted in a virtual directory the script `src`, the click link and `data-mb-base` all start with
+`Request.PathBase` (for example `/shop/meresoft-banners/banners.js`).
+
 - `target="_blank"` only when the banner is set to open in a new window (FR-005).
 - `title` attribute on the link only when the banner has a title.
 - Html banners render `<div class="mb-banner mb-html" data-mbb="15">{stored html}</div>` (FR-006).
 - The `<script>` tag is written once per page, by the first zone.
-- `data-mb-base` holds the configured `Meresoft:Banners:PublicPath` (default `/_banners`) on every
-  zone element; the package script reads its endpoint base from it, because the script itself is
-  served from the fixed static path `/meresoft-banners/banners.js`.
+- `data-mb-base` holds `Request.PathBase` followed by the configured `Meresoft:Banners:PublicPath` (default `/_banners`, no
+  path base) on every zone element; the package script reads its endpoint base from it, because the script itself is
+  served from the fixed static path `/meresoft-banners/banners.js` (prefixed with the path base in the `src`).
 - No active banner and no fallback: nothing at all is written (no empty element, no script).
 
 ## Rendered HTML (client mode)
