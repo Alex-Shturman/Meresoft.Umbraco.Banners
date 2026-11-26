@@ -1,0 +1,22 @@
+﻿@using Umbraco.Cms.Web.Common.PublishedModels
+@inherits Umbraco.Cms.Web.Common.Views.UmbracoViewPage
+@{
+    Layout = null;
+}
+<!doctype html>
+<html lang="en">
+<head>
+    <meta charset="utf-8">
+    <title>@Model.Name</title>
+</head>
+<body>
+    <h1>A long page</h1>
+    <banner-zone alias="long-html"></banner-zone>
+    @for (var i = 1; i <= 40; i++)
+    {
+        <p style="margin-bottom: 2rem">Invented paragraph @i about calendars, schedules and printed leaflets.</p>
+    }
+    <banner-zone alias="long-bottom"></banner-zone>
+    <p>End of the long page.</p>
+</body>
+</html>

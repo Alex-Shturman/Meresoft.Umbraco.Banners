@@ -1,12 +1,3 @@
-<!--
-Sync Impact Report
-- Version change: template -> 1.0.0 (first ratification)
-- Principles added: I. Generic Package, II. Umbraco Native, III. Privacy By Design, IV. Fast Pages,
-  V. Test First, VI. Stable Public Surface
-- Sections added: Distribution and Quality, Development Workflow, Governance
-- Removed sections: none
-- Deferred TODOs: none
--->
 # Meresoft.Umbraco.Banners Constitution
 
 ## Core Principles
@@ -18,8 +9,10 @@ The package is a general purpose banner manager for any Umbraco site, published 
 - It MUST NOT contain code, names, data, styles or assumptions of any one client site.
 - Site specific work (for example a migration of old banners from another CMS) lives in the
   consuming site, or in a separate optional add-on package, never in the core package.
-- Every feature MUST be usable by an editor through the back office without code changes,
-  except placing a banner zone in a template, which takes one line of markup.
+- Every editor feature MUST be usable by an editor through the back office without code
+  changes. Developer surfaces are exempt and need no back office UI: placing a banner zone in a
+  template (one line of markup), the public C# services (including the import service for
+  history from another system) and configuration through the standard settings file.
 
 Rationale: the package is a public product; client code in it would leak data and narrow its use.
 
@@ -50,8 +43,8 @@ Rationale: a package that needs no GDPR review is easy to adopt.
 
 - Rendering a page with banner zones MUST NOT wait on a database write. Impressions are counted
   in memory and written in batches by a background task; a lost batch on a crash is acceptable.
-- Banner selection reads from a cache that is refreshed when an editor saves, never per request
-  from the database.
+- Banner selection reads from a cache that is refreshed when an editor publishes or unpublishes,
+  never per request from the database.
 - Known bots and crawlers are not counted. A click is counted through a redirect endpoint that
   only redirects to the URL stored for that banner (no open redirect).
 - The package MUST stay correct with output caching and CDNs: there is a documented client side
@@ -104,4 +97,4 @@ speckit constitution command, recorded with a version bump (MAJOR for removed or
 principles, MINOR for new principles or sections, PATCH for wording) and approved by the owner.
 Every plan has a Constitution Check that lists each principle as pass or justified deviation.
 
-**Version**: 1.0.0 | **Ratified**: 2026-11-25 | **Last Amended**: 2026-11-25
+**Version**: 1.0.2 | **Ratified**: 2026-11-25 | **Last Amended**: 2026-11-25

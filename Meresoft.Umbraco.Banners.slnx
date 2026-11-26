@@ -1,0 +1,13 @@
+<Solution>
+  <Folder Name="/src/">
+    <Project Path="src/Meresoft.Umbraco.Banners/Meresoft.Umbraco.Banners.csproj" />
+  </Folder>
+  <Folder Name="/samples/">
+    <Project Path="samples/Meresoft.Umbraco.Banners.Sample/Meresoft.Umbraco.Banners.Sample.csproj" />
+  </Folder>
+  <Folder Name="/tests/">
+    <Project Path="tests/Meresoft.Umbraco.Banners.Tests.Unit/Meresoft.Umbraco.Banners.Tests.Unit.csproj" />
+    <Project Path="tests/Meresoft.Umbraco.Banners.Tests.Integration/Meresoft.Umbraco.Banners.Tests.Integration.csproj" />
+    <Project Path="tests/Meresoft.Umbraco.Banners.Benchmarks/Meresoft.Umbraco.Banners.Benchmarks.csproj" />
+  </Folder>
+</Solution>

@@ -1,0 +1,178 @@
+name: CI
+
+on:
+  pull_request:
+  push:
+    branches: [main]
+  workflow_dispatch:
+
+jobs:
+  build-and-unit-tests:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: 10.0.x
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+          cache-dependency-path: src/Meresoft.Umbraco.Banners/Client/package-lock.json
+      - name: Back office client install
+        run: npm ci
+        working-directory: src/Meresoft.Umbraco.Banners/Client
+      - name: Back office client lint
+        run: npm run lint
+        working-directory: src/Meresoft.Umbraco.Banners/Client
+      - name: Back office client unit tests
+        run: npm test
+        working-directory: src/Meresoft.Umbraco.Banners/Client
+      - name: Back office client build
+        run: npm run build
+        working-directory: src/Meresoft.Umbraco.Banners/Client
+      - name: Build
+        run: dotnet build Meresoft.Umbraco.Banners.slnx --configuration Release
+      - name: Unit tests
+        run: dotnet test tests/Meresoft.Umbraco.Banners.Tests.Unit --configuration Release --no-build --filter "Category!=Perf"
+      # SC-003 gate: p95 of one zone render over 100,000 calls must be under 2 ms, with no database access.
+      - name: Zone render p95 gate (SC-003)
+        run: dotnet test tests/Meresoft.Umbraco.Banners.Tests.Unit --configuration Release --no-build --filter Category=Perf
+
+  integration-tests-sqlite:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: 10.0.x
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+          cache-dependency-path: src/Meresoft.Umbraco.Banners/Client/package-lock.json
+      # The package project's BuildClientAssets Exec target runs npm ci and npm run build, so no separate npm step is needed.
+      - name: Integration tests (SQLite)
+        run: dotnet test tests/Meresoft.Umbraco.Banners.Tests.Integration --configuration Release
+
+  integration-tests-sqlserver:
+    runs-on: ubuntu-latest
+    services:
+      sqlserver:
+        image: mcr.microsoft.com/mssql/server:2022-latest
+        env:
+          ACCEPT_EULA: "Y"
+          # Throwaway password for a container that exists only during this job. Set the repository
+          # secret MB_CI_SQL_PASSWORD to override it; no real secret is stored in the repository.
+          # The workflow `env` context is not available in `services.*.env`, so the fallback cannot be
+          # shared: it must match the one in MB_TEST_SQLSERVER in the test step below.
+          MSSQL_SA_PASSWORD: ${{ secrets.MB_CI_SQL_PASSWORD || 'Ci-Only-Invented-1234!' }}
+        ports:
+          - 1433:1433
+        options: >-
+          --health-cmd "/opt/mssql-tools18/bin/sqlcmd -C -S localhost -U sa -P $MSSQL_SA_PASSWORD -Q 'SELECT 1'"
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 12
+          --health-start-period 20s
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: 10.0.x
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+          cache-dependency-path: src/Meresoft.Umbraco.Banners/Client/package-lock.json
+      # Runs the whole integration suite on SQL Server, including the DailyStat date column check and
+      # the banner list query paths. It is also the gate for the statistics statements (the Day parameter, the flush
+      # tests, the reports) and for the package write lock (the lock row of the migration and the contention test).
+      # The test setup reads the master connection string from MB_TEST_SQLSERVER.
+      - name: Integration tests (SQL Server)
+        env:
+          # The password fallback here must match MSSQL_SA_PASSWORD of the sqlserver service above.
+          MB_TEST_SQLSERVER: Server=localhost,1433;User Id=sa;Password=${{ secrets.MB_CI_SQL_PASSWORD || 'Ci-Only-Invented-1234!' }};TrustServerCertificate=True;Encrypt=False
+        run: dotnet test tests/Meresoft.Umbraco.Banners.Tests.Integration --configuration Release
+
+  e2e-and-a11y:
+    runs-on: ubuntu-latest
+    needs: build-and-unit-tests
+    env:
+      # Invented, throwaway credentials of the sample site that lives only for this job.
+      MB_SAMPLE_BASE_URL: http://localhost:5106
+      MB_SAMPLE_ADMIN_EMAIL: admin@sample.invalid
+      MB_SAMPLE_ADMIN_PASSWORD: SampleAdmin-2027-xK
+      MB_SAMPLE_EDITOR_EMAIL: editor@sample.invalid
+      MB_SAMPLE_EDITOR_PASSWORD: SampleEditor-2027-xK
+      MB_SAMPLE_BANNER_EDITOR_EMAIL: bannereditor@sample.invalid
+      MB_SAMPLE_BANNER_EDITOR_PASSWORD: SampleBannerEditor-2027-xK
+      ASPNETCORE_ENVIRONMENT: Development
+      Umbraco__CMS__Unattended__UnattendedUserName: Sample Admin
+      Umbraco__CMS__Unattended__UnattendedUserEmail: admin@sample.invalid
+      Umbraco__CMS__Unattended__UnattendedUserPassword: SampleAdmin-2027-xK
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: 10.0.x
+      # The sample build runs the package project's client build (npm ci), and the browser tests have their own install.
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+          cache-dependency-path: |
+            src/Meresoft.Umbraco.Banners/Client/package-lock.json
+            tests/e2e/package-lock.json
+      - name: Cache the Playwright browsers
+        uses: actions/cache@v4
+        with:
+          path: ~/.cache/ms-playwright
+          key: playwright-${{ runner.os }}-${{ hashFiles('tests/e2e/package-lock.json') }}
+      - name: Generate the sample site image signing key
+        run: echo "Umbraco__CMS__Imaging__HMACSecretKey=$(openssl rand -base64 64 | tr -d '\n')" >> "$GITHUB_ENV"
+      - name: Build the sample site
+        run: dotnet build samples/Meresoft.Umbraco.Banners.Sample --configuration Release
+      - name: Install browser tests
+        run: npm ci && npx playwright install --with-deps chromium
+        working-directory: tests/e2e
+      # Playwright starts the sample site itself (webServer in playwright.config.ts) on MB_SAMPLE_BASE_URL.
+      # The run includes the accessibility spec (a11y.spec.ts).
+      - name: Playwright against the sample site
+        run: npx playwright test --workers=1
+        working-directory: tests/e2e
+
+  pack:
+    runs-on: ubuntu-latest
+    needs: [build-and-unit-tests, integration-tests-sqlite, integration-tests-sqlserver]
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: 10.0.x
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+          cache-dependency-path: src/Meresoft.Umbraco.Banners/Client/package-lock.json
+      - name: Pack
+        run: dotnet pack src/Meresoft.Umbraco.Banners --configuration Release --output artifacts
+      - name: Check the package contents
+        run: |
+          set -eu
+          nupkg=$(ls artifacts/Meresoft.Umbraco.Banners.*.nupkg | grep -v symbols | head -n 1)
+          unzip -Z1 "$nupkg" | sort > contents.txt
+          cat contents.txt
+          for required in README.md icon.png; do
+            grep -qx "$required" contents.txt || { echo "Missing $required"; exit 1; }
+          done
+          grep -q '^lib/net10.0/Meresoft.Umbraco.Banners.dll$' contents.txt || { echo "Missing the assembly"; exit 1; }
+          grep -q 'staticwebassets/App_Plugins/MeresoftBanners/' contents.txt || { echo "Missing the back office assets"; exit 1; }
+          grep -q 'staticwebassets/meresoft-banners/banners.js' contents.txt || { echo "Missing the package script"; exit 1; }
+          unzip -p "$nupkg" Meresoft.Umbraco.Banners.nuspec | grep -q '<license type="expression">MIT</license>' || { echo "Missing the licence"; exit 1; }
+          if grep -q '\.map$' contents.txt; then echo "Source maps in the package"; exit 1; fi
+          if grep -Ei 'sample|tests?/|\.test\.|Client/' contents.txt; then echo "Sample, test or client source files in the package"; exit 1; fi
+      - uses: actions/upload-artifact@v4
+        with:
+          name: package
+          path: artifacts/*.nupkg

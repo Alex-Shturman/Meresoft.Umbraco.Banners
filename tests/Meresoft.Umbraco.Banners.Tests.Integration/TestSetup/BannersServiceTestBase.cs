@@ -1,0 +1,65 @@
+using Meresoft.Umbraco.Banners.Domain;
+using Meresoft.Umbraco.Banners.Services;
+using Meresoft.Umbraco.Banners.Services.Models;
+using NUnit.Framework;
+using Umbraco.Cms.Core;
+using Umbraco.Cms.Core.Cache;
+using Umbraco.Cms.Core.Models;
+using Umbraco.Cms.Core.Services.Changes;
+using Umbraco.Cms.Core.Services;
+
+namespace Meresoft.Umbraco.Banners.Tests.Integration.TestSetup;
+
+/// <summary>Shared helpers of the service level integration tests: services, a user and invented data.</summary>
+public abstract class BannersServiceTestBase : BannersIntegrationTestBase
+{
+    protected static readonly Guid User = Constants.Security.SuperUserKey;
+
+    protected IBannerZoneService ZoneService => GetRequiredService<IBannerZoneService>();
+
+    protected IBannerService BannerService => GetRequiredService<IBannerService>();
+
+    [SetUp]
+    public async Task InstallSchema() => await InstallPackageAsync();
+
+    /// <summary>Creates an image media item and returns its key.</summary>
+    protected Guid NewMediaKey() => TestMedia.CreateImage(GetRequiredService<IMediaService>()).Key;
+
+    /// <summary>Deletes a media item and sends the message a real site sends for it (the test host does not bind media events).</summary>
+    protected void DeleteMedia(IMedia media)
+    {
+        GetRequiredService<IMediaService>().Delete(media);
+        GetRequiredService<DistributedCache>().RefreshByPayload(
+            MediaCacheRefresher.UniqueId,
+            [new MediaCacheRefresher.JsonPayload(media.Id, media.Key, TreeChangeTypes.Remove)]);
+    }
+
+    /// <summary>Creates a zone through the service and returns it.</summary>
+    protected async Task<BannerZone> NewZoneAsync(string alias, int showCount = 1, int? width = null, int? height = null, ZoneRenderMode renderMode = ZoneRenderMode.Server)
+    {
+        var attempt = await ZoneService.CreateAsync(
+            new BannerZoneModel { Alias = alias, Name = "Zone " + alias, ShowCount = showCount, ImageWidth = width, ImageHeight = height, RenderMode = renderMode },
+            User);
+        Assert.That(attempt.Success, Is.True, $"zone {alias}: {attempt.Status}");
+        return attempt.Result!;
+    }
+
+    /// <summary>A valid image draft assigned to the given zones.</summary>
+    protected static BannerDraftModel ImageDraft(Guid mediaKey, params Guid[] zoneKeys) => new()
+    {
+        Name = "Summer promo",
+        MediaKey = mediaKey,
+        LinkUrl = "https://example.org/show",
+        AltText = "Invented summer promo",
+        Weight = 1,
+        ZoneKeys = zoneKeys,
+    };
+
+    /// <summary>Creates an image banner (a draft) through the service and returns it.</summary>
+    protected async Task<Banner> NewBannerAsync(BannerDraftModel draft)
+    {
+        var attempt = await BannerService.CreateAsync(new BannerCreateModel { Type = BannerType.Image, Draft = draft }, User);
+        Assert.That(attempt.Success, Is.True, $"banner: {attempt.Status}");
+        return attempt.Result!;
+    }
+}

@@ -1,0 +1,46 @@
+﻿@using Umbraco.Extensions
+@inherits Umbraco.Cms.Web.Common.Views.UmbracoViewPage
+@*
+    Example template for a document type "Product list" (alias productList, allowed at root,
+    allowed child type Product). It lists the published child products, three per row, and puts a
+    banner zone after every third product: catalog-slot-1, catalog-slot-2 and so on. Open the page
+    once and the zones appear in Banners, Zones, "Placed but not set up". The sample does not create
+    these document types or any product images: create them in the back office.
+*@
+@{
+    Layout = null;
+    var products = Model.Children().Where(c => c.ContentType.Alias == "product").ToList();
+}
+<!doctype html>
+<html lang="en">
+<head>
+    <meta charset="utf-8">
+    <title>@Model.Name</title>
+    <style>
+        body { font-family: sans-serif; max-width: 960px; margin: 24px auto; }
+        .grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 16px; }
+        .product { border: 1px solid #ccc; border-radius: 8px; padding: 12px; }
+        .slot { grid-column: 1 / -1; border: 2px dashed #999; padding: 8px; min-height: 40px; }
+    </style>
+</head>
+<body>
+    <h1>@Model.Name</h1>
+    <div class="grid">
+    @for (var i = 0; i < products.Count; i++)
+    {
+        var p = products[i];
+        <div class="product">
+            <h2><a href="@p.Url()">@p.Name</a></h2>
+            <p>@(p.Value<string>("description"))</p>
+            <p><strong>@(p.Value<decimal>("price")) ₽</strong></p>
+        </div>
+        if ((i + 1) % 3 == 0 && i + 1 < products.Count)
+        {
+            <div class="slot">
+                <banner-zone alias="catalog-slot-@((i + 1) / 3)"></banner-zone>
+            </div>
+        }
+    }
+    </div>
+</body>
+</html>

@@ -1,0 +1,81 @@
+<Project Sdk="Microsoft.NET.Sdk.Razor">
+
+  <PropertyGroup>
+    <!-- Served at the site root: the package script is /meresoft-banners/banners.js (research R10). -->
+    <StaticWebAssetBasePath>/</StaticWebAssetBasePath>
+    <AddRazorSupportForMvc>true</AddRazorSupportForMvc>
+    <RootNamespace>Meresoft.Umbraco.Banners</RootNamespace>
+    <AssemblyName>Meresoft.Umbraco.Banners</AssemblyName>
+    <GenerateDocumentationFile>true</GenerateDocumentationFile>
+    <!-- Public API documentation is added where the surface is stable; missing XML comments are not errors yet. -->
+    <NoWarn>$(NoWarn);CS1591</NoWarn>
+  </PropertyGroup>
+
+  <PropertyGroup Label="NuGet">
+    <PackageId>Meresoft.Umbraco.Banners</PackageId>
+    <Version>1.0.0</Version>
+    <PackageReleaseNotes>First release: zones and image or HTML banners, draft and publish, weighted rotation, schedules, impression and click limits, viewable impression statistics with a report and CSV export, client mode for cached pages, statistics import service. Works on SQL Server and SQLite. See CHANGELOG.md.</PackageReleaseNotes>
+    <Title>Meresoft Banners for Umbraco</Title>
+    <Description>A generic banner manager for Umbraco 17: zones, weighted rotation, schedules, viewable impression and click statistics, draft and publish.</Description>
+    <PackageTags>umbraco umbraco-marketplace banners ads</PackageTags>
+    <PackageLicenseExpression>MIT</PackageLicenseExpression>
+    <PackageReadmeFile>README.md</PackageReadmeFile>
+    <PackageIcon>icon.png</PackageIcon>
+    <PackageProjectUrl>https://github.com/Alex-Shturman/Meresoft.Umbraco.Banners</PackageProjectUrl>
+    <RepositoryUrl>https://github.com/Alex-Shturman/Meresoft.Umbraco.Banners</RepositoryUrl>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <PackageReference Include="Umbraco.Cms.Web.Common" />
+    <PackageReference Include="Umbraco.Cms.Api.Management" />
+    <PackageReference Include="Umbraco.Cms.Infrastructure" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <None Include="..\..\README.md" Pack="true" PackagePath="\" />
+    <None Include="..\..\assets\icon.png" Pack="true" PackagePath="\" />
+    <!-- Client (back office and script) sources are not packed; their build output under wwwroot is. -->
+    <Content Remove="Client\**" />
+    <!-- Source maps stay on disk for local debugging but are neither served nor packed (the bundles do not reference them). -->
+    <Content Remove="wwwroot\**\*.map" />
+    <None Remove="Client\**" />
+    <Compile Remove="Client\**" />
+    <EmbeddedResource Remove="Client\**" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <InternalsVisibleTo Include="Meresoft.Umbraco.Banners.Tests.Unit" />
+    <InternalsVisibleTo Include="Meresoft.Umbraco.Banners.Tests.Integration" />
+    <InternalsVisibleTo Include="Meresoft.Umbraco.Banners.Benchmarks" />
+  </ItemGroup>
+
+  <!--
+    Builds the back office bundle and the package script (Client/) before build and pack.
+    Incremental: skipped when no input is newer than the outputs. Skip it entirely with
+    -p:SkipClientBuild=true (for example when only C# is being worked on).
+  -->
+  <ItemGroup>
+    <ClientBuildInput Include="Client\src\**\*;Client\script\**\*;Client\public\**\*;Client\package.json;Client\package-lock.json;Client\vite.config.ts;Client\vite.script.config.ts;Client\tsconfig.json" />
+  </ItemGroup>
+
+  <Target Name="BuildClientAssets"
+          BeforeTargets="BeforeBuild;GenerateNuspec"
+          Condition="'$(SkipClientBuild)' != 'true' and Exists('$(MSBuildProjectDirectory)\Client\package.json')"
+          Inputs="@(ClientBuildInput)"
+          Outputs="$(MSBuildProjectDirectory)\wwwroot\meresoft-banners\banners.js;$(MSBuildProjectDirectory)\wwwroot\App_Plugins\MeresoftBanners\bundle.manifests.js">
+    <Exec Command="npm ci" WorkingDirectory="$(MSBuildProjectDirectory)\Client"
+          Condition="!Exists('$(MSBuildProjectDirectory)\Client\node_modules')" />
+    <Exec Command="npm run build" WorkingDirectory="$(MSBuildProjectDirectory)\Client" />
+    <ItemGroup>
+      <!--
+        The globs were evaluated before the step above ran. Vite names its chunks with a content hash and empties the
+        output folder, so files the globs found may be gone now (the static web assets task then fails on the first
+        build after a client change) and new files are missing. Drop the first, add the second.
+      -->
+      <_StaleClientAsset Include="@(Content)" Condition="'%(Content.Identity)' != '' And !Exists('%(Content.FullPath)')" />
+      <Content Remove="@(_StaleClientAsset)" />
+      <Content Include="wwwroot\**" Exclude="@(Content);wwwroot\**\*.map" />
+    </ItemGroup>
+  </Target>
+
+</Project>

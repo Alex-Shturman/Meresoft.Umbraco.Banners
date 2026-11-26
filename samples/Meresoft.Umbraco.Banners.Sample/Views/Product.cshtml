@@ -1,0 +1,30 @@
+﻿@using Umbraco.Extensions
+@inherits Umbraco.Cms.Web.Common.Views.UmbracoViewPage
+@*
+    Example template for a document type "Product" (alias product) with the properties
+    description (Textarea) and price (Numeric). The sample does not create that document type:
+    create it in Settings, Document Types, and pick this template. See ProductList.cshtml.
+*@
+@{
+    Layout = null;
+    var catalog = Model.Parent();
+}
+<!doctype html>
+<html lang="en">
+<head>
+    <meta charset="utf-8">
+    <title>@Model.Name</title>
+    <style>
+        body { font-family: sans-serif; max-width: 720px; margin: 24px auto; }
+    </style>
+</head>
+<body>
+    @if (catalog is not null)
+    {
+        <p><a href="@catalog.Url()">Back to @catalog.Name</a></p>
+    }
+    <h1>@Model.Name</h1>
+    <p>@(Model.Value<string>("description"))</p>
+    <p><strong>@(Model.Value<decimal>("price")) ₽</strong></p>
+</body>
+</html>
