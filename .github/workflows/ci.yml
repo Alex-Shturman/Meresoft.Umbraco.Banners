@@ -2,6 +2,8 @@ name: CI
 
 on:
   pull_request:
+  push:
+    branches: [main]
   workflow_dispatch:
 
 jobs:
@@ -111,9 +113,19 @@ jobs:
       - uses: actions/setup-dotnet@v4
         with:
           dotnet-version: 10.0.x
+      # The sample build runs the package project's client build (npm ci), and the browser tests have their own install.
       - uses: actions/setup-node@v4
         with:
           node-version: 22
+          cache: npm
+          cache-dependency-path: |
+            src/Meresoft.Umbraco.Banners/Client/package-lock.json
+            tests/e2e/package-lock.json
+      - name: Cache the Playwright browsers
+        uses: actions/cache@v4
+        with:
+          path: ~/.cache/ms-playwright
+          key: playwright-${{ runner.os }}-${{ hashFiles('tests/e2e/package-lock.json') }}
       - name: Generate the sample site image signing key
         run: echo "Umbraco__CMS__Imaging__HMACSecretKey=$(openssl rand -base64 64 | tr -d '\n')" >> "$GITHUB_ENV"
       - name: Build the sample site
@@ -129,7 +141,7 @@ jobs:
 
   pack:
     runs-on: ubuntu-latest
-    needs: [build-and-unit-tests, integration-tests-sqlite]
+    needs: [build-and-unit-tests, integration-tests-sqlite, integration-tests-sqlserver]
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-dotnet@v4
@@ -138,6 +150,8 @@ jobs:
       - uses: actions/setup-node@v4
         with:
           node-version: 22
+          cache: npm
+          cache-dependency-path: src/Meresoft.Umbraco.Banners/Client/package-lock.json
       - name: Pack
         run: dotnet pack src/Meresoft.Umbraco.Banners --configuration Release --output artifacts
       - name: Check the package contents
