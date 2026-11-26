@@ -1,0 +1,70 @@
+name: Release
+
+# Publishes the package to nuget.org with Trusted Publishing (no stored API key).
+# Runs when a version tag is pushed (v1.2.3), or by hand for an existing tag.
+# Guards: the tag must be on main, the tag must match <Version> in the project, and CI must have passed on that commit.
+
+on:
+  push:
+    tags: ["v*"]
+  workflow_dispatch:
+    inputs:
+      tag:
+        description: "Existing version tag to publish, for example v1.0.0"
+        required: true
+
+permissions:
+  contents: read
+  actions: read
+  id-token: write
+
+jobs:
+  publish:
+    runs-on: ubuntu-latest
+    env:
+      TAG: ${{ github.event_name == 'workflow_dispatch' && inputs.tag || github.ref_name }}
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ github.event_name == 'workflow_dispatch' && format('refs/tags/{0}', inputs.tag) || github.ref }}
+          fetch-depth: 0
+
+      - name: Check the tag
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          set -eu
+          case "$TAG" in v[0-9]*) ;; *) echo "Not a version tag: $TAG"; exit 1 ;; esac
+          sha=$(git rev-parse HEAD)
+          git merge-base --is-ancestor "$sha" origin/main || { echo "The tag $TAG is not on main"; exit 1; }
+          version=$(sed -n 's:.*<Version>\(.*\)</Version>.*:\1:p' src/Meresoft.Umbraco.Banners/Meresoft.Umbraco.Banners.csproj)
+          [ "v$version" = "$TAG" ] || { echo "Tag $TAG does not match project version $version"; exit 1; }
+          runs=$(gh run list --workflow ci.yml --commit "$sha" --status success --json databaseId --jq 'length')
+          [ "$runs" -gt 0 ] || { echo "No successful CI run for $sha; wait for CI on main before releasing"; exit 1; }
+          echo "VERSION=$version" >> "$GITHUB_ENV"
+
+      - uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: 10.0.x
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+          cache-dependency-path: src/Meresoft.Umbraco.Banners/Client/package-lock.json
+
+      - name: Pack
+        run: dotnet pack src/Meresoft.Umbraco.Banners --configuration Release --output artifacts
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: package-${{ env.VERSION }}
+          path: artifacts/*.nupkg
+
+      - name: Log in to nuget.org
+        id: login
+        uses: NuGet/login@v1
+        with:
+          user: AlexeyShturman
+
+      - name: Push to nuget.org
+        run: dotnet nuget push "artifacts/Meresoft.Umbraco.Banners.${VERSION}.nupkg" --api-key "${{ steps.login.outputs.NUGET_API_KEY }}" --source https://api.nuget.org/v3/index.json --skip-duplicate
