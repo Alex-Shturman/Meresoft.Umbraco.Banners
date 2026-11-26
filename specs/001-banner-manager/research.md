@@ -97,7 +97,8 @@ and gets a test early in implementation.
 ## R7. Counting and flushing
 
 - **Decision**: a `ConcurrentDictionary<(DateOnly, int banner, int zone), Counter>` with
-  `Interlocked` increments; the flush swaps the dictionary and writes all rows in one transaction:
+  `Interlocked` increments; the flush swaps the dictionary and writes the rows in one flush pass, one short
+  transaction per counted row (a failing row does not lose the others):
   `UPDATE ... SET Impressions = Impressions + @i, Clicks = Clicks + @c WHERE PK`, and on 0 rows
   `INSERT`; a primary key violation (another server inserted first) retries the update. Portable to
   SQL Server and SQLite.

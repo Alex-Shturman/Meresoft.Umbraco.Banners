@@ -38,8 +38,8 @@ Service), single server or load balanced
 **Performance Goals**: zone render under 2 ms p95 with no database query (SC-003); 400 impression
 reports per second per server with under 0.1% loss (SC-004)
 
-**Constraints**: no database write in page requests; at most one batched write per server per
-flush interval; package script under 5 KB; no cookies or personal data; no open redirect
+**Constraints**: no database write in page requests; one flush pass per server per
+flush interval (one short transaction per counted row); package script under 5 KB; no cookies or personal data; no open redirect
 
 **Scale/Scope**: tens of zones, hundreds of banners, millions of impressions a month (first client:
 millions of shows so far); back office: 4 views (banners, banner editor, zones, reports)

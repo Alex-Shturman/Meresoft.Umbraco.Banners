@@ -272,9 +272,10 @@ management API.
   script reports it to a public impression endpoint that accepts only valid view tokens (see Edge
   Cases). Banners that are rendered but never seen count nothing; each click through the click address
   MUST count one click and redirect (302) to the banner's stored link only.
-- **FR-012**: Counts MUST be kept in memory and written to the database in batches, at most one
-  batched write per server per flush interval (configurable, 5 seconds to 1 minute, default 1
-  minute), and on clean shutdown, as daily totals per banner and zone; page requests MUST NOT write to
+- **FR-012**: Counts MUST be kept in memory and written to the database in batches, with one
+  flush pass per server per flush interval (configurable, 5 seconds to 1 minute, default 1
+  minute; one short transaction per counted row, so one failing row does not lose the others), and
+  on clean shutdown, as daily totals per banner and zone; page requests MUST NOT write to
   the database.
 - **FR-013**: Requests from known bots and crawlers MUST NOT be counted. The bot list ships with the
   package and can be extended in configuration.
@@ -330,8 +331,8 @@ management API.
 - **SC-003**: Rendering a page with banner zones adds less than 2 ms per zone at the 95th
   percentile on the server, and adds no database query to the request.
 - **SC-004**: At 100 page views per second with 4 zones each, impressions are counted with less
-  than 0.1% loss in normal operation, with at most one batched database write per server per flush
-  interval (FR-012).
+  than 0.1% loss in normal operation, with one flush pass per server per flush interval
+  (one short transaction per counted row, FR-012).
 - **SC-005**: Report figures match the true number of non-bot views and clicks in a controlled test
   (exact after the batch is written).
 - **SC-006**: The package installs and passes its tests on SQL Server and SQLite on Umbraco 17.
