@@ -52,8 +52,10 @@ The sample site is an Umbraco 17 site on SQLite with unattended install, a home 
 
 ## 4. Performance checks
 
-- `dotnet run -c Release --project tests/Meresoft.Umbraco.Banners.Benchmarks`: zone render p95 under
-  2 ms with 20 active banners in the zone, and no database query (SC-003).
+- `dotnet test tests/Meresoft.Umbraco.Banners.Tests.Unit --filter Category=Perf`: zone render p95 under 2 ms over
+  100,000 timed calls with 20 active banners in the zone, and no database access (SC-003). This is the gate CI runs.
+  `dotnet run -c Release --project tests/Meresoft.Umbraco.Banners.Benchmarks` measures the same render with
+  BenchmarkDotNet for local profiling.
 - Integration test `CountingLoadTests`: 100 views per second with 4 zones for 60 s across two
   in-process "servers"; flushed totals equal reported totals, at most one write batch per server per
-  flush interval (SC-004, SC-005).
+  flush interval, counted as real write transactions through a counting scope provider, at the buffer and flusher level (SC-004, SC-005).

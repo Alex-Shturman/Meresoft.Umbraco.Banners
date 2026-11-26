@@ -16,6 +16,7 @@ namespace Meresoft.Umbraco.Banners.Benchmarks;
 /// database command. The renderer is built from the real selector, sampler, schedule filter, writer and token
 /// protector; only the snapshot accessor is a stand in, and it throws if anything asks it to read the database. No
 /// scope provider, repository or database exists in this graph at all, so a database command cannot run.
+/// For local profiling; the p95 gate that CI enforces is the Perf test ZoneRenderPerformanceTests in the unit tests.
 /// </summary>
 [ShortRunJob]
 [MemoryDiagnoser]
@@ -25,7 +26,6 @@ public class ZoneRenderBenchmarks
     private const int BannerCount = 20;
 
     private BannerZoneRenderer _renderer = null!;
-    private NoDatabaseSnapshotAccessor _accessor = null!;
 
     [GlobalSetup]
     public void Setup()
@@ -55,17 +55,17 @@ public class ZoneRenderBenchmarks
             new Dictionary<string, SnapshotZone> { [Alias] = zone },
             new HashSet<int>(),
             new HashSet<Guid>());
-        _accessor = new NoDatabaseSnapshotAccessor(snapshot);
+        var accessor = new NoDatabaseSnapshotAccessor(snapshot);
 
         IOptions<BannersOptions> options = Options.Create(new BannersOptions());
         var tokens = new ViewTokenProtector(new EphemeralDataProtectionProvider(), options);
         var selector = new BannerSelector(
-            _accessor,
+            accessor,
             new WeightedSampler(new SharedRandomSource()),
             new ScheduleFilter(TimeProvider.System));
         _renderer = new BannerZoneRenderer(
             selector,
-            _accessor,
+            accessor,
             new RequestedZoneRecorder(TimeProvider.System),
             new BannerZoneHtmlWriter(options, tokens));
 
@@ -74,18 +74,6 @@ public class ZoneRenderBenchmarks
         if (!html.Contains("data-mbz=\"" + Alias + "\"", StringComparison.Ordinal) || !html.Contains("<img", StringComparison.Ordinal))
         {
             throw new InvalidOperationException("The benchmark zone did not render banners; the measurement would be meaningless.");
-        }
-    }
-
-    [GlobalCleanup]
-    public void Cleanup()
-    {
-        // Every database touching member of the accessor throws, so a counter above zero would have failed the run
-        // already; this makes the claim visible in the output as well.
-        Console.WriteLine($"No database check: {_accessor.DatabaseCalls} database calls during the run (must be 0).");
-        if (_accessor.DatabaseCalls != 0)
-        {
-            throw new InvalidOperationException("The render path asked the snapshot accessor to read the database.");
         }
     }
 
@@ -104,11 +92,8 @@ public class ZoneRenderBenchmarks
     private sealed class NoDatabaseSnapshotAccessor : ILiveSnapshotAccessor
     {
         private readonly LiveSnapshot _snapshot;
-        private int _databaseCalls;
 
         public NoDatabaseSnapshotAccessor(LiveSnapshot snapshot) => _snapshot = snapshot;
-
-        public int DatabaseCalls => _databaseCalls;
 
         public LiveSnapshot Current => _snapshot;
 
@@ -120,13 +105,11 @@ public class ZoneRenderBenchmarks
 
         public Task RebuildAsync(IReadOnlySet<Guid>? mediaKeysTreatedAsMissing = null)
         {
-            Interlocked.Increment(ref _databaseCalls);
             throw new InvalidOperationException("A database read was attempted while rendering a zone (SC-003).");
         }
 
         public Task ReloadLimitsAsync(CancellationToken cancellationToken = default)
         {
-            Interlocked.Increment(ref _databaseCalls);
             throw new InvalidOperationException("A database read was attempted while rendering a zone (SC-003).");
         }
     }

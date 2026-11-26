@@ -35,6 +35,9 @@ jobs:
         run: dotnet build Meresoft.Umbraco.Banners.slnx --configuration Release
       - name: Unit tests
         run: dotnet test tests/Meresoft.Umbraco.Banners.Tests.Unit --configuration Release --no-build
+      # SC-003 gate: p95 of one zone render over 100,000 calls must be under 2 ms, with no database access.
+      - name: Zone render p95 gate (SC-003)
+        run: dotnet test tests/Meresoft.Umbraco.Banners.Tests.Unit --configuration Release --no-build --filter Category=Perf
 
   integration-tests-sqlite:
     runs-on: ubuntu-latest
