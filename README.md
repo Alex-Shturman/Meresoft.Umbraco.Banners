@@ -16,7 +16,7 @@ Contents: [Install](#install), [Place a zone](#place-a-zone), [Editor guide](#ed
 
 ## Install
 
-Requirements: Umbraco 17 on .NET 10. Umbraco 18 support is planned for a later release.
+Requirements: Umbraco 17.8 or later 17.x, on .NET 10.
 
 ```bash
 dotnet add package Meresoft.Umbraco.Banners
@@ -178,9 +178,9 @@ public sealed class OldStatisticsImporter(IBannerImportService import)
 
 `Add` adds to the rows that exist, `Replace` overwrites their counts. Both mark the rows as imported. Rows are written
 in batches of 1,000, one transaction per batch; if the database fails, the exception is thrown and the batches that
-were already committed stay, so rerun with `Replace` to fix a half done import. Limits count imported totals too. A
-`Replace` import rebuilds the live banner list, so a banner whose totals went down below its limit shows again; `Add`
-can only push totals up, and the next flush applies the limits.
+were already committed stay, so rerun with `Replace` to fix a half done import. Limits count imported totals too, and
+they apply right after the import: an `Add` import that raises a banner over its limit takes it off the site at once,
+and a `Replace` import rebuilds the live banner list, so a banner whose totals went down below its limit shows again.
 
 ## Privacy statement
 
@@ -207,6 +207,17 @@ The package has no automatic uninstall. In this order:
 2. Remove the package (`dotnet remove package Meresoft.Umbraco.Banners`) and deploy.
 3. Remove the package tables and the lock row, as described in
    [The package migration and its lock row](#the-package-migration-and-its-lock-row).
+4. Remove what the package left in Umbraco's own tables. Removing the package does not delete these, and they do no harm
+   if they stay (Umbraco ignores a section or permission it does not know), but you can clear them:
+
+   ```sql
+   DELETE FROM umbracoUserGroup2App WHERE app = 'Meresoft.Banners.Section';
+   DELETE FROM umbracoUserGroup2Permission WHERE permission = 'Meresoft.Banners.Html';
+   DELETE FROM umbracoLog WHERE entityType IN ('meresoft-banner', 'meresoft-banner-zone');
+   ```
+
+   The first two are the section access and the "Edit HTML banners" permission of the user groups. The last one is the
+   audit history of banners and zones; keep it if you want to keep that record.
 
 ## Reporting issues
 
@@ -327,6 +338,17 @@ changes group permissions on later upgrades, so other groups are given access in
 
 HTML banners are shown on the site exactly as stored, scripts included, so only give the HTML
 permission to people you trust with the code of your pages.
+
+## Integration tests on SQL Server
+
+The integration tests run on SQLite. Set `MB_TEST_SQLSERVER` to the connection string of the master database of a SQL
+Server (never commit it) and the same suite runs on SQL Server, every test carrying the category `SqlServer`:
+
+```bash
+MB_TEST_SQLSERVER="<connection string>" dotnet test tests/Meresoft.Umbraco.Banners.Tests.Integration --filter Category=SqlServer
+```
+
+Without the variable the category belongs only to the test that needs SQL Server and is skipped on SQLite.
 
 ## End-to-end tests
 
