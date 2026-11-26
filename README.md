@@ -107,9 +107,10 @@ later upgrades. To give another group access, open Users, then User groups, and:
 - under the **Banners** permissions, tick **Edit HTML banners** only for people you trust with the code of your
   pages. Without it an editor can still publish, unpublish, copy and delete HTML banners and read their statistics,
   but cannot create them or change their HTML;
-- for image banners, also give the group access to Media: tick the **Media** section.
-  Picking or uploading an image needs access to the Media section. Without it an editor can still work with HTML banners or edit
-  existing ones, but cannot choose an image.
+- for image banners, also give the group access to Media: tick the **Media** section and set a **Media start node**
+  (the media root, or a folder that holds the images). Picking or uploading an image needs both. Without them an editor
+  can still work with HTML banners or edit existing ones, but cannot choose an image; with the section but no start
+  node the media picker is empty.
 
 HTML banners are shown on the site exactly as stored, scripts included.
 

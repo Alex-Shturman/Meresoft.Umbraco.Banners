@@ -141,9 +141,11 @@ public sealed class SampleBannerEditorCreator : INotificationAsyncHandler<Umbrac
         // A sample site created before the group had the Media section keeps the old group in its database; bring it up to
         // date on every start. This is the sample's own invented group; the package itself never changes group permissions.
         IUserGroup? group = await _userGroupService.GetAsync(GroupAlias);
-        if (group is not null && !group.AllowedSections.Contains(Constants.Applications.Media))
+        // Picking an image needs the Media section AND a media start node; -1 (Constants.System.Root) is the media root.
+        if (group is not null && (!group.AllowedSections.Contains(Constants.Applications.Media) || group.StartMediaId != Constants.System.Root))
         {
             group.AddAllowedSection(Constants.Applications.Media);
+            group.StartMediaId = Constants.System.Root;
             var updated = await _userGroupService.UpdateAsync(group, Constants.Security.SuperUserKey);
             if (!updated.Success)
             {
@@ -165,6 +167,8 @@ public sealed class SampleBannerEditorCreator : INotificationAsyncHandler<Umbrac
                 Alias = GroupAlias,
                 Name = "Sample banner editors",
                 HasAccessToAllLanguages = true,
+                // Without a media start node the Media section is empty and no image can be picked.
+                StartMediaId = Constants.System.Root,
             };
             created.AddAllowedSection(Constants.Applications.Content);
             // Media is needed to pick or upload an image; the HTML permission is deliberately not given.
