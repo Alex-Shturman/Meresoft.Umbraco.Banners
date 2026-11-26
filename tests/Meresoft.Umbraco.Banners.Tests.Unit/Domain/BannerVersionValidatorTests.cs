@@ -99,6 +99,17 @@ public class BannerVersionValidatorTests
     [TestCase("//example.org/show")]
     [TestCase("https://")]
     [TestCase("not a url")]
+    [TestCase("https://example.org/a b")]
+    [TestCase(" https://example.org/show")]
+    [TestCase("https://example.org/show ")]
+    [TestCase("https://example.org/sh\u0007ow")]
+    [TestCase("https://example.org/a\tb")]
+    [TestCase("https://example.org/a\nb")]
+    [TestCase("https://example.org/a\rb")]
+    [TestCase("https://example.org/a\u0000b")]
+    [TestCase("https://example.org/a\u007fb")]
+    [TestCase("https://example.org/a\u00a0b")]
+    [TestCase("https://example.org/a\u2028b")]
     public void LinkUrl_NotAbsoluteHttp_Refused(string url)
     {
         Assert.That(ValidateImage(v => v.LinkUrl = url).Errors, Contains.Key("linkUrl"));

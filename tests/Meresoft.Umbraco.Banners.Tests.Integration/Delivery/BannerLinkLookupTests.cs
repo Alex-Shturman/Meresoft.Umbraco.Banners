@@ -49,6 +49,8 @@ public class BannerLinkLookupTests : BannersServiceTestBase
     [TestCase("ftp://example.org/file")]
     [TestCase("/relative/path")]
     [TestCase("https:///no-host")]
+    [TestCase("https://example.org/a b")]
+    [TestCase("https://example.org/a\r\nSet-Cookie: x=1")]
     public async Task ASnapshotBannerWithALinkThatIsNotAbsoluteHttp_GivesNoTarget(string link)
     {
         var banner = new Banner

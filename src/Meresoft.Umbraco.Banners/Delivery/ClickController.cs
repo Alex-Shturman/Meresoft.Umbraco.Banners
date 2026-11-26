@@ -1,5 +1,6 @@
 using System.Globalization;
 using Meresoft.Umbraco.Banners.Counting;
+using Meresoft.Umbraco.Banners.Domain;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Mvc;
@@ -61,7 +62,9 @@ public sealed class ClickController : ControllerBase
             _buffer.AddClick(DateOnly.FromDateTime(_timeProvider.GetUtcNow().UtcDateTime), banner, z);
         }
 
-        return Redirect(target.LinkUrl);
+        // The stored link was checked when it was saved and again by the lookup; the redirect still goes out in its
+        // normalised form, so what the browser receives is exactly what the Uri parser understood.
+        return LinkUrlRules.Normalize(target.LinkUrl) is { } normalised ? Redirect(normalised) : NotFound();
     }
 
     /// <summary>
