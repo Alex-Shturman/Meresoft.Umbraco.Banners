@@ -190,6 +190,154 @@ public class AuditTests : BannersApiTestBase
         Assert.That(Actions(await HistoryAsync("zones", _zoneKey)), Is.EqualTo(new[] { "new" }));
     }
 
+    /// <summary>The body of the editor for an image banner, as a dictionary, so a test can change one field.</summary>
+    private Dictionary<string, object?> ImageFields(Guid mediaKey, Guid[] zoneKeys, DateTime? updateDate) => new()
+    {
+        ["name"] = "Summer promo",
+        ["type"] = "image",
+        ["mediaKey"] = mediaKey,
+        ["linkUrl"] = "https://example.org/show",
+        ["openInNewWindow"] = false,
+        ["altText"] = "Invented summer promo",
+        ["title"] = null,
+        ["weight"] = 1,
+        ["startUtc"] = null,
+        ["endUtc"] = null,
+        ["impressionLimit"] = null,
+        ["clickLimit"] = null,
+        ["zoneKeys"] = zoneKeys,
+        ["updateDate"] = updateDate,
+    };
+
+    private async Task<DateTime> UpdateDateAsync(string path) =>
+        (await ReadAsync(await GetAsync(path))).GetProperty("updateDate").GetDateTime();
+
+    /// <summary>A real change is saved: the answer is 200, a "save" entry is written and the update date moves.</summary>
+    private async Task AssertSavedAsync(Guid key, object body, DateTime before)
+    {
+        HttpResponseMessage save = await PutAsync("/banners/" + key, body);
+        Assert.That(save.StatusCode, Is.EqualTo(HttpStatusCode.OK), await save.Content.ReadAsStringAsync());
+        Assert.Multiple(async () =>
+        {
+            Assert.That(Actions(await HistoryAsync("banners", key)), Is.EqualTo(new[] { "save", "new" }));
+            Assert.That(await UpdateDateAsync("/banners/" + key), Is.GreaterThan(before));
+        });
+    }
+
+    [TestCase("weight", 2)]
+    [TestCase("startUtc", "2027-04-01T00:00:00Z")]
+    [TestCase("endUtc", "2027-05-01T00:00:00Z")]
+    [TestCase("impressionLimit", 100)]
+    [TestCase("clickLimit", 10)]
+    [TestCase("openInNewWindow", true)]
+    [TestCase("title", "Invented title")]
+    [TestCase("altText", "Another invented text")]
+    [TestCase("linkUrl", "https://example.org/other")]
+    [TestCase("mediaKey", null)]
+    public async Task ChangingOneField_IsSaved_RecordsSaved_AndMovesTheUpdateDate(string field, object? value)
+    {
+        Guid key = await CreateBannerAsync(_media, _zoneKey);
+        DateTime before = await UpdateDateAsync("/banners/" + key);
+        Dictionary<string, object?> fields = ImageFields(_media, [_zoneKey], before);
+        fields[field] = field == "mediaKey" ? NewMediaKey() : value;
+        await Task.Delay(50); // The update date has a resolution of 10 ms.
+
+        await AssertSavedAsync(key, fields, before);
+    }
+
+    [Test]
+    public async Task ChangingTheZoneSet_IsSaved_RecordsSaved_AndMovesTheUpdateDate()
+    {
+        (Guid otherZone, _) = await CreateZoneAsync("audit-zone-two");
+        Guid key = await CreateBannerAsync(_media, _zoneKey);
+        DateTime before = await UpdateDateAsync("/banners/" + key);
+        await Task.Delay(50);
+
+        await AssertSavedAsync(key, ImageFields(_media, [_zoneKey, otherZone], before), before);
+    }
+
+    [Test]
+    public async Task ReorderedZoneList_IsNotAChange()
+    {
+        (Guid otherZone, _) = await CreateZoneAsync("audit-zone-two");
+        Guid key = await CreateBannerAsync(_media, _zoneKey, otherZone);
+        DateTime before = await UpdateDateAsync("/banners/" + key);
+
+        HttpResponseMessage save = await PutAsync("/banners/" + key, ImageFields(_media, [otherZone, _zoneKey], before));
+
+        Assert.That(save.StatusCode, Is.EqualTo(HttpStatusCode.OK), await save.Content.ReadAsStringAsync());
+        Assert.Multiple(async () =>
+        {
+            Assert.That(Actions(await HistoryAsync("banners", key)), Is.EqualTo(new[] { "new" }));
+            Assert.That(await UpdateDateAsync("/banners/" + key), Is.EqualTo(before));
+        });
+    }
+
+    private object HtmlFields(string html, DateTime? updateDate = null) => new
+    {
+        name = "Html offer",
+        type = "html",
+        html,
+        altText = "",
+        weight = 1,
+        openInNewWindow = false,
+        zoneKeys = new[] { _zoneKey },
+        updateDate,
+    };
+
+    private async Task<Guid> HtmlBannerAsync(string html)
+    {
+        HttpResponseMessage created = await PostAsync("/banners", HtmlFields(html));
+        Assert.That(created.StatusCode, Is.EqualTo(HttpStatusCode.Created), await created.Content.ReadAsStringAsync());
+        return KeyFromLocation(created);
+    }
+
+    [Test]
+    public async Task ChangingOnlyWhitespaceInTheHtml_IsSaved_ForAUserWithThePermission()
+    {
+        Guid key = await HtmlBannerAsync("<p>Invented html</p>");
+        DateTime before = await UpdateDateAsync("/banners/" + key);
+        await Task.Delay(50);
+
+        await AssertSavedAsync(key, HtmlFields("<p>Invented html</p>\n", before), before);
+    }
+
+    [Test]
+    public async Task WithoutTheHtmlPermission_AnUnchangedBody_IsANoOp_AndAWhitespaceChangeIsRefused()
+    {
+        Guid key = await HtmlBannerAsync("<p>Invented html</p>");
+        DateTime before = await UpdateDateAsync("/banners/" + key);
+        await SignInWithGroupsAsync("no-html-audit@test.invalid", (Section: true, Html: false));
+
+        HttpResponseMessage unchanged = await PutAsync("/banners/" + key, HtmlFields("<p>Invented html</p>", before));
+        HttpResponseMessage whitespace = await PutAsync("/banners/" + key, HtmlFields("<p>Invented html</p> ", before));
+
+        Assert.Multiple(async () =>
+        {
+            Assert.That(unchanged.StatusCode, Is.EqualTo(HttpStatusCode.OK));
+            Assert.That(whitespace.StatusCode, Is.EqualTo(HttpStatusCode.Forbidden));
+            Assert.That((await ReadAsync(whitespace)).GetProperty("type").GetString(), Does.EndWith("html-permission-required"));
+            Assert.That(Actions(await HistoryAsync("banners", key)), Is.EqualTo(new[] { "new" }));
+        });
+    }
+
+    [Test]
+    public async Task AStaleUpdateDate_WithABodyIdenticalToTheStoredDraft_StillGivesChangedByAnotherUser()
+    {
+        Guid key = await CreateBannerAsync(_media, _zoneKey);
+        DateTime stale = await UpdateDateAsync("/banners/" + key);
+        await Task.Delay(50);
+        Dictionary<string, object?> edited = ImageFields(_media, [_zoneKey], stale);
+        edited["name"] = "Edited promo";
+        Assert.That((await PutAsync("/banners/" + key, edited)).StatusCode, Is.EqualTo(HttpStatusCode.OK));
+
+        // The body now equals the stored draft, but it was loaded before the edit.
+        HttpResponseMessage save = await PutAsync("/banners/" + key, edited);
+
+        Assert.That(save.StatusCode, Is.EqualTo(HttpStatusCode.Conflict), await save.Content.ReadAsStringAsync());
+        Assert.That((await ReadAsync(save)).GetProperty("type").GetString(), Does.Contain("changed-by-another-user"));
+    }
+
     [Test]
     public async Task History_IsPaged()
     {
