@@ -5,11 +5,45 @@
   "AuthorDetails": {
     "Name": "Meresoft",
     "Description": "Open source tools for Umbraco.",
-    "Url": "https://github.com/Alex-Shturman"
+    "Url": "https://github.com/Alex-Shturman",
+    "ImageUrl": "https://github.com/Alex-Shturman.png"
   },
   "Category": "Editor Tools",
+  "AlternateCategory": "Campaign & Marketing",
+  "Tags": [ "banners", "ads", "campaigns", "rotation", "statistics", "privacy", "no cookies" ],
   "LicenseTypes": [ "Free" ],
   "PackageType": "Package",
+  "DiscussionForumUrl": "https://forum.umbraco.com/t/meresoft-banners-a-free-banner-manager-for-umbraco-17/8769",
   "IssueTrackerUrl": "https://github.com/Alex-Shturman/Meresoft.Umbraco.Banners/issues",
-  "DocumentationUrl": "https://github.com/Alex-Shturman/Meresoft.Umbraco.Banners#readme"
+  "DocumentationUrl": "https://github.com/Alex-Shturman/Meresoft.Umbraco.Banners#readme",
+  "Screenshots": [
+    {
+      "ImageUrl": "https://raw.githubusercontent.com/Alex-Shturman/Meresoft.Umbraco.Banners/main/docs/marketplace/01-cover.png",
+      "Caption": "One package and one tag helper: place a zone in a template, manage its banners in the back office."
+    },
+    {
+      "ImageUrl": "https://raw.githubusercontent.com/Alex-Shturman/Meresoft.Umbraco.Banners/main/docs/marketplace/02-banners.png",
+      "Caption": "All banners in one list, with their state (draft, published, scheduled, expired) and zones."
+    },
+    {
+      "ImageUrl": "https://raw.githubusercontent.com/Alex-Shturman/Meresoft.Umbraco.Banners/main/docs/marketplace/03-banner-editor.png",
+      "Caption": "An image banner: a picture from the media library, a link and alt text. Save keeps a draft, Publish makes it live."
+    },
+    {
+      "ImageUrl": "https://raw.githubusercontent.com/Alex-Shturman/Meresoft.Umbraco.Banners/main/docs/marketplace/04-schedule-limits-zones.png",
+      "Caption": "Weighted rotation, a schedule, impression and click limits, and the zones a banner appears in."
+    },
+    {
+      "ImageUrl": "https://raw.githubusercontent.com/Alex-Shturman/Meresoft.Umbraco.Banners/main/docs/marketplace/05-zones.png",
+      "Caption": "Zones are named places in your templates, each showing one or more banners at once."
+    },
+    {
+      "ImageUrl": "https://raw.githubusercontent.com/Alex-Shturman/Meresoft.Umbraco.Banners/main/docs/marketplace/06-report.png",
+      "Caption": "Viewable impressions and clicks per day, for any period, zone or banner, with CSV export."
+    },
+    {
+      "ImageUrl": "https://raw.githubusercontent.com/Alex-Shturman/Meresoft.Umbraco.Banners/main/docs/marketplace/07-report-by-banner.png",
+      "Caption": "Impressions, clicks and click rate for each banner in each zone. Sample data."
+    }
+  ]
 }
