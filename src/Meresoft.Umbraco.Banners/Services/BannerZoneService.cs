@@ -150,14 +150,22 @@ internal sealed class BannerZoneService : IBannerZoneService
         }
 
         DateTime loadedUpdateDate = zone.UpdateDate;
+        var before = Snapshot(zone);
         Apply(model, zone);
-        zone.UpdateDate = UtcTimestamp.Truncate(_timeProvider.GetUtcNow().UtcDateTime);
 
         FieldValidationResult validation = ZoneValidator.Validate(zone);
         if (!validation.IsValid)
         {
             return Attempt.FailWithStatus(BannerOperationStatus.InvalidData, zone, new BannerValidationException(validation));
         }
+
+        // Nothing changed: no write, no new update date, no audit entry and no cache refresh. The stored zone is the answer.
+        if (before == Snapshot(zone))
+        {
+            return Attempt.SucceedWithStatus(BannerOperationStatus.Success, zone);
+        }
+
+        zone.UpdateDate = UtcTimestamp.Truncate(_timeProvider.GetUtcNow().UtcDateTime);
 
         BannerZone? sameAlias = _zones.GetByAlias(zone.Alias);
         if (sameAlias is not null && sameAlias.Id != zone.Id)
@@ -219,6 +227,9 @@ internal sealed class BannerZoneService : IBannerZoneService
 
         return BannerOperationStatus.Success;
     }
+
+    private static (string Alias, string Name, string? Description, int ShowCount, int? ImageWidth, int? ImageHeight, ZoneRenderMode RenderMode) Snapshot(BannerZone zone) =>
+        (zone.Alias, zone.Name, zone.Description, zone.ShowCount, zone.ImageWidth, zone.ImageHeight, zone.RenderMode);
 
     private static void Apply(BannerZoneModel model, BannerZone zone)
     {

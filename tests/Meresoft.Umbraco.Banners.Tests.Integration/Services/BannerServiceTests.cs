@@ -236,6 +236,7 @@ public class BannerServiceTests : BannersServiceTestBase
         Banner banner = await NewBannerAsync(ImageDraft(_media, _zone.Key));
         Clock.Advance(TimeSpan.FromMinutes(1));
         BannerDraftModel first = ImageDraft(_media, _zone.Key);
+        first.Name = "Edited by the first editor"; // a real change; an identical save no longer moves the update date
         first.UpdateDate = banner.UpdateDate;
         await BannerService.SaveDraftAsync(banner.Key, first, User);
         Clock.Advance(TimeSpan.FromMinutes(1));

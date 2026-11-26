@@ -206,11 +206,19 @@ internal sealed class BannerService : IBannerService
 
             DateTime loadedUpdateDate = banner.UpdateDate;
             DateTime now = UtcTimestamp.Truncate(_timeProvider.GetUtcNow().UtcDateTime);
+            string unchangedBefore = ContentFingerprint(banner, banner.Draft);
             FieldValidationResult validation = ApplyDraft(banner, model, banner.Draft, now, userKey);
             AddMediaProblem(validation, mediaProblem);
             if (!validation.IsValid)
             {
                 return Fail(BannerOperationStatus.InvalidData, banner, validation);
+            }
+
+            // Nothing changed (the editor's Publish saves first): no write, no new update date, no audit entry. The
+            // scope is not completed, and the stored banner is read back below.
+            if (unchangedBefore == ContentFingerprint(banner, banner.Draft))
+            {
+                return await SucceedAsync(key);
             }
 
             // The write is guarded by the update date read above, so a save by someone else in between is not overwritten.
@@ -392,6 +400,23 @@ internal sealed class BannerService : IBannerService
         string? storedHtml = banner.Draft is not null ? banner.Draft.Html : banner.Live?.Html;
         return HtmlPermissionChecker.ChangesHtml(storedHtml, model.Html) || (model.Type == BannerType.Html && banner.Type != BannerType.Html);
     }
+
+    /// <summary>The editable content of a draft and the banner name, without the save date and user, to tell a real change from a repeat.</summary>
+    private static string ContentFingerprint(Banner banner, BannerVersion draft) => string.Join(
+        "\u001f",
+        banner.Name,
+        draft.MediaKey,
+        draft.Html,
+        draft.LinkUrl,
+        draft.OpenInNewWindow,
+        draft.AltText,
+        draft.Title,
+        draft.Weight,
+        draft.StartUtc?.Ticks,
+        draft.EndUtc?.Ticks,
+        draft.ImpressionLimit,
+        draft.ClickLimit,
+        string.Join(',', draft.ZoneIds.Order()));
 
     private static bool IsStale(DateTime? loaded, Banner banner) =>
         loaded is { } value && UtcTimestamp.Truncate(value) != banner.UpdateDate;

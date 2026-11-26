@@ -126,6 +126,71 @@ public class AuditTests : BannersApiTestBase
     }
 
     [Test]
+    public async Task UnpublishThenPublish_WithNoEdit_RecordsNoSavedEntry()
+    {
+        Guid key = await CreateBannerAsync(_media, _zoneKey);
+        await PublishAsync(key);
+        await PostAsync($"/banners/{key}/unpublish");
+        JsonElement loaded = await ReadAsync(await GetAsync("/banners/" + key));
+        DateTime updateDate = loaded.GetProperty("updateDate").GetDateTime();
+
+        // The editor's Publish saves the draft first; nothing was edited, so the body equals the stored draft.
+        HttpResponseMessage save = await PutAsync("/banners/" + key, BannerBody(_media, [_zoneKey], updateDate));
+        Assert.That(save.StatusCode, Is.EqualTo(HttpStatusCode.OK), await save.Content.ReadAsStringAsync());
+        Assert.That((await PublishAsync(key)).StatusCode, Is.EqualTo(HttpStatusCode.OK));
+
+        Assert.That(Actions(await HistoryAsync("banners", key)), Is.EqualTo(new[] { "publish", "unpublish", "publish", "new" }));
+    }
+
+    [Test]
+    public async Task SavingAnUnchangedBanner_DoesNotMoveTheUpdateDate()
+    {
+        Guid key = await CreateBannerAsync(_media, _zoneKey);
+        JsonElement loaded = await ReadAsync(await GetAsync("/banners/" + key));
+        DateTime updateDate = loaded.GetProperty("updateDate").GetDateTime();
+
+        HttpResponseMessage save = await PutAsync("/banners/" + key, BannerBody(_media, [_zoneKey], updateDate));
+        JsonElement saved = await ReadAsync(save);
+
+        Assert.Multiple(() =>
+        {
+            Assert.That(save.StatusCode, Is.EqualTo(HttpStatusCode.OK));
+            Assert.That(saved.GetProperty("updateDate").GetDateTime(), Is.EqualTo(updateDate));
+        });
+        Assert.That(Actions(await HistoryAsync("banners", key)), Is.EqualTo(new[] { "new" }));
+    }
+
+    [Test]
+    public async Task EditingABanner_ThenPublishing_RecordsSavedAndPublished()
+    {
+        Guid key = await CreateBannerAsync(_media, _zoneKey);
+        JsonElement loaded = await ReadAsync(await GetAsync("/banners/" + key));
+        object body = BannerBody(_media, [_zoneKey], loaded.GetProperty("updateDate").GetDateTime(), name: "Edited promo");
+
+        Assert.That((await PutAsync("/banners/" + key, body)).StatusCode, Is.EqualTo(HttpStatusCode.OK));
+        Assert.That((await PublishAsync(key)).StatusCode, Is.EqualTo(HttpStatusCode.OK));
+
+        Assert.That(Actions(await HistoryAsync("banners", key)), Is.EqualTo(new[] { "publish", "save", "new" }));
+    }
+
+    [Test]
+    public async Task SavingAnUnchangedZone_RecordsNoSavedEntry_AndKeepsTheUpdateDate()
+    {
+        JsonElement zone = await ReadAsync(await GetAsync("/zones/" + _zoneKey));
+        DateTime updateDate = zone.GetProperty("updateDate").GetDateTime();
+
+        HttpResponseMessage save = await PutAsync("/zones/" + _zoneKey, ZoneBody("audit-zone", updateDate));
+        JsonElement saved = await ReadAsync(save);
+
+        Assert.Multiple(() =>
+        {
+            Assert.That(save.StatusCode, Is.EqualTo(HttpStatusCode.OK));
+            Assert.That(saved.GetProperty("updateDate").GetDateTime(), Is.EqualTo(updateDate));
+        });
+        Assert.That(Actions(await HistoryAsync("zones", _zoneKey)), Is.EqualTo(new[] { "new" }));
+    }
+
+    [Test]
     public async Task History_IsPaged()
     {
         Guid key = await CreateBannerAsync(_media, _zoneKey);
