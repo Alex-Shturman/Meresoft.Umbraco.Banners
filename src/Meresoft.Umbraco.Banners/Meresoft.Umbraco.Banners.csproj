@@ -36,6 +36,8 @@
     <None Include="..\..\assets\icon.png" Pack="true" PackagePath="\" />
     <!-- Client (back office and script) sources are not packed; their build output under wwwroot is. -->
     <Content Remove="Client\**" />
+    <!-- Source maps stay on disk for local debugging but are neither served nor packed (the bundles do not reference them). -->
+    <Content Remove="wwwroot\**\*.map" />
     <None Remove="Client\**" />
     <Compile Remove="Client\**" />
     <EmbeddedResource Remove="Client\**" />
@@ -72,7 +74,7 @@
       -->
       <_StaleClientAsset Include="@(Content)" Condition="'%(Content.Identity)' != '' And !Exists('%(Content.FullPath)')" />
       <Content Remove="@(_StaleClientAsset)" />
-      <Content Include="wwwroot\**" Exclude="@(Content)" />
+      <Content Include="wwwroot\**" Exclude="@(Content);wwwroot\**\*.map" />
     </ItemGroup>
   </Target>
 

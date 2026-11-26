@@ -10,7 +10,7 @@ export default defineConfig({
     },
     outDir: "../wwwroot/App_Plugins/MeresoftBanners",
     emptyOutDir: true,
-    sourcemap: true,
+    sourcemap: "hidden", // the maps are written but not referenced, and the project leaves them out of the package
     rollupOptions: {
       external: [/^@umbraco/],
     },
