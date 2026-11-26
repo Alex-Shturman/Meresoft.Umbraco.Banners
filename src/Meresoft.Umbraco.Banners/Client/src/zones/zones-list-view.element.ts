@@ -9,6 +9,7 @@ import {
 import type { RequestedZoneResponseModel, ZoneResponseModel } from "../api/types.gen.js";
 import { configureBannersClient } from "../api/client-setup.js";
 import { client, navigate, send } from "../shared/api.js";
+import { formatDateTime } from "../shared/date-time.js";
 
 /** The zones table, and the zones that templates ask for but that do not exist yet. */
 @customElement("meresoft-zones-list-view")
@@ -86,7 +87,7 @@ export class MeresoftZonesListViewElement extends UmbLitElement {
             (r) => html`
               <li>
                 <code>${r.alias}</code>
-                <span class="seen">${this.localize.term("meresoftBanners_lastSeen")}: ${this.localize.date(r.lastSeen)}</span>
+                <span class="seen">${this.localize.term("meresoftBanners_lastSeen")}: ${formatDateTime(r.lastSeen)}</span>
                 <uui-button
                   look="primary"
                   compact
