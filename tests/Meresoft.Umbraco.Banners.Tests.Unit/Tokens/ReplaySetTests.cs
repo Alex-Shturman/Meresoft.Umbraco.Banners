@@ -241,4 +241,31 @@ public class ReplaySetTests
         public void Log<TState>(LogLevel logLevel, EventId eventId, TState state, Exception? exception, Func<TState, Exception?, string> formatter) =>
             Entries.Add((logLevel, formatter(state, exception)));
     }
+
+    /// <summary>
+    /// The cost of making room in a full set: it runs on the request that fills the set, so it must stay small. Filled with
+    /// distinct expiry times (none expired), so the eviction has to sort and cut, not just drop expired entries.
+    /// </summary>
+    [Test]
+    [Category("Perf")]
+    public void EvictingFromAFullSetOf100000Tokens_IsQuick_AndLeavesAtMostNinetyPercent()
+    {
+        const int capacity = 100_000;
+        ReplaySet set = Create(capacity);
+        for (int i = 0; i < capacity; i++)
+        {
+            Assert.That(set.TryAdd(Token(i), 0), Is.True);
+            _clock.Advance(TimeSpan.FromMilliseconds(1));
+        }
+
+        Assert.That(set.Count, Is.EqualTo(capacity));
+
+        var watch = System.Diagnostics.Stopwatch.StartNew();
+        bool added = set.TryAdd(Token(capacity), 0);
+        watch.Stop();
+
+        Assert.That(added, Is.True, "the new token is never refused");
+        Assert.That(set.Count, Is.LessThanOrEqualTo(capacity * 9 / 10 + 1), "cut down to 90% of capacity, plus the new token");
+        Assert.That(watch.ElapsedMilliseconds, Is.LessThan(500), "eviction of 100,000 entries");
+    }
 }
