@@ -4,8 +4,14 @@ using Meresoft.Umbraco.Banners.Persistence.Repositories;
 using Meresoft.Umbraco.Banners.Tests.Integration.TestSetup;
 using Microsoft.Extensions.DependencyInjection;
 using NUnit.Framework;
+using System.Data;
 using Umbraco.Cms.Core.DependencyInjection;
+using Umbraco.Cms.Core.Events;
+using Umbraco.Cms.Core.Persistence.Querying;
+using Umbraco.Cms.Core.Scoping;
 using Umbraco.Cms.Infrastructure.Scoping;
+using IScope = Umbraco.Cms.Infrastructure.Scoping.IScope;
+using IScopeProvider = Umbraco.Cms.Infrastructure.Scoping.IScopeProvider;
 
 namespace Meresoft.Umbraco.Banners.Tests.Integration.Counting;
 
@@ -13,6 +19,11 @@ namespace Meresoft.Umbraco.Banners.Tests.Integration.Counting;
 /// Counting under load (SC-004, SC-005): two in-process servers, each with its own buffer and flusher, share the one
 /// test database. A virtual clock steps the seconds, so 60 s of traffic runs in a moment, while the load itself comes
 /// from several threads and the flush of each interval runs next to the writers of the next second.
+/// Scope of the write check: the buffer and flusher level. Every database write scope of a server goes through a
+/// counting scope provider, so the test counts real write transactions (not calls it makes itself) and proves that
+/// none opens while views are only being reported, and that all the writes of an interval belong to one flush and
+/// stay within one transaction per counted row. What it does not drive is the timer of <c>BannersFlushJob</c>, which
+/// belongs to Umbraco's background job runner; the test calls the flush at each interval boundary of its virtual clock.
 /// </summary>
 [TestFixture]
 [Category("Load")]
@@ -58,9 +69,9 @@ public class CountingLoadTests : BannersServiceTestBase
     private Server NewServer(string name)
     {
         var buffer = new CounterBuffer(Clock);
-        var repository = new CountingRepository(ActivatorUtilities.CreateInstance<StatisticsRepository>(Services));
-        var flusher = ActivatorUtilities.CreateInstance<CounterFlusher>(Services, buffer, (IStatisticsRepository)repository);
-        return new Server(name, buffer, flusher, repository);
+        var scopes = new CountingScopeProvider(GetRequiredService<IScopeProvider>());
+        var flusher = ActivatorUtilities.CreateInstance<CounterFlusher>(Services, buffer, (IScopeProvider)scopes);
+        return new Server(name, buffer, flusher, scopes);
     }
 
     private void RunSeconds(Server[] servers, int seconds, int viewsPerSecondPerServer, int clickEvery)
@@ -131,7 +142,7 @@ public class CountingLoadTests : BannersServiceTestBase
         foreach (Server s in servers)
         {
             TestContext.Out.WriteLine(
-                $"  server {s.Name}: reported {s.Reported}, flush runs {s.Repository.FlushRuns}, max rows written in one flush {s.Repository.MaxRowsPerFlush}, intervals {((seconds - 1) / FlushIntervalSeconds) + 1}");
+                $"  server {s.Name}: reported {s.Reported}, flush windows {s.Scopes.Windows.Count}, write transactions {s.Scopes.WriteTransactions}, outside a flush {s.Scopes.WritesOutsideAFlush}, most in one flush {s.Scopes.Windows.Max()}, intervals {((seconds - 1) / FlushIntervalSeconds) + 1}");
         }
     }
 
@@ -148,13 +159,15 @@ public class CountingLoadTests : BannersServiceTestBase
         Assert.That(lossPercent, Is.LessThan(0.1), "loss over 0.1 %");
         Assert.That((flushedImpressions, flushedClicks), Is.EqualTo((reportedImpressions, reportedClicks)), "the flushed totals equal the reported ones");
 
-        // One flush per server per interval (the last one is the final flush at the end of the run), and each flush
-        // writes each row once, so a flush is one batch of at most one write per zone and banner.
+        // Real write transactions, counted by the scope provider the flusher uses: none outside a flush window, one
+        // flush window per interval (the last window is the final flush at the end of the run), and a window opens at
+        // most one transaction per counted row (one zone and banner pair each).
         int intervals = ((seconds - 1) / FlushIntervalSeconds) + 1;
         foreach (Server s in servers)
         {
-            Assert.That(s.Repository.FlushRuns, Is.EqualTo(intervals), $"flush runs of server {s.Name}");
-            Assert.That(s.Repository.MaxRowsPerFlush, Is.LessThanOrEqualTo(ZoneIds.Length), $"rows written in one flush of server {s.Name}");
+            Assert.That(s.Scopes.WritesOutsideAFlush, Is.EqualTo(0), $"write transactions of server {s.Name} outside a flush");
+            Assert.That(s.Scopes.Windows, Has.Count.EqualTo(intervals), $"flush windows of server {s.Name}");
+            Assert.That(s.Scopes.Windows.Max(), Is.LessThanOrEqualTo(ZoneIds.Length), $"write transactions in one flush of server {s.Name}");
         }
     }
 
@@ -163,12 +176,12 @@ public class CountingLoadTests : BannersServiceTestBase
         public long Impressions;
         public long Clicks;
 
-        public Server(string name, CounterBuffer buffer, CounterFlusher flusher, CountingRepository repository)
+        public Server(string name, CounterBuffer buffer, CounterFlusher flusher, CountingScopeProvider scopes)
         {
             Name = name;
             Buffer = buffer;
             Flusher = flusher;
-            Repository = repository;
+            Scopes = scopes;
         }
 
         public string Name { get; }
@@ -177,7 +190,7 @@ public class CountingLoadTests : BannersServiceTestBase
 
         public CounterFlusher Flusher { get; }
 
-        public CountingRepository Repository { get; }
+        public CountingScopeProvider Scopes { get; }
 
         public long Reported => Interlocked.Read(ref Impressions) + Interlocked.Read(ref Clicks);
 
@@ -187,52 +200,137 @@ public class CountingLoadTests : BannersServiceTestBase
 
         public void FlushOnce()
         {
-            Repository.BeginFlush();
-            Flusher.Flush();
-            Repository.EndFlush();
+            Scopes.BeginWindow();
+            try
+            {
+                Flusher.Flush();
+            }
+            finally
+            {
+                Scopes.EndWindow();
+            }
         }
     }
 
-    /// <summary>Counts the flush runs and the rows each of them wrote, around the real repository.</summary>
-    private sealed class CountingRepository : IStatisticsRepository
+    /// <summary>
+    /// Wraps the real scope provider and counts the scopes that are meant to write (not auto completing). A scope created
+    /// on the thread that is inside a flush window belongs to that window; any other is a write outside a flush.
+    /// </summary>
+    private sealed class CountingScopeProvider : IScopeProvider
     {
-        private readonly IStatisticsRepository _inner;
-        private int _rowsInFlush;
-        private int _flushRuns;
-        private int _maxRows;
+        [ThreadStatic]
+        private static int _currentWindow;
 
-        public CountingRepository(IStatisticsRepository inner) => _inner = inner;
+        private readonly IScopeProvider _inner;
+        private readonly object _gate = new();
+        private readonly List<int> _windows = [];
+        private int _outside;
 
-        public int FlushRuns => Volatile.Read(ref _flushRuns);
+        public CountingScopeProvider(IScopeProvider inner) => _inner = inner;
 
-        public int MaxRowsPerFlush => Volatile.Read(ref _maxRows);
+        public IScopeContext? Context => _inner.Context;
 
-        public void BeginFlush() => Volatile.Write(ref _rowsInFlush, 0);
+        public global::Umbraco.Cms.Infrastructure.Persistence.ISqlContext SqlContext => _inner.SqlContext;
 
-        public void EndFlush()
+        /// <summary>Write transactions per flush window, in order.</summary>
+        public IReadOnlyList<int> Windows
         {
-            Interlocked.Increment(ref _flushRuns);
-            int rows = Volatile.Read(ref _rowsInFlush);
-            int max;
-            do
+            get
             {
-                max = Volatile.Read(ref _maxRows);
+                lock (_gate)
+                {
+                    return [.. _windows];
+                }
             }
-            while (rows > max && Interlocked.CompareExchange(ref _maxRows, rows, max) != max);
         }
 
-        public void AddDelta(CounterEntry delta)
+        public int WriteTransactions
         {
-            Interlocked.Increment(ref _rowsInFlush);
-            _inner.AddDelta(delta);
+            get
+            {
+                lock (_gate)
+                {
+                    return _windows.Sum() + _outside;
+                }
+            }
         }
 
-        public IReadOnlyList<DailyStatRow> GetDailyRows(DateOnly from, DateOnly to, int? zoneId, int? bannerId) =>
-            _inner.GetDailyRows(from, to, zoneId, bannerId);
+        public int WritesOutsideAFlush
+        {
+            get
+            {
+                lock (_gate)
+                {
+                    return _outside;
+                }
+            }
+        }
 
-        public bool Import(DateOnly day, int bannerId, int zoneId, long impressions, long clicks, bool replace) =>
-            _inner.Import(day, bannerId, zoneId, impressions, clicks, replace);
+        public void BeginWindow()
+        {
+            lock (_gate)
+            {
+                _windows.Add(0);
+                _currentWindow = _windows.Count;
+            }
+        }
 
-        public IReadOnlyDictionary<int, BannerTotals> GetTotals(IReadOnlyCollection<int> bannerIds) => _inner.GetTotals(bannerIds);
+        public void EndWindow() => _currentWindow = 0;
+
+        private void CountWrite()
+        {
+            lock (_gate)
+            {
+                if (_currentWindow > 0)
+                {
+                    _windows[_currentWindow - 1]++;
+                }
+                else
+                {
+                    _outside++;
+                }
+            }
+        }
+
+        public IScope CreateScope(
+            IsolationLevel isolationLevel = IsolationLevel.Unspecified,
+            RepositoryCacheMode repositoryCacheMode = RepositoryCacheMode.Unspecified,
+            IEventDispatcher? eventDispatcher = null,
+            IScopedNotificationPublisher? scopedNotificationPublisher = null,
+            bool? scopeFileSystems = null,
+            bool callContext = false,
+            bool autoComplete = false)
+        {
+            if (!autoComplete)
+            {
+                CountWrite();
+            }
+
+            return _inner.CreateScope(isolationLevel, repositoryCacheMode, eventDispatcher, scopedNotificationPublisher, scopeFileSystems, callContext, autoComplete);
+        }
+
+        public ICoreScope CreateCoreScope(
+            IsolationLevel isolationLevel = IsolationLevel.Unspecified,
+            RepositoryCacheMode repositoryCacheMode = RepositoryCacheMode.Unspecified,
+            IEventDispatcher? eventDispatcher = null,
+            IScopedNotificationPublisher? scopedNotificationPublisher = null,
+            bool? scopeFileSystems = null,
+            bool callContext = false,
+            bool autoComplete = false) =>
+            _inner.CreateCoreScope(isolationLevel, repositoryCacheMode, eventDispatcher, scopedNotificationPublisher, scopeFileSystems, callContext, autoComplete);
+
+        public IScope CreateDetachedScope(
+            IsolationLevel isolationLevel = IsolationLevel.Unspecified,
+            RepositoryCacheMode repositoryCacheMode = RepositoryCacheMode.Unspecified,
+            IEventDispatcher? eventDispatcher = null,
+            IScopedNotificationPublisher? scopedNotificationPublisher = null,
+            bool? scopeFileSystems = null) =>
+            _inner.CreateDetachedScope(isolationLevel, repositoryCacheMode, eventDispatcher, scopedNotificationPublisher, scopeFileSystems);
+
+        public void AttachScope(IScope other, bool callContext = false) => _inner.AttachScope(other, callContext);
+
+        public IScope DetachScope() => _inner.DetachScope();
+
+        public IQuery<T> CreateQuery<T>() => _inner.CreateQuery<T>();
     }
 }
