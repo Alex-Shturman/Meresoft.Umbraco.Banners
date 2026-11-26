@@ -26,6 +26,7 @@ import { client, fieldErrors, keyFromLocation, navigate, send, type ApiProblem }
 import { resolveUtc, userTimeZone, utcToLocalInput } from "../shared/date-time.js";
 import { STATE_DISPLAY, activeFlags, limitToText, parseLimit, showsClickLimit } from "./banner-state.js";
 import { createAndPublish, createdBanner } from "./create-and-publish.js";
+import { publishFailure } from "./publish-failure.js";
 import { PendingProblemStore } from "./pending-problem.js";
 import { canEditHtml, htmlFieldAccess, offeredBannerTypes } from "./html-permission.js";
 import "./banner-history.element.js";
@@ -275,13 +276,13 @@ export class MeresoftBannerEditorElement extends UmbLitElement {
   }
 
   /** Shows why publishing failed; a banner without a zone gets the error on the zone field. */
-  #failPublish(status: number, problem: ApiProblem | undefined) {
-    this.#fail(status, problem);
-    if (problem?.type === "no-zone-assigned") {
-      this._errors = { zoneKeys: problem.detail ?? "" };
-    } else if (!this._missing && !this._conflict && !this._problem && Object.keys(this._errors).length === 0) {
-      // Nothing the server said can be shown (a 500, a lost connection): the editor still has to be told.
-      this._problem = this.localize.term("meresoftBanners_bannerPublishFailed");
+  #failPublish(status: number, problem: ApiProblem | undefined, afterCreate = false) {
+    const view = publishFailure(status, problem, this.localize.term("meresoftBanners_bannerPublishFailed"), afterCreate);
+    this._errors = view.errors;
+    this._problem = view.problem;
+    this._conflict = view.conflict;
+    if (view.missing) {
+      this._missing = true;
     }
   }
 
@@ -356,9 +357,8 @@ export class MeresoftBannerEditorElement extends UmbLitElement {
     if (outcome.kind === "published") {
       this.#toast("meresoftBanners_bannerPublished");
     } else {
-      this.#failPublish(outcome.result.status, outcome.result.problem);
-      // A failed load of the new banner (a 404 included) is not a missing page here; the edit page loads it again.
-      this._missing = false;
+      // A 404 right after the create is not a missing page: the edit page loads the banner again and shows the message.
+      this.#failPublish(outcome.result.status, outcome.result.problem, true);
       pendingProblems.set({
         key: outcome.key,
         errors: this._errors,
