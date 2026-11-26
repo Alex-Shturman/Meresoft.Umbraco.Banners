@@ -292,6 +292,10 @@ the key ring, which Umbraco needs for back office sign-in anyway.
 
 ### Cached pages
 
+Right after a site start, before the first banner list is built, a zone waits for the build for up to 2 seconds. If it
+is still not built after that, the zone is left empty and the page is sent with `Cache-Control: no-store` (when its
+headers have not started), so a cache does not keep the empty answer.
+
 In server mode a zone is written into the page, together with its view token. When the whole page is
 cached (output cache, a CDN), every visitor receives the same markup and the same token, so the token is
 replayed. The first report counts and the later ones are refused as repeats, so impressions on a cached

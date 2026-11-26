@@ -20,9 +20,11 @@ public sealed class BannerZoneViewComponent : ViewComponent
     }
 
     /// <summary>Renders the zone.</summary>
-    public IViewComponentResult Invoke(string alias, string? cssClass = null)
+    public async Task<IViewComponentResult> InvokeAsync(string alias, string? cssClass = null)
     {
-        IDictionary<object, object?> items = _httpContextAccessor.HttpContext?.Items ?? new Dictionary<object, object?>();
-        return new HtmlContentViewComponentResult(new HtmlString(_renderer.Render(items, _renderer.Select(alias), cssClass, null)));
+        HttpContext? httpContext = _httpContextAccessor.HttpContext;
+        IDictionary<object, object?> items = httpContext?.Items ?? new Dictionary<object, object?>();
+        ZoneSelection selection = await _renderer.SelectAsync(alias, httpContext);
+        return new HtmlContentViewComponentResult(new HtmlString(_renderer.Render(items, selection, cssClass, null)));
     }
 }

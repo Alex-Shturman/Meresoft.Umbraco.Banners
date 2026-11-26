@@ -21,6 +21,7 @@ internal sealed class LiveSnapshotAccessor : ILiveSnapshotAccessor
     private volatile LiveSnapshot _current = LiveSnapshot.Empty;
     private volatile bool _built;
     private volatile bool _startupBuildFinished;
+    private readonly TaskCompletionSource _buildSignal = new(TaskCreationOptions.RunContinuationsAsynchronously);
     private int _warnedBeforeFirstBuild;
     private int _notedStartupWindow;
 
@@ -55,7 +56,37 @@ internal sealed class LiveSnapshotAccessor : ILiveSnapshotAccessor
 
     public bool IsBuilt => _built;
 
-    public void MarkStartupBuildFinished() => _startupBuildFinished = true;
+    public void MarkStartupBuildFinished()
+    {
+        _startupBuildFinished = true;
+
+        // Releases the waiters: when the build was given up, waiting longer would not help.
+        _buildSignal.TrySetResult();
+    }
+
+    public async Task<bool> WaitForFirstBuildAsync(TimeSpan timeout, CancellationToken cancellationToken = default)
+    {
+        if (_built)
+        {
+            return true;
+        }
+
+        if (_startupBuildFinished)
+        {
+            return false;
+        }
+
+        try
+        {
+            await _buildSignal.Task.WaitAsync(timeout, cancellationToken);
+        }
+        catch (TimeoutException)
+        {
+            // The bound was reached: the caller goes on without the snapshot.
+        }
+
+        return _built;
+    }
 
     private void NoteReadBeforeFirstBuild()
     {
@@ -97,6 +128,7 @@ internal sealed class LiveSnapshotAccessor : ILiveSnapshotAccessor
 
             _current = await _builder.BuildAsync(zones, banners, mediaKeysTreatedAsMissing, totals);
             _built = true;
+            _buildSignal.TrySetResult();
             _logger.LogDebug("Banner snapshot rebuilt: {ZoneCount} zones, {MissingImageCount} banners with a missing image.", zones.Count, _current.ImageMissingBannerIds.Count);
         }
         finally

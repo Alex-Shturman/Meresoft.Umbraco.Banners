@@ -166,7 +166,7 @@ public class ZoneRenderingTests : BannersServiceTestBase
         await PublishBannerInZoneAsync();
         BannerZoneViewComponent component = ActivatorUtilities.CreateInstance<BannerZoneViewComponent>(Services);
 
-        IViewComponentResult result = component.Invoke("home-top", "my-ads");
+        IViewComponentResult result = await component.InvokeAsync("home-top", "my-ads");
 
         using var writer = new StringWriter();
         ((HtmlContentViewComponentResult)result).EncodedContent.WriteTo(writer, HtmlEncoder.Default);
@@ -185,7 +185,7 @@ public class ZoneRenderingTests : BannersServiceTestBase
 
         string tag = await RenderTagHelperAsync(new DefaultHttpContext(), "home-top");
         string unknown = await RenderTagHelperAsync(new DefaultHttpContext(), "not-there");
-        _ = ActivatorUtilities.CreateInstance<BannerZoneViewComponent>(Services).Invoke("home-top", null);
+        _ = await ActivatorUtilities.CreateInstance<BannerZoneViewComponent>(Services).InvokeAsync("home-top", null);
 
         Assert.That(tag, Is.Not.Empty);
         Assert.That(unknown, Is.Empty);
@@ -210,10 +210,42 @@ public class ZoneRenderingTests : BannersServiceTestBase
     [Test]
     public async Task UnknownAlias_RendersNothing_AndIsRecordedAsRequested()
     {
+        await GetRequiredService<ILiveSnapshotAccessor>().RebuildAsync();
         string html = await RenderTagHelperAsync(new DefaultHttpContext(), "Brand-New");
 
         Assert.That(html, Is.Empty);
         Assert.That(GetRequiredService<RequestedZoneRecorder>().Snapshot().Select(r => r.Alias), Does.Contain("brand-new"));
+    }
+
+    [Test]
+    public async Task BeforeTheFirstBuild_ARenderWaitsForIt_ThenAnswersFromTheSnapshot()
+    {
+        var http = new DefaultHttpContext();
+        ILiveSnapshotAccessor accessor = GetRequiredService<ILiveSnapshotAccessor>();
+        Assert.That(accessor.IsBuilt, Is.False, "precondition: no build yet");
+
+        Task<string> render = RenderTagHelperAsync(http, "late-zone");
+        await Task.Delay(100);
+        Assert.That(render.IsCompleted, Is.False, "the render waits for the build");
+        await accessor.RebuildAsync();
+
+        Assert.That(await render.WaitAsync(TimeSpan.FromSeconds(1)), Is.Empty);
+        Assert.That(http.Response.Headers.CacheControl.ToString(), Is.Empty);
+        Assert.That(GetRequiredService<RequestedZoneRecorder>().Snapshot().Select(r => r.Alias), Does.Contain("late-zone"), "after the build the zone is known to be missing");
+    }
+
+    [Test]
+    public async Task WhenTheFirstBuildNeverComes_TheRenderEndsAfterTheBound_WithNoStore_AndNoRequestedZone()
+    {
+        var http = new DefaultHttpContext();
+        var watch = System.Diagnostics.Stopwatch.StartNew();
+
+        string html = await RenderTagHelperAsync(http, "never-built");
+
+        Assert.That(html, Is.Empty);
+        Assert.That(watch.Elapsed, Is.LessThan(TimeSpan.FromSeconds(5)));
+        Assert.That(http.Response.Headers.CacheControl.ToString(), Is.EqualTo("no-store"));
+        Assert.That(GetRequiredService<RequestedZoneRecorder>().Snapshot(), Is.Empty);
     }
 
     [Test]

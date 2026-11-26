@@ -2,6 +2,7 @@ using Meresoft.Umbraco.Banners.Caching;
 using Meresoft.Umbraco.Banners.Counting;
 using Meresoft.Umbraco.Banners.Domain;
 using Meresoft.Umbraco.Banners.Selection;
+using Microsoft.AspNetCore.Http;
 
 namespace Meresoft.Umbraco.Banners.Rendering;
 
@@ -11,6 +12,11 @@ public sealed class BannerZoneRenderer
     private readonly IBannerSelector _selector;
     private readonly ILiveSnapshotAccessor _snapshot;
     private readonly RequestedZoneRecorder _recorder;
+    /// <summary>How long a render waits for the start up build of the snapshot, at most.</summary>
+    internal static readonly TimeSpan StartupWait = TimeSpan.FromSeconds(2);
+
+    private const string WaitTimedOutKey = "Meresoft.Banners.StartupWaitTimedOut";
+
     private readonly BannerZoneHtmlWriter _writer;
 
     /// <summary>Creates the renderer.</summary>
@@ -44,6 +50,39 @@ public sealed class BannerZoneRenderer
         return zone.RenderMode == ZoneRenderMode.Client
             ? new ZoneSelection(normalised, [], ZoneRenderMode.Client)
             : new ZoneSelection(normalised, _selector.Select(normalised));
+    }
+
+    /// <summary>
+    /// Same as <see cref="Select"/>, but safe before the first snapshot build: it waits for the start up build, at most
+    /// 2 seconds for the whole request, and when the snapshot is still not built it answers empty without noting the zone as
+    /// requested and marks the response <c>Cache-Control: no-store</c> (if its headers have not started), so a cache cannot
+    /// keep the empty answer. Memory only when the snapshot is built.
+    /// </summary>
+    public async ValueTask<ZoneSelection> SelectAsync(string? alias, HttpContext? httpContext)
+    {
+        if (_snapshot.IsBuilt)
+        {
+            return Select(alias);
+        }
+
+        bool timedOutBefore = httpContext?.Items.ContainsKey(WaitTimedOutKey) == true;
+        bool built = !timedOutBefore
+            && await _snapshot.WaitForFirstBuildAsync(StartupWait, httpContext?.RequestAborted ?? CancellationToken.None);
+        if (built || _snapshot.IsBuilt)
+        {
+            return Select(alias);
+        }
+
+        if (httpContext is not null)
+        {
+            httpContext.Items[WaitTimedOutKey] = true;
+            if (!httpContext.Response.HasStarted)
+            {
+                httpContext.Response.Headers.CacheControl = "no-store";
+            }
+        }
+
+        return new ZoneSelection(AliasNormalizer.Normalize(alias), []);
     }
 
     /// <summary>
